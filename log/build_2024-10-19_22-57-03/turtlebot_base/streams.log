@@ -1,0 +1,48 @@
+[0.079s] Invoking command in '/media/sf_MacShare/turtlebot_simulator/build/turtlebot_base': CMAKE_PREFIX_PATH=/opt/ros/humble /usr/bin/cmake /media/sf_MacShare/turtlebot_simulator/src/turtlebot_base -DCMAKE_INSTALL_PREFIX=/media/sf_MacShare/turtlebot_simulator/install/turtlebot_base
+[0.480s] -- The C compiler identification is GNU 11.4.0
+[0.781s] -- The CXX compiler identification is GNU 11.4.0
+[0.830s] -- Detecting C compiler ABI info
+[1.219s] -- Detecting C compiler ABI info - done
+[1.248s] -- Check for working C compiler: /usr/bin/cc - skipped
+[1.251s] -- Detecting C compile features
+[1.255s] -- Detecting C compile features - done
+[1.287s] -- Detecting CXX compiler ABI info
+[1.719s] -- Detecting CXX compiler ABI info - done
+[1.751s] -- Check for working CXX compiler: /usr/bin/c++ - skipped
+[1.754s] -- Detecting CXX compile features
+[1.758s] -- Detecting CXX compile features - done
+[1.804s] -- Found ament_cmake: 1.3.10 (/opt/ros/humble/share/ament_cmake/cmake)
+[1.949s] -- Found Python3: /usr/bin/python3 (found version "3.10.12") found components: Interpreter 
+[2.160s] -- Found ament_lint_auto: 0.12.11 (/opt/ros/humble/share/ament_lint_auto/cmake)
+[2.492s] -- Added test 'flake8' to check Python code syntax and style conventions
+[2.512s] -- Added test 'lint_cmake' to check CMake code style
+[2.526s] -- Added test 'pep257' to check Python code against some of the docstring style conventions in PEP 257
+[2.602s] -- Added test 'xmllint' to check XML markup files
+[2.679s] -- Configuring done
+[2.812s] -- Generating done
+[2.859s] -- Build files have been written to: /media/sf_MacShare/turtlebot_simulator/build/turtlebot_base
+[2.866s] Invoked command in '/media/sf_MacShare/turtlebot_simulator/build/turtlebot_base' returned '0': CMAKE_PREFIX_PATH=/opt/ros/humble /usr/bin/cmake /media/sf_MacShare/turtlebot_simulator/src/turtlebot_base -DCMAKE_INSTALL_PREFIX=/media/sf_MacShare/turtlebot_simulator/install/turtlebot_base
+[2.877s] Invoking command in '/media/sf_MacShare/turtlebot_simulator/build/turtlebot_base': CMAKE_PREFIX_PATH=/opt/ros/humble /usr/bin/cmake --build /media/sf_MacShare/turtlebot_simulator/build/turtlebot_base -- -j12 -l12
+[2.895s] gmake: Warning: File 'Makefile' has modification time 26 s in the future
+[2.946s] gmake[1]: Warning: File 'CMakeFiles/Makefile2' has modification time 26 s in the future
+[2.949s] gmake[1]: warning:  Clock skew detected.  Your build may be incomplete.
+[2.958s] gmake: warning:  Clock skew detected.  Your build may be incomplete.
+[2.965s] Invoked command in '/media/sf_MacShare/turtlebot_simulator/build/turtlebot_base' returned '0': CMAKE_PREFIX_PATH=/opt/ros/humble /usr/bin/cmake --build /media/sf_MacShare/turtlebot_simulator/build/turtlebot_base -- -j12 -l12
+[3.041s] Invoking command in '/media/sf_MacShare/turtlebot_simulator/build/turtlebot_base': CMAKE_PREFIX_PATH=/opt/ros/humble /usr/bin/cmake --install /media/sf_MacShare/turtlebot_simulator/build/turtlebot_base
+[3.052s] -- Install configuration: ""
+[3.063s] -- Installing: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/ament_index/resource_index/package_run_dependencies/turtlebot_base
+[3.092s] -- Installing: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/ament_index/resource_index/parent_prefix_path/turtlebot_base
+[3.114s] -- Installing: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/environment/ament_prefix_path.sh
+[3.130s] -- Installing: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/environment/ament_prefix_path.dsv
+[3.148s] -- Installing: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/environment/path.sh
+[3.163s] -- Installing: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/environment/path.dsv
+[3.181s] -- Installing: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/local_setup.bash
+[3.204s] -- Installing: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/local_setup.sh
+[3.222s] -- Installing: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/local_setup.zsh
+[3.238s] -- Installing: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/local_setup.dsv
+[3.256s] -- Installing: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/package.dsv
+[3.277s] -- Installing: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/ament_index/resource_index/packages/turtlebot_base
+[3.304s] -- Installing: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/cmake/turtlebot_baseConfig.cmake
+[3.323s] -- Installing: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/cmake/turtlebot_baseConfig-version.cmake
+[3.339s] -- Installing: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/package.xml
+[3.359s] Invoked command in '/media/sf_MacShare/turtlebot_simulator/build/turtlebot_base' returned '0': CMAKE_PREFIX_PATH=/opt/ros/humble /usr/bin/cmake --install /media/sf_MacShare/turtlebot_simulator/build/turtlebot_base

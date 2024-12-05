@@ -1,0 +1,151 @@
+[0.000000] (-) TimerEvent: {}
+[0.005650] (agent_control) JobQueued: {'identifier': 'agent_control', 'dependencies': OrderedDict()}
+[0.006579] (turtlebot_base) JobQueued: {'identifier': 'turtlebot_base', 'dependencies': OrderedDict()}
+[0.007452] (agent_control) JobStarted: {'identifier': 'agent_control'}
+[0.105693] (-) TimerEvent: {}
+[0.121450] (turtlebot_base) JobStarted: {'identifier': 'turtlebot_base'}
+[0.205998] (-) TimerEvent: {}
+[0.311835] (-) TimerEvent: {}
+[0.415972] (-) TimerEvent: {}
+[0.518830] (-) TimerEvent: {}
+[0.557310] (turtlebot_base) JobProgress: {'identifier': 'turtlebot_base', 'progress': 'cmake'}
+[0.599507] (turtlebot_base) JobProgress: {'identifier': 'turtlebot_base', 'progress': 'build'}
+[0.602866] (turtlebot_base) Command: {'cmd': ['/usr/bin/cmake', '--build', '/media/sf_MacShare/turtlebot_simulator/build/turtlebot_base', '--', '-j12', '-l12'], 'cwd': '/media/sf_MacShare/turtlebot_simulator/build/turtlebot_base', 'env': OrderedDict([('GJS_DEBUG_TOPICS', 'JS ERROR;JS LOG'), ('LESSOPEN', '| /usr/bin/lesspipe %s'), ('USER', 'stufmuff'), ('XDG_SESSION_TYPE', 'wayland'), ('SHLVL', '1'), ('LD_LIBRARY_PATH', '/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/aarch64-linux-gnu:/opt/ros/humble/lib'), ('HOME', '/home/stufmuff'), ('OLDPWD', '/media/sf_MacShare/turtlebot_simulator/src'), ('DESKTOP_SESSION', 'ubuntu'), ('GIO_LAUNCHED_DESKTOP_FILE', '/usr/share/applications/terminator.desktop'), ('ROS_PYTHON_VERSION', '3'), ('GNOME_SHELL_SESSION_MODE', 'ubuntu'), ('GTK_MODULES', 'gail:atk-bridge'), ('MANAGERPID', '1567'), ('SYSTEMD_EXEC_PID', '1726'), ('DBUS_SESSION_BUS_ADDRESS', 'unix:path=/run/user/1000/bus'), ('COLORTERM', 'truecolor'), ('TERMINATOR_DBUS_NAME', 'net.tenshu.Terminator25ef4b219e3b005583550f2b0f9f990c3'), ('GIO_LAUNCHED_DESKTOP_FILE_PID', '2284'), ('IM_CONFIG_PHASE', '1'), ('WAYLAND_DISPLAY', 'wayland-0'), ('ROS_DISTRO', 'humble'), ('LOGNAME', 'stufmuff'), ('JOURNAL_STREAM', '8:16076'), ('_', '/usr/bin/colcon'), ('ROS_VERSION', '2'), ('XDG_SESSION_CLASS', 'user'), ('USERNAME', 'stufmuff'), ('TERM', 'xterm-256color'), ('GNOME_DESKTOP_SESSION_ID', 'this-is-deprecated'), ('ROS_LOCALHOST_ONLY', '0'), ('PATH', '/opt/ros/humble/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/snap/bin'), ('SESSION_MANAGER', 'local/stufmuff:@/tmp/.ICE-unix/1701,unix/stufmuff:/tmp/.ICE-unix/1701'), ('INVOCATION_ID', '7e48969594a14b81b4f7c276a7b389f3'), ('XDG_MENU_PREFIX', 'gnome-'), ('GNOME_SETUP_DISPLAY', ':1'), ('XDG_RUNTIME_DIR', '/run/user/1000'), ('DISPLAY', ':0'), ('TERMINATOR_DBUS_PATH', '/net/tenshu/Terminator2'), ('LANG', 'en_US.UTF-8'), ('XDG_CURRENT_DESKTOP', 'ubuntu:GNOME'), ('IBUS_DISABLE_SNOOPER', '1'), ('XMODIFIERS', '@im=ibus'), ('XDG_SESSION_DESKTOP', 'ubuntu'), ('XAUTHORITY', '/run/user/1000/.mutter-Xwaylandauth.VJF6X2'), ('LS_COLORS', 'rs=0:di=01;34:ln=01;36:mh=00:pi=40;33:so=01;35:do=01;35:bd=40;33;01:cd=40;33;01:or=40;31;01:mi=00:su=37;41:sg=30;43:ca=30;41:tw=30;42:ow=34;42:st=37;44:ex=01;32:*.tar=01;31:*.tgz=01;31:*.arc=01;31:*.arj=01;31:*.taz=01;31:*.lha=01;31:*.lz4=01;31:*.lzh=01;31:*.lzma=01;31:*.tlz=01;31:*.txz=01;31:*.tzo=01;31:*.t7z=01;31:*.zip=01;31:*.z=01;31:*.dz=01;31:*.gz=01;31:*.lrz=01;31:*.lz=01;31:*.lzo=01;31:*.xz=01;31:*.zst=01;31:*.tzst=01;31:*.bz2=01;31:*.bz=01;31:*.tbz=01;31:*.tbz2=01;31:*.tz=01;31:*.deb=01;31:*.rpm=01;31:*.jar=01;31:*.war=01;31:*.ear=01;31:*.sar=01;31:*.rar=01;31:*.alz=01;31:*.ace=01;31:*.zoo=01;31:*.cpio=01;31:*.7z=01;31:*.rz=01;31:*.cab=01;31:*.wim=01;31:*.swm=01;31:*.dwm=01;31:*.esd=01;31:*.jpg=01;35:*.jpeg=01;35:*.mjpg=01;35:*.mjpeg=01;35:*.gif=01;35:*.bmp=01;35:*.pbm=01;35:*.pgm=01;35:*.ppm=01;35:*.tga=01;35:*.xbm=01;35:*.xpm=01;35:*.tif=01;35:*.tiff=01;35:*.png=01;35:*.svg=01;35:*.svgz=01;35:*.mng=01;35:*.pcx=01;35:*.mov=01;35:*.mpg=01;35:*.mpeg=01;35:*.m2v=01;35:*.mkv=01;35:*.webm=01;35:*.webp=01;35:*.ogm=01;35:*.mp4=01;35:*.m4v=01;35:*.mp4v=01;35:*.vob=01;35:*.qt=01;35:*.nuv=01;35:*.wmv=01;35:*.asf=01;35:*.rm=01;35:*.rmvb=01;35:*.flc=01;35:*.avi=01;35:*.fli=01;35:*.flv=01;35:*.gl=01;35:*.dl=01;35:*.xcf=01;35:*.xwd=01;35:*.yuv=01;35:*.cgm=01;35:*.emf=01;35:*.ogv=01;35:*.ogx=01;35:*.aac=00;36:*.au=00;36:*.flac=00;36:*.m4a=00;36:*.mid=00;36:*.midi=00;36:*.mka=00;36:*.mp3=00;36:*.mpc=00;36:*.ogg=00;36:*.ra=00;36:*.wav=00;36:*.oga=00;36:*.opus=00;36:*.spx=00;36:*.xspf=00;36:'), ('SSH_AGENT_LAUNCHER', 'gnome-keyring'), ('SSH_AUTH_SOCK', '/run/user/1000/keyring/ssh'), ('AMENT_PREFIX_PATH', '/opt/ros/humble'), ('SHELL', '/bin/bash'), ('TERMINATOR_UUID', 'urn:uuid:94667ec8-a83d-4ced-9911-abe75bcb9198'), ('QT_ACCESSIBILITY', '1'), ('GDMSESSION', 'ubuntu'), ('LESSCLOSE', '/usr/bin/lesspipe %s %s'), ('GJS_DEBUG_OUTPUT', 'stderr'), ('QT_IM_MODULE', 'ibus'), ('PWD', '/media/sf_MacShare/turtlebot_simulator/build/turtlebot_base'), ('XDG_CONFIG_DIRS', '/etc/xdg/xdg-ubuntu:/etc/xdg'), ('XDG_DATA_DIRS', '/usr/share/ubuntu:/usr/local/share/:/usr/share/:/var/lib/snapd/desktop'), ('PYTHONPATH', '/opt/ros/humble/lib/python3.10/site-packages:/opt/ros/humble/local/lib/python3.10/dist-packages'), ('COLCON', '1'), ('VTE_VERSION', '6800'), ('CMAKE_PREFIX_PATH', '/opt/ros/humble')]), 'shell': False}
+[0.631676] (-) TimerEvent: {}
+[0.739975] (-) TimerEvent: {}
+[0.842740] (-) TimerEvent: {}
+[0.946837] (-) TimerEvent: {}
+[0.983055] (turtlebot_base) StdoutLine: {'line': b'-- Found ament_cmake: 1.3.10 (/opt/ros/humble/share/ament_cmake/cmake)\n'}
+[1.047985] (-) TimerEvent: {}
+[1.149723] (-) TimerEvent: {}
+[1.257650] (-) TimerEvent: {}
+[1.366448] (-) TimerEvent: {}
+[1.468771] (-) TimerEvent: {}
+[1.513297] (turtlebot_base) StdoutLine: {'line': b'-- Found ament_lint_auto: 0.12.11 (/opt/ros/humble/share/ament_lint_auto/cmake)\n'}
+[1.569436] (-) TimerEvent: {}
+[1.679719] (-) TimerEvent: {}
+[1.787586] (-) TimerEvent: {}
+[1.889459] (-) TimerEvent: {}
+[1.997998] (-) TimerEvent: {}
+[2.099929] (-) TimerEvent: {}
+[2.202710] (-) TimerEvent: {}
+[2.308964] (agent_control) Command: {'cmd': ['/usr/bin/python3', '-W', 'ignore:setup.py install is deprecated', 'setup.py', 'egg_info', '--egg-base', '../../build/agent_control', 'build', '--build-base', '/media/sf_MacShare/turtlebot_simulator/build/agent_control/build', 'install', '--record', '/media/sf_MacShare/turtlebot_simulator/build/agent_control/install.log', '--single-version-externally-managed', 'install_data'], 'cwd': '/media/sf_MacShare/turtlebot_simulator/src/agent_control', 'env': {'GJS_DEBUG_TOPICS': 'JS ERROR;JS LOG', 'LESSOPEN': '| /usr/bin/lesspipe %s', 'USER': 'stufmuff', 'XDG_SESSION_TYPE': 'wayland', 'SHLVL': '1', 'LD_LIBRARY_PATH': '/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/aarch64-linux-gnu:/opt/ros/humble/lib', 'HOME': '/home/stufmuff', 'OLDPWD': '/media/sf_MacShare/turtlebot_simulator/src', 'DESKTOP_SESSION': 'ubuntu', 'GIO_LAUNCHED_DESKTOP_FILE': '/usr/share/applications/terminator.desktop', 'ROS_PYTHON_VERSION': '3', 'GNOME_SHELL_SESSION_MODE': 'ubuntu', 'GTK_MODULES': 'gail:atk-bridge', 'MANAGERPID': '1567', 'SYSTEMD_EXEC_PID': '1726', 'DBUS_SESSION_BUS_ADDRESS': 'unix:path=/run/user/1000/bus', 'COLORTERM': 'truecolor', 'TERMINATOR_DBUS_NAME': 'net.tenshu.Terminator25ef4b219e3b005583550f2b0f9f990c3', 'GIO_LAUNCHED_DESKTOP_FILE_PID': '2284', 'IM_CONFIG_PHASE': '1', 'WAYLAND_DISPLAY': 'wayland-0', 'ROS_DISTRO': 'humble', 'LOGNAME': 'stufmuff', 'JOURNAL_STREAM': '8:16076', '_': '/usr/bin/colcon', 'ROS_VERSION': '2', 'XDG_SESSION_CLASS': 'user', 'USERNAME': 'stufmuff', 'TERM': 'xterm-256color', 'GNOME_DESKTOP_SESSION_ID': 'this-is-deprecated', 'ROS_LOCALHOST_ONLY': '0', 'PATH': '/opt/ros/humble/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/snap/bin', 'SESSION_MANAGER': 'local/stufmuff:@/tmp/.ICE-unix/1701,unix/stufmuff:/tmp/.ICE-unix/1701', 'INVOCATION_ID': '7e48969594a14b81b4f7c276a7b389f3', 'XDG_MENU_PREFIX': 'gnome-', 'GNOME_SETUP_DISPLAY': ':1', 'XDG_RUNTIME_DIR': '/run/user/1000', 'DISPLAY': ':0', 'TERMINATOR_DBUS_PATH': '/net/tenshu/Terminator2', 'LANG': 'en_US.UTF-8', 'XDG_CURRENT_DESKTOP': 'ubuntu:GNOME', 'IBUS_DISABLE_SNOOPER': '1', 'XMODIFIERS': '@im=ibus', 'XDG_SESSION_DESKTOP': 'ubuntu', 'XAUTHORITY': '/run/user/1000/.mutter-Xwaylandauth.VJF6X2', 'LS_COLORS': 'rs=0:di=01;34:ln=01;36:mh=00:pi=40;33:so=01;35:do=01;35:bd=40;33;01:cd=40;33;01:or=40;31;01:mi=00:su=37;41:sg=30;43:ca=30;41:tw=30;42:ow=34;42:st=37;44:ex=01;32:*.tar=01;31:*.tgz=01;31:*.arc=01;31:*.arj=01;31:*.taz=01;31:*.lha=01;31:*.lz4=01;31:*.lzh=01;31:*.lzma=01;31:*.tlz=01;31:*.txz=01;31:*.tzo=01;31:*.t7z=01;31:*.zip=01;31:*.z=01;31:*.dz=01;31:*.gz=01;31:*.lrz=01;31:*.lz=01;31:*.lzo=01;31:*.xz=01;31:*.zst=01;31:*.tzst=01;31:*.bz2=01;31:*.bz=01;31:*.tbz=01;31:*.tbz2=01;31:*.tz=01;31:*.deb=01;31:*.rpm=01;31:*.jar=01;31:*.war=01;31:*.ear=01;31:*.sar=01;31:*.rar=01;31:*.alz=01;31:*.ace=01;31:*.zoo=01;31:*.cpio=01;31:*.7z=01;31:*.rz=01;31:*.cab=01;31:*.wim=01;31:*.swm=01;31:*.dwm=01;31:*.esd=01;31:*.jpg=01;35:*.jpeg=01;35:*.mjpg=01;35:*.mjpeg=01;35:*.gif=01;35:*.bmp=01;35:*.pbm=01;35:*.pgm=01;35:*.ppm=01;35:*.tga=01;35:*.xbm=01;35:*.xpm=01;35:*.tif=01;35:*.tiff=01;35:*.png=01;35:*.svg=01;35:*.svgz=01;35:*.mng=01;35:*.pcx=01;35:*.mov=01;35:*.mpg=01;35:*.mpeg=01;35:*.m2v=01;35:*.mkv=01;35:*.webm=01;35:*.webp=01;35:*.ogm=01;35:*.mp4=01;35:*.m4v=01;35:*.mp4v=01;35:*.vob=01;35:*.qt=01;35:*.nuv=01;35:*.wmv=01;35:*.asf=01;35:*.rm=01;35:*.rmvb=01;35:*.flc=01;35:*.avi=01;35:*.fli=01;35:*.flv=01;35:*.gl=01;35:*.dl=01;35:*.xcf=01;35:*.xwd=01;35:*.yuv=01;35:*.cgm=01;35:*.emf=01;35:*.ogv=01;35:*.ogx=01;35:*.aac=00;36:*.au=00;36:*.flac=00;36:*.m4a=00;36:*.mid=00;36:*.midi=00;36:*.mka=00;36:*.mp3=00;36:*.mpc=00;36:*.ogg=00;36:*.ra=00;36:*.wav=00;36:*.oga=00;36:*.opus=00;36:*.spx=00;36:*.xspf=00;36:', 'SSH_AGENT_LAUNCHER': 'gnome-keyring', 'SSH_AUTH_SOCK': '/run/user/1000/keyring/ssh', 'AMENT_PREFIX_PATH': '/opt/ros/humble', 'SHELL': '/bin/bash', 'TERMINATOR_UUID': 'urn:uuid:94667ec8-a83d-4ced-9911-abe75bcb9198', 'QT_ACCESSIBILITY': '1', 'GDMSESSION': 'ubuntu', 'LESSCLOSE': '/usr/bin/lesspipe %s %s', 'GJS_DEBUG_OUTPUT': 'stderr', 'QT_IM_MODULE': 'ibus', 'PWD': '/media/sf_MacShare/turtlebot_simulator/build/agent_control', 'XDG_CONFIG_DIRS': '/etc/xdg/xdg-ubuntu:/etc/xdg', 'XDG_DATA_DIRS': '/usr/share/ubuntu:/usr/local/share/:/usr/share/:/var/lib/snapd/desktop', 'PYTHONPATH': '/media/sf_MacShare/turtlebot_simulator/build/agent_control/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/media/sf_MacShare/turtlebot_simulator/install/agent_control/lib/python3.10/site-packages:/opt/ros/humble/lib/python3.10/site-packages:/opt/ros/humble/local/lib/python3.10/dist-packages', 'COLCON': '1', 'VTE_VERSION': '6800'}, 'shell': False}
+[2.336412] (-) TimerEvent: {}
+[2.439403] (turtlebot_base) StdoutLine: {'line': b"-- Added test 'flake8' to check Python code syntax and style conventions\n"}
+[2.440833] (-) TimerEvent: {}
+[2.521737] (turtlebot_base) StdoutLine: {'line': b"-- Added test 'lint_cmake' to check CMake code style\n"}
+[2.542118] (-) TimerEvent: {}
+[2.558542] (turtlebot_base) StdoutLine: {'line': b"-- Added test 'pep257' to check Python code against some of the docstring style conventions in PEP 257\n"}
+[2.643056] (-) TimerEvent: {}
+[2.745116] (-) TimerEvent: {}
+[2.848251] (-) TimerEvent: {}
+[2.871474] (turtlebot_base) StdoutLine: {'line': b"-- Added test 'xmllint' to check XML markup files\n"}
+[2.901901] (agent_control) StdoutLine: {'line': b'running egg_info\n'}
+[2.913805] (agent_control) StdoutLine: {'line': b'writing ../../build/agent_control/agent_control.egg-info/PKG-INFO\n'}
+[2.919009] (agent_control) StdoutLine: {'line': b'writing dependency_links to ../../build/agent_control/agent_control.egg-info/dependency_links.txt\n'}
+[2.928671] (agent_control) StdoutLine: {'line': b'writing entry points to ../../build/agent_control/agent_control.egg-info/entry_points.txt\n'}
+[2.943631] (agent_control) StdoutLine: {'line': b'writing requirements to ../../build/agent_control/agent_control.egg-info/requires.txt\n'}
+[2.949121] (-) TimerEvent: {}
+[2.953977] (agent_control) StdoutLine: {'line': b'writing top-level names to ../../build/agent_control/agent_control.egg-info/top_level.txt\n'}
+[2.972435] (turtlebot_base) StdoutLine: {'line': b'-- Configuring done\n'}
+[3.007194] (agent_control) StdoutLine: {'line': b"reading manifest file '../../build/agent_control/agent_control.egg-info/SOURCES.txt'\n"}
+[3.036362] (agent_control) StdoutLine: {'line': b"writing manifest file '../../build/agent_control/agent_control.egg-info/SOURCES.txt'\n"}
+[3.044686] (agent_control) StdoutLine: {'line': b'running build\n'}
+[3.052433] (-) TimerEvent: {}
+[3.052573] (agent_control) StdoutLine: {'line': b'running build_py\n'}
+[3.065627] (agent_control) StdoutLine: {'line': b'copying agent_control/agent.py -> /media/sf_MacShare/turtlebot_simulator/build/agent_control/build/lib/agent_control\n'}
+[3.095708] (agent_control) StdoutLine: {'line': b'running install\n'}
+[3.098785] (agent_control) StdoutLine: {'line': b'running install_lib\n'}
+[3.111996] (agent_control) StdoutLine: {'line': b'copying /media/sf_MacShare/turtlebot_simulator/build/agent_control/build/lib/agent_control/agent.py -> /media/sf_MacShare/turtlebot_simulator/install/agent_control/lib/python3.10/site-packages/agent_control\n'}
+[3.155862] (-) TimerEvent: {}
+[3.171899] (agent_control) StdoutLine: {'line': b'byte-compiling /media/sf_MacShare/turtlebot_simulator/install/agent_control/lib/python3.10/site-packages/agent_control/agent.py to agent.cpython-310.pyc\n'}
+[3.189811] (agent_control) StdoutLine: {'line': b'running install_data\n'}
+[3.201694] (agent_control) StdoutLine: {'line': b'running install_egg_info\n'}
+[3.207452] (agent_control) StdoutLine: {'line': b"removing '/media/sf_MacShare/turtlebot_simulator/install/agent_control/lib/python3.10/site-packages/agent_control-0.0.0-py3.10.egg-info' (and everything under it)\n"}
+[3.234879] (agent_control) StdoutLine: {'line': b'Copying ../../build/agent_control/agent_control.egg-info to /media/sf_MacShare/turtlebot_simulator/install/agent_control/lib/python3.10/site-packages/agent_control-0.0.0-py3.10.egg-info\n'}
+[3.257706] (-) TimerEvent: {}
+[3.345904] (turtlebot_base) StdoutLine: {'line': b'-- Generating done\n'}
+[3.363369] (-) TimerEvent: {}
+[3.465934] (-) TimerEvent: {}
+[3.472720] (agent_control) StdoutLine: {'line': b'running install_scripts\n'}
+[3.488742] (turtlebot_base) StdoutLine: {'line': b'-- Build files have been written to: /media/sf_MacShare/turtlebot_simulator/build/turtlebot_base\n'}
+[3.520460] (agent_control) StdoutLine: {'line': b"writing list of installed files to '/media/sf_MacShare/turtlebot_simulator/build/agent_control/install.log'\n"}
+[3.552867] (turtlebot_base) CommandEnded: {'returncode': 0}
+[3.566806] (-) TimerEvent: {}
+[3.570561] (agent_control) CommandEnded: {'returncode': 0}
+[3.668796] (-) TimerEvent: {}
+[3.771091] (-) TimerEvent: {}
+[3.872667] (agent_control) JobEnded: {'identifier': 'agent_control', 'rc': 0}
+[3.891340] (-) TimerEvent: {}
+[3.892117] (turtlebot_base) JobProgress: {'identifier': 'turtlebot_base', 'progress': 'install'}
+[3.899093] (turtlebot_base) Command: {'cmd': ['/usr/bin/cmake', '--install', '/media/sf_MacShare/turtlebot_simulator/build/turtlebot_base'], 'cwd': '/media/sf_MacShare/turtlebot_simulator/build/turtlebot_base', 'env': OrderedDict([('GJS_DEBUG_TOPICS', 'JS ERROR;JS LOG'), ('LESSOPEN', '| /usr/bin/lesspipe %s'), ('USER', 'stufmuff'), ('XDG_SESSION_TYPE', 'wayland'), ('SHLVL', '1'), ('LD_LIBRARY_PATH', '/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/aarch64-linux-gnu:/opt/ros/humble/lib'), ('HOME', '/home/stufmuff'), ('OLDPWD', '/media/sf_MacShare/turtlebot_simulator/src'), ('DESKTOP_SESSION', 'ubuntu'), ('GIO_LAUNCHED_DESKTOP_FILE', '/usr/share/applications/terminator.desktop'), ('ROS_PYTHON_VERSION', '3'), ('GNOME_SHELL_SESSION_MODE', 'ubuntu'), ('GTK_MODULES', 'gail:atk-bridge'), ('MANAGERPID', '1567'), ('SYSTEMD_EXEC_PID', '1726'), ('DBUS_SESSION_BUS_ADDRESS', 'unix:path=/run/user/1000/bus'), ('COLORTERM', 'truecolor'), ('TERMINATOR_DBUS_NAME', 'net.tenshu.Terminator25ef4b219e3b005583550f2b0f9f990c3'), ('GIO_LAUNCHED_DESKTOP_FILE_PID', '2284'), ('IM_CONFIG_PHASE', '1'), ('WAYLAND_DISPLAY', 'wayland-0'), ('ROS_DISTRO', 'humble'), ('LOGNAME', 'stufmuff'), ('JOURNAL_STREAM', '8:16076'), ('_', '/usr/bin/colcon'), ('ROS_VERSION', '2'), ('XDG_SESSION_CLASS', 'user'), ('USERNAME', 'stufmuff'), ('TERM', 'xterm-256color'), ('GNOME_DESKTOP_SESSION_ID', 'this-is-deprecated'), ('ROS_LOCALHOST_ONLY', '0'), ('PATH', '/opt/ros/humble/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/snap/bin'), ('SESSION_MANAGER', 'local/stufmuff:@/tmp/.ICE-unix/1701,unix/stufmuff:/tmp/.ICE-unix/1701'), ('INVOCATION_ID', '7e48969594a14b81b4f7c276a7b389f3'), ('XDG_MENU_PREFIX', 'gnome-'), ('GNOME_SETUP_DISPLAY', ':1'), ('XDG_RUNTIME_DIR', '/run/user/1000'), ('DISPLAY', ':0'), ('TERMINATOR_DBUS_PATH', '/net/tenshu/Terminator2'), ('LANG', 'en_US.UTF-8'), ('XDG_CURRENT_DESKTOP', 'ubuntu:GNOME'), ('IBUS_DISABLE_SNOOPER', '1'), ('XMODIFIERS', '@im=ibus'), ('XDG_SESSION_DESKTOP', 'ubuntu'), ('XAUTHORITY', '/run/user/1000/.mutter-Xwaylandauth.VJF6X2'), ('LS_COLORS', 'rs=0:di=01;34:ln=01;36:mh=00:pi=40;33:so=01;35:do=01;35:bd=40;33;01:cd=40;33;01:or=40;31;01:mi=00:su=37;41:sg=30;43:ca=30;41:tw=30;42:ow=34;42:st=37;44:ex=01;32:*.tar=01;31:*.tgz=01;31:*.arc=01;31:*.arj=01;31:*.taz=01;31:*.lha=01;31:*.lz4=01;31:*.lzh=01;31:*.lzma=01;31:*.tlz=01;31:*.txz=01;31:*.tzo=01;31:*.t7z=01;31:*.zip=01;31:*.z=01;31:*.dz=01;31:*.gz=01;31:*.lrz=01;31:*.lz=01;31:*.lzo=01;31:*.xz=01;31:*.zst=01;31:*.tzst=01;31:*.bz2=01;31:*.bz=01;31:*.tbz=01;31:*.tbz2=01;31:*.tz=01;31:*.deb=01;31:*.rpm=01;31:*.jar=01;31:*.war=01;31:*.ear=01;31:*.sar=01;31:*.rar=01;31:*.alz=01;31:*.ace=01;31:*.zoo=01;31:*.cpio=01;31:*.7z=01;31:*.rz=01;31:*.cab=01;31:*.wim=01;31:*.swm=01;31:*.dwm=01;31:*.esd=01;31:*.jpg=01;35:*.jpeg=01;35:*.mjpg=01;35:*.mjpeg=01;35:*.gif=01;35:*.bmp=01;35:*.pbm=01;35:*.pgm=01;35:*.ppm=01;35:*.tga=01;35:*.xbm=01;35:*.xpm=01;35:*.tif=01;35:*.tiff=01;35:*.png=01;35:*.svg=01;35:*.svgz=01;35:*.mng=01;35:*.pcx=01;35:*.mov=01;35:*.mpg=01;35:*.mpeg=01;35:*.m2v=01;35:*.mkv=01;35:*.webm=01;35:*.webp=01;35:*.ogm=01;35:*.mp4=01;35:*.m4v=01;35:*.mp4v=01;35:*.vob=01;35:*.qt=01;35:*.nuv=01;35:*.wmv=01;35:*.asf=01;35:*.rm=01;35:*.rmvb=01;35:*.flc=01;35:*.avi=01;35:*.fli=01;35:*.flv=01;35:*.gl=01;35:*.dl=01;35:*.xcf=01;35:*.xwd=01;35:*.yuv=01;35:*.cgm=01;35:*.emf=01;35:*.ogv=01;35:*.ogx=01;35:*.aac=00;36:*.au=00;36:*.flac=00;36:*.m4a=00;36:*.mid=00;36:*.midi=00;36:*.mka=00;36:*.mp3=00;36:*.mpc=00;36:*.ogg=00;36:*.ra=00;36:*.wav=00;36:*.oga=00;36:*.opus=00;36:*.spx=00;36:*.xspf=00;36:'), ('SSH_AGENT_LAUNCHER', 'gnome-keyring'), ('SSH_AUTH_SOCK', '/run/user/1000/keyring/ssh'), ('AMENT_PREFIX_PATH', '/opt/ros/humble'), ('SHELL', '/bin/bash'), ('TERMINATOR_UUID', 'urn:uuid:94667ec8-a83d-4ced-9911-abe75bcb9198'), ('QT_ACCESSIBILITY', '1'), ('GDMSESSION', 'ubuntu'), ('LESSCLOSE', '/usr/bin/lesspipe %s %s'), ('GJS_DEBUG_OUTPUT', 'stderr'), ('QT_IM_MODULE', 'ibus'), ('PWD', '/media/sf_MacShare/turtlebot_simulator/build/turtlebot_base'), ('XDG_CONFIG_DIRS', '/etc/xdg/xdg-ubuntu:/etc/xdg'), ('XDG_DATA_DIRS', '/usr/share/ubuntu:/usr/local/share/:/usr/share/:/var/lib/snapd/desktop'), ('PYTHONPATH', '/opt/ros/humble/lib/python3.10/site-packages:/opt/ros/humble/local/lib/python3.10/dist-packages'), ('COLCON', '1'), ('VTE_VERSION', '6800'), ('CMAKE_PREFIX_PATH', '/opt/ros/humble')]), 'shell': False}
+[3.910466] (turtlebot_base) StdoutLine: {'line': b'-- Install configuration: ""\n'}
+[3.917064] (turtlebot_base) StdoutLine: {'line': b'-- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/config\n'}
+[3.927082] (turtlebot_base) StdoutLine: {'line': b'-- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/config/empty.yaml\n'}
+[3.937475] (turtlebot_base) StdoutLine: {'line': b'-- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/config/simulation_config.yaml\n'}
+[3.954496] (turtlebot_base) StdoutLine: {'line': b'-- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/config/simulation_config_grid.yaml\n'}
+[3.966356] (turtlebot_base) StdoutLine: {'line': b'-- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/config/view_bot.rviz\n'}
+[3.981094] (turtlebot_base) StdoutLine: {'line': b'-- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/description\n'}
+[3.996104] (-) TimerEvent: {}
+[3.997318] (turtlebot_base) StdoutLine: {'line': b'-- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/description/.DS_Store\n'}
+[3.997819] (turtlebot_base) StdoutLine: {'line': b'-- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/description/lidar.xacro\n'}
+[4.002112] (turtlebot_base) StdoutLine: {'line': b'-- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/description/robot_core.xacro\n'}
+[4.020973] (turtlebot_base) StdoutLine: {'line': b'-- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/description/robot.urdf.xacro\n'}
+[4.033722] (turtlebot_base) StdoutLine: {'line': b'-- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/description/gazebo_control.xacro\n'}
+[4.052992] (turtlebot_base) StdoutLine: {'line': b'-- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/description/inertial_macros.xacro\n'}
+[4.072701] (turtlebot_base) StdoutLine: {'line': b'-- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/description/camera.xacro\n'}
+[4.078079] (turtlebot_base) StdoutLine: {'line': b'-- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/launch\n'}
+[4.085746] (turtlebot_base) StdoutLine: {'line': b'-- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/launch/rsp.launch.py\n'}
+[4.107995] (-) TimerEvent: {}
+[4.111005] (turtlebot_base) StdoutLine: {'line': b'-- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/launch/install\n'}
+[4.117533] (turtlebot_base) StdoutLine: {'line': b'-- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/launch/install/setup.sh\n'}
+[4.131187] (turtlebot_base) StdoutLine: {'line': b'-- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/launch/install/setup.ps1\n'}
+[4.149901] (turtlebot_base) StdoutLine: {'line': b'-- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/launch/install/setup.zsh\n'}
+[4.162938] (turtlebot_base) StdoutLine: {'line': b'-- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/launch/install/COLCON_IGNORE\n'}
+[4.168121] (turtlebot_base) StdoutLine: {'line': b'-- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/launch/install/local_setup.sh\n'}
+[4.184664] (turtlebot_base) StdoutLine: {'line': b'-- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/launch/install/local_setup.ps1\n'}
+[4.206421] (turtlebot_base) StdoutLine: {'line': b'-- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/launch/install/local_setup.zsh\n'}
+[4.218880] (-) TimerEvent: {}
+[4.221788] (turtlebot_base) StdoutLine: {'line': b'-- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/launch/install/_local_setup_util_sh.py\n'}
+[4.234336] (turtlebot_base) StdoutLine: {'line': b'-- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/launch/install/setup.bash\n'}
+[4.244716] (turtlebot_base) StdoutLine: {'line': b'-- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/launch/install/.colcon_install_layout\n'}
+[4.251116] (turtlebot_base) StdoutLine: {'line': b'-- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/launch/install/local_setup.bash\n'}
+[4.260031] (turtlebot_base) StdoutLine: {'line': b'-- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/launch/install/_local_setup_util_ps1.py\n'}
+[4.271863] (turtlebot_base) StdoutLine: {'line': b'-- Installing: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/launch/launch_sim.launch.py\n'}
+[4.312764] (turtlebot_base) StdoutLine: {'line': b'-- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/launch/log\n'}
+[4.320731] (turtlebot_base) StdoutLine: {'line': b'-- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/launch/log/COLCON_IGNORE\n'}
+[4.323673] (-) TimerEvent: {}
+[4.330648] (turtlebot_base) StdoutLine: {'line': b'-- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/launch/log/build_2024-10-19_23-05-09\n'}
+[4.336606] (turtlebot_base) StdoutLine: {'line': b'-- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/launch/log/build_2024-10-19_23-05-09/logger_all.log\n'}
+[4.344117] (turtlebot_base) StdoutLine: {'line': b'-- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/launch/log/build_2024-10-19_23-05-09/events.log\n'}
+[4.356263] (turtlebot_base) StdoutLine: {'line': b'-- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/launch/build\n'}
+[4.359847] (turtlebot_base) StdoutLine: {'line': b'-- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/launch/build/COLCON_IGNORE\n'}
+[4.364775] (turtlebot_base) StdoutLine: {'line': b'-- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/launch/build/.built_by\n'}
+[4.367130] (turtlebot_base) StdoutLine: {'line': b'-- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/worlds\n'}
+[4.376481] (turtlebot_base) StdoutLine: {'line': b'-- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/worlds/empty.sdf\n'}
+[4.382565] (turtlebot_base) StdoutLine: {'line': b'-- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/worlds/empty.world\n'}
+[4.391749] (turtlebot_base) StdoutLine: {'line': b'-- Installing: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/ament_index/resource_index/package_run_dependencies/turtlebot_base\n'}
+[4.425701] (-) TimerEvent: {}
+[4.438138] (turtlebot_base) StdoutLine: {'line': b'-- Installing: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/ament_index/resource_index/parent_prefix_path/turtlebot_base\n'}
+[4.483881] (turtlebot_base) StdoutLine: {'line': b'-- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/environment/ament_prefix_path.sh\n'}
+[4.499989] (turtlebot_base) StdoutLine: {'line': b'-- Installing: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/environment/ament_prefix_path.dsv\n'}
+[4.527463] (-) TimerEvent: {}
+[4.529426] (turtlebot_base) StdoutLine: {'line': b'-- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/environment/path.sh\n'}
+[4.538339] (turtlebot_base) StdoutLine: {'line': b'-- Installing: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/environment/path.dsv\n'}
+[4.566219] (turtlebot_base) StdoutLine: {'line': b'-- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/local_setup.bash\n'}
+[4.582933] (turtlebot_base) StdoutLine: {'line': b'-- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/local_setup.sh\n'}
+[4.586047] (turtlebot_base) StdoutLine: {'line': b'-- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/local_setup.zsh\n'}
+[4.592415] (turtlebot_base) StdoutLine: {'line': b'-- Installing: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/local_setup.dsv\n'}
+[4.626945] (turtlebot_base) StdoutLine: {'line': b'-- Installing: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/package.dsv\n'}
+[4.632608] (-) TimerEvent: {}
+[4.658330] (turtlebot_base) StdoutLine: {'line': b'-- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/ament_index/resource_index/packages/turtlebot_base\n'}
+[4.660955] (turtlebot_base) StdoutLine: {'line': b'-- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/cmake/turtlebot_baseConfig.cmake\n'}
+[4.666803] (turtlebot_base) StdoutLine: {'line': b'-- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/cmake/turtlebot_baseConfig-version.cmake\n'}
+[4.674601] (turtlebot_base) StdoutLine: {'line': b'-- Installing: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/package.xml\n'}
+[4.732819] (turtlebot_base) CommandEnded: {'returncode': 0}
+[4.741711] (-) TimerEvent: {}
+[4.843660] (-) TimerEvent: {}
+[4.949130] (-) TimerEvent: {}
+[5.049976] (-) TimerEvent: {}
+[5.120713] (turtlebot_base) JobEnded: {'identifier': 'turtlebot_base', 'rc': 0}
+[5.136052] (-) EventReactorShutdown: {}

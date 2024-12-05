@@ -1,0 +1,5 @@
+locations: [[-4,0], [-3.5,1.5], [-2,3], [0, 4], [2,3], [3.5,1.5], [4,0], [3.5,-1.5], [2,-3], [0,-4], [-2,-3], [-3.5,-1.5]]
+randamize: True
+noise: 3
+number_robots: 10
+world_name: empty_world

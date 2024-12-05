@@ -1,0 +1,56 @@
+[0.081s] Invoking command in '/media/sf_MacShare/turtlebot_simulator/build/turtlebot_base': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/humble /usr/bin/cmake --build /media/sf_MacShare/turtlebot_simulator/build/turtlebot_base -- -j12 -l12
+[0.176s] Invoked command in '/media/sf_MacShare/turtlebot_simulator/build/turtlebot_base' returned '0': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/humble /usr/bin/cmake --build /media/sf_MacShare/turtlebot_simulator/build/turtlebot_base -- -j12 -l12
+[0.246s] Invoking command in '/media/sf_MacShare/turtlebot_simulator/build/turtlebot_base': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/humble /usr/bin/cmake --install /media/sf_MacShare/turtlebot_simulator/build/turtlebot_base
+[0.261s] -- Install configuration: ""
+[0.265s] -- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/config
+[0.272s] -- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/config/empty.yaml
+[0.274s] -- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/config/view_bot.rviz
+[0.277s] -- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/description
+[0.281s] -- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/description/lidar.xacro
+[0.283s] -- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/description/robot_core.xacro
+[0.286s] -- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/description/robot.urdf.xacro
+[0.288s] -- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/description/gazebo_control.xacro
+[0.291s] -- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/description/inertial_macros.xacro
+[0.294s] -- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/launch
+[0.298s] -- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/launch/rsp.launch.py
+[0.302s] -- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/launch/install
+[0.307s] -- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/launch/install/setup.sh
+[0.317s] -- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/launch/install/setup.ps1
+[0.323s] -- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/launch/install/setup.zsh
+[0.325s] -- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/launch/install/COLCON_IGNORE
+[0.329s] -- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/launch/install/local_setup.sh
+[0.331s] -- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/launch/install/local_setup.ps1
+[0.335s] -- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/launch/install/local_setup.zsh
+[0.338s] -- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/launch/install/_local_setup_util_sh.py
+[0.343s] -- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/launch/install/setup.bash
+[0.346s] -- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/launch/install/.colcon_install_layout
+[0.350s] -- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/launch/install/local_setup.bash
+[0.355s] -- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/launch/install/_local_setup_util_ps1.py
+[0.370s] -- Installing: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/launch/launch_sim.launch.py
+[0.386s] -- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/launch/log
+[0.390s] -- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/launch/log/COLCON_IGNORE
+[0.394s] -- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/launch/log/build_2024-10-19_23-05-09
+[0.398s] -- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/launch/log/build_2024-10-19_23-05-09/logger_all.log
+[0.400s] -- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/launch/log/build_2024-10-19_23-05-09/events.log
+[0.403s] -- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/launch/build
+[0.407s] -- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/launch/build/COLCON_IGNORE
+[0.410s] -- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/launch/build/.built_by
+[0.412s] -- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/worlds
+[0.418s] -- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/worlds/empty.sdf
+[0.421s] -- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/worlds/empty.world
+[0.425s] -- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/ament_index/resource_index/package_run_dependencies/turtlebot_base
+[0.469s] -- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/ament_index/resource_index/parent_prefix_path/turtlebot_base
+[0.480s] -- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/environment/ament_prefix_path.sh
+[0.537s] -- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/environment/ament_prefix_path.dsv
+[0.542s] -- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/environment/path.sh
+[0.545s] -- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/environment/path.dsv
+[0.554s] -- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/local_setup.bash
+[0.557s] -- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/local_setup.sh
+[0.559s] -- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/local_setup.zsh
+[0.562s] -- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/local_setup.dsv
+[0.563s] -- Installing: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/package.dsv
+[0.567s] -- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/ament_index/resource_index/packages/turtlebot_base
+[0.573s] -- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/cmake/turtlebot_baseConfig.cmake
+[0.577s] -- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/cmake/turtlebot_baseConfig-version.cmake
+[0.585s] -- Up-to-date: /media/sf_MacShare/turtlebot_simulator/install/turtlebot_base/share/turtlebot_base/package.xml
+[0.592s] Invoked command in '/media/sf_MacShare/turtlebot_simulator/build/turtlebot_base' returned '0': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/humble /usr/bin/cmake --install /media/sf_MacShare/turtlebot_simulator/build/turtlebot_base

@@ -1,0 +1,23 @@
+[3.518s] Invoking command in '/media/sf_MacShare/turtlebot_simulator/src/agent_control': PYTHONPATH=/media/sf_MacShare/turtlebot_simulator/build/agent_control/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/media/sf_MacShare/turtlebot_simulator/install/agent_control/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated setup.py egg_info --egg-base ../../build/agent_control build --build-base /media/sf_MacShare/turtlebot_simulator/build/agent_control/build install --record /media/sf_MacShare/turtlebot_simulator/build/agent_control/install.log --single-version-externally-managed install_data
+[3.965s] running egg_info
+[3.979s] writing ../../build/agent_control/agent_control.egg-info/PKG-INFO
+[3.993s] writing dependency_links to ../../build/agent_control/agent_control.egg-info/dependency_links.txt
+[4.016s] writing entry points to ../../build/agent_control/agent_control.egg-info/entry_points.txt
+[4.050s] writing requirements to ../../build/agent_control/agent_control.egg-info/requires.txt
+[4.067s] writing top-level names to ../../build/agent_control/agent_control.egg-info/top_level.txt
+[4.133s] reading manifest file '../../build/agent_control/agent_control.egg-info/SOURCES.txt'
+[4.160s] writing manifest file '../../build/agent_control/agent_control.egg-info/SOURCES.txt'
+[4.166s] running build
+[4.173s] running build_py
+[4.194s] copying agent_control/agent.py -> /media/sf_MacShare/turtlebot_simulator/build/agent_control/build/lib/agent_control
+[4.224s] running install
+[4.228s] running install_lib
+[4.250s] copying /media/sf_MacShare/turtlebot_simulator/build/agent_control/build/lib/agent_control/agent.py -> /media/sf_MacShare/turtlebot_simulator/install/agent_control/lib/python3.10/site-packages/agent_control
+[4.283s] byte-compiling /media/sf_MacShare/turtlebot_simulator/install/agent_control/lib/python3.10/site-packages/agent_control/agent.py to agent.cpython-310.pyc
+[4.299s] running install_data
+[4.307s] running install_egg_info
+[4.311s] removing '/media/sf_MacShare/turtlebot_simulator/install/agent_control/lib/python3.10/site-packages/agent_control-0.0.0-py3.10.egg-info' (and everything under it)
+[4.336s] Copying ../../build/agent_control/agent_control.egg-info to /media/sf_MacShare/turtlebot_simulator/install/agent_control/lib/python3.10/site-packages/agent_control-0.0.0-py3.10.egg-info
+[4.567s] running install_scripts
+[4.629s] writing list of installed files to '/media/sf_MacShare/turtlebot_simulator/build/agent_control/install.log'
+[4.691s] Invoked command in '/media/sf_MacShare/turtlebot_simulator/src/agent_control' returned '0': PYTHONPATH=/media/sf_MacShare/turtlebot_simulator/build/agent_control/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/media/sf_MacShare/turtlebot_simulator/install/agent_control/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated setup.py egg_info --egg-base ../../build/agent_control build --build-base /media/sf_MacShare/turtlebot_simulator/build/agent_control/build install --record /media/sf_MacShare/turtlebot_simulator/build/agent_control/install.log --single-version-externally-managed install_data
