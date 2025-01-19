@@ -1,5 +1,8 @@
 # Turtlebot Base Simulator
 
+# Requirements
+Need to have ros_gz installed (sudo apt install ros-humble-ros-gz)
+
 ## Overview
 This will launch a gazebo simulaion with the very bare bones to contorl multiple turtle bots. Each turtle bot has a lidar sensor and a camera.
 

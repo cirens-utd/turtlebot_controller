@@ -132,14 +132,20 @@ def launch_dynamic_nodes(context: LaunchContext, *args, **kwargs):
                     )
 
         dynamic_pose_pub = Node(
-            package='ros_gz_bridge',
+            package='c_ros_gz_bridge',
             executable='parameter_bridge',
             arguments=[
                 f'/world/{world_name}/dynamic_pose/info@geometry_msgs/msg/PoseArray[gz.msgs.Pose_V'
             ],
             remappings=[
-                (f'/world/{world_name}/dynamic_pose/info', '/testpose'),
+                (f'/world/{world_name}/dynamic_pose/info', '/encoded_poses'),
             ]
+        )
+
+        parsing_pose_pub = Node(
+            package='ros_pose_scraper',
+            executable='name_array_node',
+            output='screen'
         )
 
         nodes.append(dynamic_pose_pub)
@@ -147,6 +153,7 @@ def launch_dynamic_nodes(context: LaunchContext, *args, **kwargs):
         nodes.append(cmd_vel)
         nodes.append(lidar_msg)
         nodes.append(camera_pub)
+        nodes.append(parsing_pose_pub)
     return nodes
 
 

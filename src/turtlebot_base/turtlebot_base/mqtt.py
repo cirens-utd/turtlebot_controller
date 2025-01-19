@@ -1,5 +1,8 @@
 import paho.mqtt.client as mqtt
 
+"""
+Attempting to modify pridge connection. This did not work
+"""
 # Define callback function to handle messages
 def on_connect(client, userdata, flags, rc):
     print(f"Connected with result code {rc}")
