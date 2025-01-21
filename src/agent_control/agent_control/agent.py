@@ -10,7 +10,7 @@ import pdb
 
 class Agent(Node):
     def __init__(self, my_number, my_neighbors=[], *args, 
-        position_rate=2, laser_avoid=True, laser_distance=0.4, laser_delay=5, laser_walk_around=0):
+        position_rate=2, laser_avoid=True, laser_distance=0.4, laser_delay=5, laser_walk_around=2):
         # start with this agents number and the numbers for its neighbors
         name = f"robot{my_number}"
         super().__init__(name)
@@ -22,12 +22,12 @@ class Agent(Node):
         self.cmd_vel_pub_ = self.create_publisher(Twist, f"/{name}/cmd_vel", 10)
         
         # Create Subscriber for position
-        self.position_sub_ = self.create_subscription(PoseArray, f"/vrpn_mocap/turtlebot{self.my_number}/pose", self.pose_callback, 10)
+        self.position_sub_ = self.create_subscription(PoseStamped, f"/vrpn_mocap/turtlebot{self.my_number}/pose", self.pose_callback, 10)
         self.neighbor_position_sub_ = {}
         for number in my_neighbors:
             try:
                 self.neighbor_position_sub_[number] = self.create_subscription(
-                    PoseArray, 
+                    PoseStamped, 
                     f"/vrpn_mocap/turtlebot{number}/pose", 
                     lambda msg,name=number: self.neighbor_pose_callback(msg, name), 
                     10
@@ -47,20 +47,22 @@ class Agent(Node):
         self.laser_avoid = laser_avoid          # Boolean to use laser to avoid obstructions
         self.laser_distance = laser_distance    # Minimum distance you can get to an object
         self._laser_range_setup = False         # Boolean to setup laser indexs 
-        self._laser_rf_index = 285              # Index value of where the robot will colide with something in front of it on the right side (-0.35 Radians)
-        self._laser_lf_index = 353              # Index value of where the robot will colide with something in front of it on the left side (0.35 Radians)
-        self._laser_right_index = 160           # Index value of where an object is directly to the right of the robot (-pi/2 Radians)
-        self._laser_forward_index = 320         # Index value of where an object is directy in front of the robot (0 Radians)
-        self._laser_left_index = 480            # Index value of where an object is directly to the right of the robot (pi/w Raidians)
+        self.rf_radian = -0.35                  # This is used to setup the radian position for laser colision
+        self.lf_radian = 0.35                   # This is used to setup the radian position for laser colision
+        self.r_radian = -np.pi/2                # This is used to setup the radian position for laser colision
+        self.l_radian = np.pi                   # This is used to setup the radian position for laser colision
+        self.f_radian = 0                       # This is used to setup the radian position for laser colision
         self._laser_obstructed_forward = False  # Boolean to know we are clear in front of us
         self._laser_obstructed_right = False    # Boolean to know we are clear on the right
         self._laser_obstructed_left = False     # Boolean to know we are clear on the left
-        self._laser_walk_around = laser_walk_around # If 0 robot will go left and 1 will go right
+        self._laser_walk_around = laser_walk_around # If 0 robot will go left and 1 will go right and 2 will decide based on laser
         self._laser_delay = laser_delay         # Number of seconds before avoidance is taken 
         self._laser_scan = None
         self._laser_min_angle = None
         self._laser_max_angle = None
         self._laser_angle_increment = None
+        self._laser_dynamic_left = False
+        self._laser_dynamic_right = False
 
         # status for the agent
         self._position_refresh_rate = position_rate
@@ -70,22 +72,22 @@ class Agent(Node):
         self._path_obstructed = False
         self._path_obstructed_laser = False
 
-    def pose_callback(self, pose: PoseArray):
-        orientation = pose.poses[0].orientation
-        x,y = pose.poses[0].position.x, pose.poses[0].position.y
+    def pose_callback(self, pose: PoseStamped):
+        orientation = pose.pose.orientation
+        x,y = pose.pose.position.x, pose.pose.position.y
         self.position = [x,y]
         self.direction_facing = self.get_angle_quad(orientation)
         self.controller()
 
-    def neighbor_pose_callback(self, pose: PoseArray, name):
-        x,y = pose.poses[0].position.x, pose.poses[0].position.y
+    def neighbor_pose_callback(self, pose: PoseStamped, name):
+        x,y = pose.poseposition.x, pose.pose.position.y
         self._neighbor_position[name] = [x,y]
     
     def lidar_callback(self, msg: LaserScan):
 
         # Something is in the way if there is something between 2.8 and 3.469 radian
-        # if not self._laser_range_setup:
-        #     self.setup_laser_config_(msg)
+        if not self._laser_range_setup:
+            self.setup_laser_config_(msg)
 
         # In front of bot at 0.4m away
         # 285 - 353
@@ -282,17 +284,11 @@ class Agent(Node):
         self._laser_max_angle = max_angle
         self._laser_angle_increment = angle_increment
 
-        rf_radian = -0.35
-        lf_radian = 0.35
-        r_radian = -np.pi/2
-        l_radian = np.pi
-        f_radian = 0
-
-        rf_index = self.laser_radian_index_(rf_radian, True)
-        lf_index = self.laser_radian_index_(lf_radian, False)
-        r_index = self.laser_radian_index_(r_radian, True)
-        l_index = self.laser_radian_index_(l_radian, False)
-        f_index = self.laser_radian_index_(f_radian, True)
+        rf_index = self.laser_radian_index_(self.rf_radian, True)
+        lf_index = self.laser_radian_index_(self.lf_radian, False)
+        r_index = self.laser_radian_index_(self.r_radian, True)
+        l_index = self.laser_radian_index_(self.l_radian, False)
+        f_index = self.laser_radian_index_(self.f_radian, True)
 
         self._laser_rf_index = rf_index              
         self._laser_lf_index = lf_index              
@@ -308,9 +304,9 @@ class Agent(Node):
         :param floor: optional argument. When set to False, you will get the ceiling funciton instead
         """
         if floor:
-            return np.floor((angle - self._laser_min_angle) / self._laser_angle_increment)
+            return int(np.floor((angle - self._laser_min_angle) / self._laser_angle_increment))
         else:
-            return np.ceil((angle - self._laser_min_angle) / self._laser_angle_increment)
+            return int(np.ceil((angle - self._laser_min_angle) / self._laser_angle_increment))
 
     def path_clear_laser_(self, desired_location, angle, magnitude, tolerance=2):
         """
@@ -322,12 +318,8 @@ class Agent(Node):
         :return boolean: returns True if our path is clear and false if it is not
         """
 
-        self._laser_min_angle = min_angle
-        self._laser_max_angle = max_angle
-        self._laser_angle_increment = angle_increment
-
         diff_angle = self.diff_angles(angle, self.direction_facing)
-        idx = self.laser_radian_index_(angle, True)
+        idx = self.laser_radian_index_(diff_angle, True)
         return self._laser_scan[idx] > tolerance
 
     def scale_movement_(self, value):
@@ -411,34 +403,83 @@ class Agent(Node):
 
         if self._path_obstructed_time + datetime.timedelta(seconds=self._laser_delay) <= datetime.datetime.now():
             # go right
-            if self._laser_walk_around:
-                # Rotate CW until we can move again
-                if self._laser_obstructed_forward:
-                    self.move_robot_(0.0, -1.0)
-                # Drive Forward until clear
-                elif self._laser_obstructed_left:
-                    self.move_robot_(1.0, 0.0)
-                # turn back forward
-                else:
-                    self.move_robot_(0.0, 1.0)
+            if self._laser_walk_around == 1 or self._laser_dynamic_right:
+                self.walk_laser_right_()
+                # Check to see if path is still blocked
+                if not self._laser_obstructed_left and not self._laser_obstructed_forward:
+                    self.path_obstructed_laser = not self.path_clear_laser_(desired_location, angle, magnitude)
+            
             # go left
+            elif self._laser_walk_around == 0 or self._laser_dynamic_left:
+                self.walk_laser_left_()
+                # Check to see if path is still blocked
+                if not self._laser_obstructed_right and not self._laser_obstructed_forward:
+                    print("Path Clear, checking destination")
+                    self.path_obstructed_laser = not self.path_clear_laser_(desired_location, angle, magnitude)
+            
+            # dynamic system to decide left and right
             else:
-                # Rotate CCW until we can move again
-                if self._laser_obstructed_forward:
-                    self.move_robot_(0.0, 1.0)
-                # Drive Forward until clear
-                elif self._laser_obstructed_right:
-                    self.move_robot_(1.0, 0.0)
-                # turn back forward
-                else:
-                    self.move_robot_(0.0, -1.0)
+                self.walk_laser_descide_()
+
         else:
             # waiting to see if obsturction moves
             self.move_robot_(0.0, 0.0)
         
-        # Check to see if path is still blocked
-        if not self._laser_obstructed_right and not self._laser_obstructed_forward:
-            self.path_obstructed_laser = not self.path_clear_laser_(desired_location, angle, magnitude)
+        if not self.path_obstructed_laser and (self._laser_dynamic_left or self._laser_dynamic_right):
+            self._laser_dynamic_right = False
+            self._laser_dynamic_left = False
+
+    def walk_laser_descide_(self):
+        # right is negative and left is positive
+        # 0 - middle = Right
+        # middle - max = Left
+        # Will find which side is the first one to be 10x the laser_distance and choose that side
+
+        threshold = 1   # how many meters above distance is far enough
+        middle = self._laser_forward_index
+        obstruction = np.argmin(self._laser_scan)
+
+        right_choice = 0
+        for val in reversed(self._laser_scan[:obstruction]):
+            if val >= threshold + self.laser_distance:
+                break
+            right_choice += 1
+
+        left_choice = 0
+        for val in self._laser_scan[obstruction+1:]:
+            if val >= threshold + self.laser_distance:
+                break
+            left_choice += 1
+
+        print(f"Left: {left_choice}\nRight: {right_choice}")
+        if right_choice < left_choice:
+            self._laser_dynamic_right = True
+            print("Decided to go right")
+        else:
+            self._laser_dynamic_left = True
+            print("Decided to go left")
+
+    def walk_laser_left_(self):
+        # Rotate CCW until we can move again
+        if self._laser_obstructed_forward:
+            self.move_robot_(0.0, 1.0)
+        # Drive Forward until clear
+        elif self._laser_obstructed_right:
+            self.move_robot_(1.0, 0.0)
+        # turn back forward
+        else:
+            self.move_robot_(0.0, -1.0)
+
+    def walk_laser_right_(self):
+        # Rotate CW until we can move again
+        if self._laser_obstructed_forward:
+            self.move_robot_(0.0, -1.0)
+        # Drive Forward until clear
+        elif self._laser_obstructed_left:
+            self.move_robot_(1.0, 0.0)
+        # turn back forward
+        else:
+            self.move_robot_(0.0, 1.0)
 
     def controller(self):
         """
@@ -464,8 +505,7 @@ class Agent(Node):
         #         print("done")
         #         self.move_robot_(0.0,0.0)
 
-
-        self.move_to_position([10,0])
+        self.move_to_position([0,0])
         # self.move_robot_(0.0, 0.0)
         return
         # raise NotImplementedError('perform() not implemented for Substitution base class.')
