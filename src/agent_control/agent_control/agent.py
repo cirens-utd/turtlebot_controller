@@ -54,7 +54,7 @@ class Agent(Node):
         self.rf_radian = -0.35                  # This is used to setup the radian position for laser colision
         self.lf_radian = 0.35                   # This is used to setup the radian position for laser colision
         self.r_radian = -np.pi/2                # This is used to setup the radian position for laser colision
-        self.l_radian = np.pi                   # This is used to setup the radian position for laser colision
+        self.l_radian = np.pi/2                 # This is used to setup the radian position for laser colision
         self.f_radian = 0                       # This is used to setup the radian position for laser colision
         self._laser_obstructed_forward = False  # Boolean to know we are clear in front of us
         self._laser_obstructed_right = False    # Boolean to know we are clear on the right
@@ -76,6 +76,7 @@ class Agent(Node):
         self._neighbor_delay = neighbor_delay   # seconds to wait before acting on neighbor in way
         self._neighbor_obstructed_time = None   # Time that a neighbor is in the way (used in manual move)
         self._neighbor_turning = 0              # Set to allow robot to turn before calculate collision, 1 = Left, 2 = right, 0 = not turning
+        self._neighbor_turning_set = False      # Used to always turn the same way until path is clear
         self._neighbor_face_direction = None    # Which direction do I want to face
         self._neighbor_obstructed_manual = False # Boolean to allow to avoid neighbors while avoiding neighbors
 
@@ -132,7 +133,7 @@ class Agent(Node):
         self._laser_scan = np.array(msg.ranges)
         straight_ahead_range = np.array(msg.ranges[self._laser_rf_index:self._laser_lf_index])
         right_side_range = np.array(msg.ranges[self._laser_right_index:self._laser_forward_index])
-        left_side_range = np.array(msg.ranges[self._laser_left_index:self._laser_forward_index])
+        left_side_range = np.array(msg.ranges[self._laser_forward_index:self._laser_left_index])
 
         # check if path straight ahead is blocked
         if self.laser_avoid and (straight_ahead_range < self.laser_distance).any():
@@ -151,7 +152,7 @@ class Agent(Node):
             self._laser_obstructed_left = True
         else:
             self._laser_obstructed_left = False
-
+            
         # Example of walking around using laser
         """
         # Run walk around (turn left)
@@ -450,6 +451,7 @@ class Agent(Node):
                 self.walk_laser_right_()
                 # Check to see if path is still blocked
                 if not self._laser_obstructed_left and not self._laser_obstructed_forward:
+                    self.get_logger().info("Laser Path Clear, checking destination")
                     self.path_obstructed_laser = not self.path_clear_laser_(desired_location, angle, magnitude)
             
             # go left
@@ -457,7 +459,7 @@ class Agent(Node):
                 self.walk_laser_left_()
                 # Check to see if path is still blocked
                 if not self._laser_obstructed_right and not self._laser_obstructed_forward:
-                    print("Path Clear, checking destination")
+                    self.get_logger().info("Laser Path Clear, checking destination")
                     self.path_obstructed_laser = not self.path_clear_laser_(desired_location, angle, magnitude)
             
             # dynamic system to decide left and right
@@ -494,13 +496,12 @@ class Agent(Node):
                 break
             left_choice += 1
 
-        print(f"Left: {left_choice}\nRight: {right_choice}")
         if right_choice < left_choice:
             self._laser_dynamic_right = True
-            print("Decided to go right")
+            self.get_logger().info("Laser Decided to go right")
         else:
             self._laser_dynamic_left = True
-            print("Decided to go left")
+            self.get_logger().info("Laser Decided to go left")
 
     def walk_laser_left_(self):
         # Rotate CCW until we can move again
@@ -582,6 +583,8 @@ class Agent(Node):
         # If no neighbors were within tolerance in the right direction or no collision path detected, return False
         # pdb.set_trace()
         self._neighbor_tolerance_active = self._neighbor_tolerance
+        self._neighbor_obstructed_manual = False
+        self._neighbor_turning_set = False
         return False
         
     def is_neighbor_in_direction_manual_(self, current_pos, neighbors):
@@ -638,7 +641,6 @@ class Agent(Node):
 
         # If no neighbors were within tolerance in the right direction or no collision path detected, return False
         self._neighbor_obstructed_time = None
-        self._neighbor_obstructed_manual = False
         return False
 
     def move_around_neighbor_(self, desired_location):
@@ -667,33 +669,44 @@ class Agent(Node):
                         self.move_robot_(0.0, -1.0)
                 
             elif not self.is_neighbor_in_direction_manual_(self.position, self._neighbor_position):
-                self.move_robot_(1.0, 0.0)
+                self.move_around_neighbor_movement_()
             else:
                 if self._neighbor_obstructed_time + datetime.timedelta(seconds=self._neighbor_delay) <= datetime.datetime.now():
-                    direction_heading = self.direction_facing_vector_()
-                    # Get Cross product
-                    cross_product = direction_heading[0] * self._neighbor_collision_vector[1] - direction_heading[1] * self._neighbor_collision_vector[0]
                     
-                    # if > 0, we need to go right (CW)
-                    if cross_product > 0:
-                        print("Turn Right")
-                        self._neighbor_turning = 2
+                    if not self._neighbor_turning_set:
+                        direction_heading = self.direction_facing_vector_()
+                        # Get Cross product
+                        cross_product = direction_heading[0] * self._neighbor_collision_vector[1] - direction_heading[1] * self._neighbor_collision_vector[0]
+                        
+                        # if > 0, we need to go right (CW)
+                        if cross_product > 0:
+                            print("Turn Right")
+                            self._neighbor_turning_set = 2
+                        # if < 0, we need to go left (CCW)
+                        # if is is 0, we can do either. so lets go left
+                        else:
+                            print("Turn Left")
+                            self._neighbor_turning_set = 1
+                            
+                    self._neighbor_turning = self._neighbor_turning_set
+                    if self._neighbor_turning_set == 2:
                         self._neighbor_face_direction = (self.direction_facing - np.pi / 2) % (2 * np.pi)
-                    # if < 0, we need to go left (CCW)
-                    # if is is 0, we can do either. so lets go left
                     else:
-                        print("Turn Left")
-                        self._neighbor_turning = 1
                         self._neighbor_face_direction = (self.direction_facing + np.pi / 2) % (2 * np.pi)
                 else:
                     self.move_robot_(0.0, 0.0)
         else:
             self.move_robot_(0.0, 0.0)
 
+    def move_around_neighbor_movement_(self):
+        # thinking I may expand on this more later. Not very efficent, but it works
+        self.move_robot_(1.0, 0.0)
+
     def direction_facing_vector_(self):
         return np.array([-np.cos(self.direction_facing), -np.sin(self.direction_facing)])
 
     def controller(self):
+        global test
         """
         This is the main logic for controlling the agent. 
 
@@ -717,19 +730,25 @@ class Agent(Node):
         #         print("done")
         #         self.move_robot_(0.0,0.0)
 
-        self.move_to_position([-5,0])
+        self.move_to_position(test)
         
         # self.move_robot_(0.0, 0.0)
         return
         # raise NotImplementedError('perform() not implemented for Substitution base class.')
 
+test = []
 def main(args=None):
+    global test
     ## Start Simulation Script
     ## ros2 launch turtlebot_base launch_sim.launch.py yaml_load:=False robot_number:=2
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--index", default="1", type=int, help="Index of this robot")
     parser.add_argument("-n", "--neighbor", default=[], nargs='+', type=int, help="Array of neighbors")
+    parser.add_argument("-t", "--test", default=[0,0], nargs='+', type=int, help="test var to pass in")
     script_args = parser.parse_args()
+
+    test = script_args.test
+
 
     rclpy.init(args=args)
     my_robot = Agent(int(script_args.index), np.array(script_args.neighbor), laser_avoid=False, neighbor_avoid=True)
