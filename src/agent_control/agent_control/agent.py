@@ -11,7 +11,7 @@ import pdb
 class Agent(Node):
     def __init__(self, my_number, my_neighbors=[], *args, 
         position_rate=2, 
-        laser_avoid=True, laser_distance=0.4, laser_delay=5, laser_walk_around=2,
+        laser_avoid=True, laser_distance=0.5, laser_delay=5, laser_walk_around=2,
         neighbor_avoid=True, neighbor_delay=5):
         # start with this agents number and the numbers for its neighbors
         name = f"robot{my_number}"
@@ -51,8 +51,8 @@ class Agent(Node):
         self.laser_avoid = laser_avoid          # Boolean to use laser to avoid obstructions
         self.laser_distance = laser_distance    # Minimum distance you can get to an object
         self._laser_range_setup = False         # Boolean to setup laser indexs 
-        self.rf_radian = -0.35                  # This is used to setup the radian position for laser colision
-        self.lf_radian = 0.35                   # This is used to setup the radian position for laser colision
+        self.rf_radian = -np.pi/3               # This is used to setup the radian position for laser colision
+        self.lf_radian = np.pi/3                 # This is used to setup the radian position for laser colision
         self.r_radian = -np.pi/2                # This is used to setup the radian position for laser colision
         self.l_radian = np.pi/2                 # This is used to setup the radian position for laser colision
         self.f_radian = 0                       # This is used to setup the radian position for laser colision

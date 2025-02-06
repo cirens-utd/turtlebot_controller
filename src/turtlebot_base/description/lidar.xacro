@@ -28,7 +28,7 @@
 
     <gazebo reference="laser_frame">
         <sensor name="laser" type="gpu_lidar">
-            <pose> 0 0 0 0 0 0 </pose>
+            <pose> 0 0 0.03 0 0 0 </pose>
             <!-- <topic>lidar</topic> -->
             <ignition_frame_id>base_link</ignition_frame_id>
             <visualize>true</visualize>
