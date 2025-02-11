@@ -9,8 +9,8 @@ import datetime
 import pdb
 
 class Agent(Node):
-    def __init__(self, my_number, my_neighbors=[], *args, 
-        position_rate=2, 
+    def __init__(self, my_number, my_neighbors=[], *args, sync_move=False,
+        destination_tolerance=0.01,
         laser_avoid=True, laser_distance=0.5, laser_delay=5, laser_walk_around=2,
         neighbor_avoid=True, neighbor_delay=5):
         # start with this agents number and the numbers for its neighbors
@@ -20,6 +20,8 @@ class Agent(Node):
         self.my_number = my_number
         self._diameter = 0.4
         self.test_index = 0
+
+        self.get_logger().info(f"{self.my_name} has been started.")
 
         # Create Publisher for movement
         self.cmd_vel_pub_ = self.create_publisher(Twist, f"/{name}/cmd_vel", 10)
@@ -35,8 +37,9 @@ class Agent(Node):
                     lambda msg,name=number: self.neighbor_pose_callback_(msg, name), 
                     10
                 )
+                self.get_logger().info(f"{self.my_name} Subscribed to neighbor number {number}")
             except:
-                print(f"Could not subscribe to turtlebot{number} Position")
+                self.get_logger().warning(f"Could not subscribe to turtlebot{number} Position")
     
         self.lidar_sub_ = self.create_subscription(LaserScan, f"/{name}/scan", self.lidar_callback_, 10)
         
@@ -44,8 +47,7 @@ class Agent(Node):
         self._position = None
 
         # track where my neighbors are
-        self._neighbor_position = {}
-        self.get_logger().info(f"Robot{my_number} has been started.")
+        self.neighbor_position = {}
 
         # Laser Avoidance Vars
         self.laser_avoid = laser_avoid          # Boolean to use laser to avoid obstructions
@@ -82,9 +84,11 @@ class Agent(Node):
 
         # status for the agent
         self._desired_location = None
-        self._position_refresh_rate = position_rate
         self._motion_complete = False
+        self._destination_tolerance = destination_tolerance
         self._direction_facing = 0
+        self._sync_move = sync_move     # Boolean used to activate sync move mode
+        self._synce_state = 0           # State of this agent. 0 = not ready 1 = ready 2 = complete 4 = obstructed
         self._path_obstructed_time = None
         self._path_obstructed = False
         self._path_obstructed_laser = False
@@ -97,12 +101,12 @@ class Agent(Node):
         self.direction_facing = self.get_angle_quad(orientation)
 
         if self.neighbor_avoid:
-            self.path_obstructed_neighbor = self.is_neighbor_in_direction_(self.position, self.desired_location, self._neighbor_position)
+            self.path_obstructed_neighbor = self.is_neighbor_in_direction_(self.position, self.desired_location, self.neighbor_position)
         self.controller()
 
     def neighbor_pose_callback_(self, pose: PoseStamped, name):
         x,y = pose.pose.position.x, pose.pose.position.y
-        self._neighbor_position[name] = [x,y]
+        self.neighbor_position[name] = [x,y]
     
     def lidar_callback_(self, msg: LaserScan):
 
@@ -233,10 +237,6 @@ class Agent(Node):
     @property
     def path_obstructed(self):
         return self._path_obstructed
-
-    @property
-    def rate(self):
-        return self._position_refresh_rate
     
     def set_path_obstructed_(self):
         """
@@ -368,11 +368,18 @@ class Agent(Node):
         Creating cut off points for the movement
         '''
         new_value = max(-2.0, min(value, 2.0))
-        if np.abs(new_value) > 0.01 and np.abs(new_value) < 0.5:
+        if np.abs(new_value) > self._destination_tolerance and np.abs(new_value) < 0.5:
             new_value = 0.5 * (new_value / np.abs(new_value))
-        elif np.abs(new_value) <= 0.01:
+        elif np.abs(new_value) <= self._destination_tolerance:
             new_value = 0.0
         return new_value
+
+    def move_direction(self, direction):
+        '''
+        Give the direction with magnitude you want to go.
+        Will take current position and then pass the new position to move_to_position
+        '''
+        self.move_to_position(self.position + direction)
 
     def move_to_position(self, desired_location):
         """
@@ -385,7 +392,7 @@ class Agent(Node):
         desired_location = np.array(desired_location)
         magnitude = np.linalg.norm(self.position - desired_location)
         angle = self.angle(self.position, desired_location)
-        
+
         if not self.path_obstructed:
             z = self.scale_movement_(self.diff_angles(angle, self.direction_facing))
             x = self.scale_movement_(magnitude)
@@ -408,11 +415,21 @@ class Agent(Node):
                         self.move_robot_(x, z)
                 else:
                     self.move_robot_(0.0, z)
-            else:
+            elif x:
                 if np.abs(z) > 0.001:
                     self.move_robot_(0.0, z)
                 else:
                     self.move_robot_(x, z)
+            else:
+                if not self.motion_complete:
+                    self.get_logger().info(f"{self.my_name} reached location")
+                    self.motion_complete = True
+                self.move_robot_(0.0, 0.0)
+
+            if x and self.motion_complete:
+                self.get_logger().info(f"{self.my_name} started moving again")
+                self.motion_complete = False
+
         elif self.laser_avoid and self.path_obstructed_laser:
             self.move_around_laser_(desired_location)
         elif self.neighbor_avoid and self.path_obstructed_neighbor:
@@ -668,7 +685,7 @@ class Agent(Node):
                     else:
                         self.move_robot_(0.0, -1.0)
                 
-            elif not self.is_neighbor_in_direction_manual_(self.position, self._neighbor_position):
+            elif not self.is_neighbor_in_direction_manual_(self.position, self.neighbor_position):
                 self.move_around_neighbor_movement_()
             else:
                 if self._neighbor_obstructed_time + datetime.timedelta(seconds=self._neighbor_delay) <= datetime.datetime.now():
@@ -706,7 +723,6 @@ class Agent(Node):
         return np.array([-np.cos(self.direction_facing), -np.sin(self.direction_facing)])
 
     def controller(self):
-        global test
         """
         This is the main logic for controlling the agent. 
 
@@ -730,15 +746,13 @@ class Agent(Node):
         #         print("done")
         #         self.move_robot_(0.0,0.0)
 
-        self.move_to_position(test)
+        # self.move_to_position(test)
         
         # self.move_robot_(0.0, 0.0)
-        return
-        # raise NotImplementedError('perform() not implemented for Substitution base class.')
+        # return
+        raise NotImplementedError('controller() not implemented for Agent base class.')
 
-test = []
 def main(args=None):
-    global test
     ## Start Simulation Script
     ## ros2 launch turtlebot_base launch_sim.launch.py yaml_load:=False robot_number:=2
     parser = argparse.ArgumentParser()
@@ -746,9 +760,6 @@ def main(args=None):
     parser.add_argument("-n", "--neighbor", default=[], nargs='+', type=int, help="Array of neighbors")
     parser.add_argument("-t", "--test", default=[0,0], nargs='+', type=int, help="test var to pass in")
     script_args = parser.parse_args()
-
-    test = script_args.test
-
 
     rclpy.init(args=args)
     my_robot = Agent(int(script_args.index), np.array(script_args.neighbor), laser_avoid=False, neighbor_avoid=True)
