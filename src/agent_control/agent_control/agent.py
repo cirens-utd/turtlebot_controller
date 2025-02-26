@@ -237,7 +237,7 @@ class Agent(Node):
     def robot_ready(self):
         return self._robot_ready
     @robot_ready.setter
-    def robot_ready(self, value)
+    def robot_ready(self, value):
         self._robot_ready = bool(value)
 
     @property
