@@ -24,6 +24,11 @@ class Agent(Node):
         self._sim = sim
         policy = qos_profile_sensor_data
 
+        self._robot_ready = False
+        self._position_started = False
+        self._neighbors_started = not bool(len(my_neighbors))
+        self._lidar_started = not laser_avoid
+
         self.get_logger().info(f"{self.my_name} has been started.")
 
         if self._sim:
@@ -49,7 +54,7 @@ class Agent(Node):
     
         self.lidar_sub_ = self.create_subscription(LaserScan, f"/{name}/scan", self.lidar_callback_, 10)
 
-        self.timer = self.create_timer(0.1, self.controller)
+        self.timer = self.create_timer(0.1, self._controller_loop)
         
         # track my location
         self._position = None
@@ -113,7 +118,19 @@ class Agent(Node):
         self._sim_distance_stop = 0.15      # max command is 0.5. Not very linear. Will just use this
         self._sim_rotation_stop = 1         # max command is 2. This will be half the command
 
+    def check_robot_ready_(self):
+        checks = [self._position_started, self._neighbors_started, self._lidar_started]
+        if checks.all():
+            self.get_logger.info(f"{self.my_name} Now ready to move.")
+            self.robot_ready = True
+        return
+
     def pose_callback_(self, pose: PoseStamped):
+        # set flag to show this has been started
+        if not self._position_started:
+            self._position_started = True
+            self.get_logger().info(f"{self.my_name}: Position Topic Recieved")
+
         orientation = pose.pose.orientation
         x,y = pose.pose.position.x, pose.pose.position.y
         self.position = [x,y]
@@ -133,12 +150,19 @@ class Agent(Node):
     def neighbor_pose_callback_(self, pose: PoseStamped, name):
         x,y = pose.pose.position.x, pose.pose.position.y
         self.neighbor_position[name] = [x,y]
+
+        # check if all have been found
+        if not self._neighbors_started and len(self.neighbor_position) == len(self.neighbor_position_sub_):
+            self._neighbors_started = True
+            self.get_logger().info(f"{self.my_name}: All Neighbor Topics Recieved")
     
     def lidar_callback_(self, msg: LaserScan):
 
         # Something is in the way if there is something between 2.8 and 3.469 radian
         if not self._laser_range_setup:
             self.setup_laser_config_(msg)
+            self._lidar_started = True
+            self.get_logger().info(f"{self.my_name}: Lidar Topic Recieved")
 
         # In front of bot at 0.4m away
         # 285 - 353
@@ -209,6 +233,12 @@ class Agent(Node):
             self.move_robot_(0.0, 1.0)
         """
 
+    @property 
+    def robot_ready(self):
+        return self._robot_ready
+    @robot_ready.setter
+    def robot_ready(self, value)
+        self._robot_ready = bool(value)
 
     @property
     def motion_complete(self):
@@ -542,7 +572,6 @@ class Agent(Node):
                 self.walk_laser_right_()
                 # Check to see if path is still blocked
                 if not self._laser_obstructed_left and not self._laser_obstructed_forward:
-                    self.get_logger().info("Laser Path Clear, checking destination")
                     self.path_obstructed_laser = not self.path_clear_laser_(desired_location, angle, magnitude)
             
             # go left
@@ -550,7 +579,6 @@ class Agent(Node):
                 self.walk_laser_left_()
                 # Check to see if path is still blocked
                 if not self._laser_obstructed_right and not self._laser_obstructed_forward:
-                    self.get_logger().info("Laser Path Clear, checking destination")
                     self.path_obstructed_laser = not self.path_clear_laser_(desired_location, angle, magnitude)
             
             # dynamic system to decide left and right
@@ -589,10 +617,10 @@ class Agent(Node):
 
         if right_choice < left_choice:
             self._laser_dynamic_right = True
-            self.get_logger().info("Laser Decided to go right")
+            self.get_logger().info(f"{self.my_name} Laser Decided to go right")
         else:
             self._laser_dynamic_left = True
-            self.get_logger().info("Laser Decided to go left")
+            self.get_logger().info(f"{self.my_name} Laser Decided to go left")
 
     def walk_laser_left_(self):
         # Rotate CCW until we can move again
@@ -771,12 +799,12 @@ class Agent(Node):
                         
                         # if > 0, we need to go right (CW)
                         if cross_product > 0:
-                            print("Turn Right")
+                            self.get_logger().info(f"{self.my_name} Move around Right of neighbor")
                             self._neighbor_turning_set = 2
                         # if < 0, we need to go left (CCW)
                         # if is is 0, we can do either. so lets go left
                         else:
-                            print("Turn Left")
+                            self.get_logger().info(f"{self.my_name} Move around Left of neighbor")
                             self._neighbor_turning_set = 1
                             
                     self._neighbor_turning = self._neighbor_turning_set
@@ -795,6 +823,17 @@ class Agent(Node):
 
     def direction_facing_vector_(self):
         return np.array([-np.cos(self.direction_facing), -np.sin(self.direction_facing)])
+
+    def _controller_loop(self):
+        # just a pre function that is used to make sure the robot is ready before starting controller. 
+        # this should not be edited
+
+        if self.robot_ready:
+            self.controller
+            return
+        
+        self.check_robot_ready_()
+        return
 
     def controller(self):
         """
@@ -820,11 +859,11 @@ class Agent(Node):
         #         print("done")
         #         self.move_robot_(0.0,0.0)
 
-        self.move_to_position([5,0])
+        # self.move_to_position([5,0])
         
         # self.move_robot_(0.0, 0.0)
-        return
-        # raise NotImplementedError('controller() not implemented for Agent base class.')
+        # return
+        raise NotImplementedError('controller() not implemented for Agent base class.')
 
 def main(args=None):
     ## Start Simulation Script

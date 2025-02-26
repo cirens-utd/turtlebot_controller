@@ -20,7 +20,8 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            "consensus_node = agent_control.consensus:main"
+            "consensus_node = agent_control.consensus:main",
+            "formation_node = agent_control.LF_formation:main",
         ],
     },
 )
