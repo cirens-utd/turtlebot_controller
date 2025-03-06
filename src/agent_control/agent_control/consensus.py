@@ -7,11 +7,11 @@ import datetime
 import pdb
 
 class Consensus(Agent):
-    def __init__(self, my_number, my_neighbors=[], *args, sync_move=False,
+    def __init__(self, my_number, my_neighbors=[], *args, sim=False, sync_move=False,
         destination_tolerance=0.01,
         laser_avoid=True, laser_distance=0.5, laser_delay=5, laser_walk_around=2,
         neighbor_avoid=True, neighbor_delay=5):
-        super().__init__(my_number, my_neighbors, sync_move=sync_move, 
+        super().__init__(my_number, my_neighbors, sim=sim, sync_move=sync_move, 
                         destination_tolerance=destination_tolerance,
                         laser_avoid=laser_avoid, laser_distance=laser_distance, laser_delay=laser_delay, laser_walk_around=laser_walk_around,
                         neighbor_avoid=neighbor_avoid, neighbor_delay=neighbor_delay)
@@ -54,7 +54,7 @@ def main(args=None):
     script_args = parser.parse_args()
 
     rclpy.init(args=args)
-    my_robot = Consensus(int(script_args.index), np.array(script_args.neighbor), laser_avoid=True, neighbor_avoid=True)
+    my_robot = Consensus(int(script_args.index), np.array(script_args.neighbor), sim=True, laser_avoid=True, neighbor_avoid=True)
     rclpy.spin(my_robot)
     rclpy.shutdown()
 

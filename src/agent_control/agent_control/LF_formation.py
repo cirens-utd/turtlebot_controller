@@ -35,7 +35,8 @@ class LF_Formation(Agent):
         This function is called every time the robot position is updated. We will put our formation controle logic here.
 
         Equation:
-        new_position = sum((self.position-self.neighbor_position[k]-seperation_from_ni)*(self.position-self.neighbor_position[k])), for k in neighborhood
+        new_position = sum((np.linalg.norm(neighbor - self.position) - self._formation_distance[i])* neighbor - self.position)
+        
 
         Needed info from agent.
         self.position                   This agents position
@@ -45,17 +46,14 @@ class LF_Formation(Agent):
         '''
 
         start = False
-        total = 0
-        not_too_close = 0.5
+        total = [0,0]
+        tolerance = 0.1
 
         for name, neighbor in self.neighbor_position.items():
             start = True
             difference = np.array(neighbor) - np.array(self.position)
-            if np.linalg.norm(difference) > self._formation_distance[str(name)]:
-                weight = 1
-            else:
-                weight = 0
-            total += weight * difference
+            if abs(np.linalg.norm(difference) - self._formation_distance[str(name)])  > tolerance:
+                total += (np.linalg.norm(difference) - self._formation_distance[str(name)]) * difference
         if start:
             self.move_direction(total)
 
@@ -92,7 +90,7 @@ def main(args=None):
     '''
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--index", default="1", type=int, help="Index of this robot")
-    parser.add_argument("-f", "--formation", type = str, default = "/media/sf_MacShare/turtlebot_simulator/src/agent_control/config/agent_setup/agent_setup.yaml",help = "/path/to/agent_setup.yaml")
+    parser.add_argument("-f", "--formation", type = str, default = "~/turtlebot_codes/from_jeremy/turtlebot_simulator/src/agent_control/config/agent_setup/agent_setup.yaml",help = "/path/to/agent_setup.yaml")
     parser.add_argument("--ros-args", default=False, action="store_true")
     script_args = parser.parse_args()
 

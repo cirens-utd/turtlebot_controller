@@ -119,9 +119,9 @@ class Agent(Node):
         self._sim_rotation_stop = 1         # max command is 2. This will be half the command
 
     def check_robot_ready_(self):
-        checks = [self._position_started, self._neighbors_started, self._lidar_started]
+        checks = np.array([self._position_started, self._neighbors_started, self._lidar_started])
         if checks.all():
-            self.get_logger.info(f"{self.my_name} Now ready to move.")
+            self.get_logger().info(f"{self.my_name} Now ready to move.")
             self.robot_ready = True
         return
 
@@ -829,7 +829,7 @@ class Agent(Node):
         # this should not be edited
 
         if self.robot_ready:
-            self.controller
+            self.controller()
             return
         
         self.check_robot_ready_()
