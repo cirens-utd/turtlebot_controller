@@ -12,7 +12,7 @@ import pdb
 class Agent(Node):
     def __init__(self, my_number, my_neighbors=[], *args, sim=False, sync_move=False,
         destination_tolerance=0.01, angle_tolerance=0.1,
-        laser_avoid=True, laser_distance=0.5, laser_delay=5, laser_walk_around=2,
+        laser_avoid=True, laser_distance=0.5, laser_delay=5, laser_walk_around=2, laser_avoid_loop_max = 1,
         neighbor_avoid=True, neighbor_delay=5):
         # start with this agents number and the numbers for its neighbors
         name = f"robot{my_number}"
@@ -74,26 +74,36 @@ class Agent(Node):
         self._laser_obstructed_forward = False  # Boolean to know we are clear in front of us
         self._laser_obstructed_right = False    # Boolean to know we are clear on the right
         self._laser_obstructed_left = False     # Boolean to know we are clear on the left
+        self.__laser_obstructed_direction = None # Direction you were started to go to avoid the obsturction - Note: must be set to None before can change again
         self._laser_walk_around = laser_walk_around # If 0 robot will go left and 1 will go right and 2 will decide based on laser
         self._laser_delay = laser_delay         # Number of seconds before avoidance is taken 
+        self._laser_delay_active = laser_delay  # Active value used in delay. If avoiding neighbor, the higher number robot will wait 2 * laser_delay
         self._laser_scan = None                 # Last known value of the laser scanner
         self._laser_min_angle = None            # Min angle of the laser scanner (setup in laser setup)
         self._laser_max_angle = None            # Max angle of the laser scanner (setup in laser setup)
         self._laser_angle_increment = None      # Angle increment (setup in laser setup)
         self._laser_dynamic_left = False        # Flag used to determine if we are going left
         self._laser_dynamic_right = False       # Flag used to determine if we are going right
+        self._pre_path_obstructed_laser = False # Flag to see what previous path obstructed was
+        self._laser_avoid_loop_max = laser_avoid_loop_max # number of loops before fail in laser avoid
+        self._laser_avoid_loop_count = 0        # Track Current Loop Count
+        self._laser_avoid_directions_start_idx = 0 # Starting index for directions traveled
+        self._laser_avoid_directions_traveled = np.array([False, False, False, False])  
+                                                # Flags used to make sure we went all four ways [Start_idx, Forward, Left, Back, Right]
+        self._laser_avoid_error = False         # Flag used to tell if laser avoid error occured
 
         #Neighbor Avoid Vars
         self.neighbor_avoid = neighbor_avoid    # Boolean to know we want to avoid our neighbors
         self._neighbor_tolerance = 0.5          # How close to neighbors do we get
         self._neighbor_tolerance_active = self._neighbor_tolerance  # active value used in movement. Adjusted depending on step of movement
         self._neighbor_collision_vector = None  # Vector to robot that will collide
-        self._neighbor_delay = neighbor_delay   # seconds to wait before acting on neighbor in way
+        self._neighbor_collision_name = None    # Name of robot that we are colliding with
+        self._neighbor_delay = neighbor_delay   # seconds to wait before acting on neighbor in way (lower number robot. Higher Number will be 2x as long)
+        self._neighbor_delay_active = neighbor_delay # ative delay value (lower number will be neighbor delay and higher will be 2 * neighbor delay)
         self._neighbor_obstructed_time = None   # Time that a neighbor is in the way (used in manual move)
         self._neighbor_turning = 0              # Set to allow robot to turn before calculate collision, 1 = Left, 2 = right, 0 = not turning
         self._neighbor_turning_set = False      # Used to always turn the same way until path is clear
         self._neighbor_face_direction = None    # Which direction do I want to face
-        self._neighbor_obstructed_manual = False # Boolean to allow to avoid neighbors while avoiding neighbors
 
         # status for the agent
         self._max_speed = 2.0 # 0.5                   # max speed you can command the robot to move
@@ -109,14 +119,6 @@ class Agent(Node):
         self._path_obstructed = False
         self._path_obstructed_laser = False
         self._path_obstructed_neighbor = False
-
-        # simulation pieces
-        self._sim_issue_location = None     # [x, y, theta]
-        self._sim_stop_issue_location = None
-        self._sim_max_distance = 0.15
-        self._sim_max_rotation = 1  
-        self._sim_distance_stop = 0.15      # max command is 0.5. Not very linear. Will just use this
-        self._sim_rotation_stop = 1         # max command is 2. This will be half the command
 
     def check_robot_ready_(self):
         checks = np.array([self._position_started, self._neighbors_started, self._lidar_started])
@@ -138,14 +140,6 @@ class Agent(Node):
 
         if self.neighbor_avoid:
             self.path_obstructed_neighbor = self.is_neighbor_in_direction_(self.position, self.desired_location, self.neighbor_position)
-
-        # if self._sim and type(self._sim_issue_location) != type(None):
-        #     if np.linalg.norm(self._sim_issue_location[:1] - self.position) >= self._sim_distance_stop or np.abs(self._sim_issue_location[2] - self.direction_facing) >= self._sim_rotation_stop:
-        #         if type(self._sim_stop_issue_location) == type(None) or (self._sim_issue_location != self._sim_stop_issue_location):
-        #             self.move_robot_(0.0, 0.0)
-        #             self.get_logger().info(f"Script simulated robot stop for robot {self.my_name}")
-        #             self._sim_stop_issue_location = self._sim_issue_location
-        #             print(f"{np.linalg.norm(self._sim_issue_location[:1] - self.position)}, {np.abs(self._sim_issue_location[2] - self.direction_facing)}")
 
     def neighbor_pose_callback_(self, pose: PoseStamped, name):
         x,y = pose.pose.position.x, pose.pose.position.y
@@ -275,8 +269,31 @@ class Agent(Node):
     def desired_location(self, location):
         # location = [x,y]
         location = np.array(location)
-        if type(self._desired_location) == type(None) or np.linalg.norm(location - self._desired_location) > self._destination_tolerance:
+        if type(self._desired_location) == type(None):
             self._desired_location = location
+            return
+        if np.linalg.norm(location - self._desired_location) > self._destination_tolerance and not self.path_obstructed:
+            self._desired_location = location
+            return
+
+    @property
+    def _laser_obstructed_direction(self):
+        return self.__laser_obstructed_direction
+    @_laser_obstructed_direction.setter
+    def _laser_obstructed_direction(self, direction):
+        if self.__laser_obstructed_direction == None:
+            self.__laser_obstructed_direction = direction
+        elif direction == None:
+            self.__laser_obstructed_direction = None
+        
+        self.record_laser_direction_heading_(direction)
+
+    @property
+    def laser_avoid_error(self):
+        return self._laser_avoid_error
+    @laser_avoid_error.setter
+    def laser_avoid_error(self, value):
+        self._laser_avoid_error = value
 
     @property
     def path_obstructed_laser(self):
@@ -309,6 +326,70 @@ class Agent(Node):
             self._path_obstructed_time = None
 
         self._path_obstructed = cur_value
+
+    def record_laser_direction_heading_(self, direction):
+        '''
+        Will track the directions we have moved in laser avoid. Goal is to know when are target is not reachable. 
+
+        Will track directions in self._laser_avoid_directions_traveled -> [Start_idx, Forward, Left, Down, Right]
+        How many loops that can be made will be in self._laser_avoid_loop_max. Current loop count is in self._laser_avoid_loop_count
+
+        Forward = 3pi/4 - 5pi/4
+        Left = 5pi/4 - 7pi/4
+        Back = 7pi/4 - pi/4
+        Right = pi/4 - 3pi/4
+        '''
+
+        if direction == None:
+            self._laser_avoid_directions_start_idx = 0
+            self._laser_avoid_directions_traveled = np.array([False, False, False, False])
+            return
+
+        # check which direction we are heading
+        # Right
+        if direction >= np.pi / 4 and direction < 3 * np.pi / 4:
+            # check to see if we need to change the state
+            complete = self._check_laser_direction_progress(3)
+        # Forward
+        elif direction >= 3 * np.pi / 4 and direction < 5 * np.pi / 4:
+            # check to see if we need to change the state
+            complete = self._check_laser_direction_progress(0)
+        # Left
+        elif direction >= 5 * np.pi / 4 and direction < 7 * np.pi / 4:
+            # check to see if we need to change the state
+            complete = self._check_laser_direction_progress(1)
+        # Back
+        elif direction >= 7 * np.pi / 4 or direction < np.pi / 4:
+            # check to see if we need to change the state
+            complete = self._check_laser_direction_progress(2)
+
+
+        # On the last Stretch
+        # check to see if we completed a full loop
+        if complete:
+            self._laser_avoid_loop_count += 1
+
+        if self._laser_avoid_loop_count >= self._laser_avoid_loop_max:
+            self.get_logger().warning(f"{self.my_name} Reacheched Laser Avoid Max Loop of {self._laser_avoid_loop_max}")
+            self.laser_avoid_error = True
+
+    def _check_laser_direction_progress(self, index):
+        # see if complete
+        if self._laser_avoid_loop_count % 2:
+            if np.all(~self._laser_avoid_directions_traveled) and index == self._laser_avoid_directions_start_idx:
+                return True
+        else:
+            if np.all(self._laser_avoid_directions_traveled) and index == self._laser_avoid_directions_start_idx:
+                return True
+
+        if self._laser_avoid_directions_traveled[index] == self._laser_avoid_loop_count % 2:
+            self._laser_avoid_directions_traveled[index] = not self._laser_avoid_directions_traveled[index]
+        
+        # see if start is added yet
+        if not self._laser_avoid_directions_start_idx:
+            self._laser_avoid_directions_start_idx = index
+
+        return False
 
     def get_angle_quad(self,q):
         """
@@ -465,10 +546,6 @@ class Agent(Node):
         :return: None
         """
 
-        # need to wait for position to be gained
-        if type(self.position) == type(None):
-            return
-
         heading_tolerance = 3*np.pi/2       # how close can we be facing our destination before we start driving
         kv = 1                              # gain on the forward direction
         kv_rot = 1/4                        # gain on the forward direction when we are on the edge of our heading direction
@@ -480,7 +557,7 @@ class Agent(Node):
         krot_fine = 1                       # gain on rotation for fine movement
 
         self.desired_location = desired_location            # this actually does calculations to determin if the point has changed
-        desired_location = np.array(self.desired_location)     
+        desired_location = np.array(self.desired_location)  
         magnitude = np.linalg.norm(self.position - desired_location)
         angle = self.angle(self.position, desired_location)
 
@@ -549,11 +626,6 @@ class Agent(Node):
         cmd.angular.z = z 
         self.cmd_vel_pub_.publish(cmd)
 
-        if self._sim:
-            self._sim_issue_location = [self.position[0], self.position[1], self.direction_facing]
-            self._sim_distance_stop = self._sim_max_distance    # this isn't very linear
-            self._sim_rotation_stop = self._sim_max_rotation    # z/2 if z else 1
-
     def move_around_laser_(self, desired_location):
         """
         Internal Method to get around an object using the laser. Will wait a set period of time before acting.
@@ -566,32 +638,47 @@ class Agent(Node):
         magnitude = np.linalg.norm(self.position - desired_location)
         angle = self.angle(self.position, desired_location)
 
-        if self._path_obstructed_time + datetime.timedelta(seconds=self._laser_delay) <= datetime.datetime.now():
-            # go right
-            if self._laser_walk_around == 1 or self._laser_dynamic_right:
-                self.walk_laser_right_()
-                # Check to see if path is still blocked
-                if not self._laser_obstructed_left and not self._laser_obstructed_forward:
-                    self.path_obstructed_laser = not self.path_clear_laser_(desired_location, angle, magnitude)
-            
-            # go left
-            elif self._laser_walk_around == 0 or self._laser_dynamic_left:
-                self.walk_laser_left_()
-                # Check to see if path is still blocked
-                if not self._laser_obstructed_right and not self._laser_obstructed_forward:
-                    self.path_obstructed_laser = not self.path_clear_laser_(desired_location, angle, magnitude)
-            
-            # dynamic system to decide left and right
+        if self.is_neighbor_in_direction_(self.position, self.desired_location, self.neighbor_position, self.laser_distance * 2):
+            if self._neighbor_collision_name < self.my_number:
+                self._laser_delay_active = 2 * self._laser_delay
             else:
-                self.walk_laser_descide_()
-
+                self._laser_delay_active = self._laser_delay
         else:
-            # waiting to see if obsturction moves
-            self.move_robot_(0.0, 0.0)
+            self._laser_delay_active = self._laser_delay
         
-        if not self.path_obstructed_laser and (self._laser_dynamic_left or self._laser_dynamic_right):
-            self._laser_dynamic_right = False
-            self._laser_dynamic_left = False
+
+        if not self.laser_avoid_error:
+            if self._path_obstructed_time + datetime.timedelta(seconds=self._laser_delay_active) <= datetime.datetime.now():
+                # go right
+                if self._laser_walk_around == 1 or self._laser_dynamic_right:
+                    self.walk_laser_right_()
+                    # Check to see if path is still blocked
+                    if not self._laser_obstructed_left and not self._laser_obstructed_forward:
+                        self.path_obstructed_laser = not self.path_clear_laser_(desired_location, angle, magnitude)
+                
+                # go left
+                elif self._laser_walk_around == 0 or self._laser_dynamic_left:
+                    self.walk_laser_left_()
+                    # Check to see if path is still blocked
+                    if not self._laser_obstructed_right and not self._laser_obstructed_forward:
+                        self.path_obstructed_laser = not self.path_clear_laser_(desired_location, angle, magnitude)
+                
+                # dynamic system to decide left and right
+                else:
+                    self.walk_laser_descide_()
+
+            else:
+                # waiting to see if obsturction moves
+                self.move_robot_(0.0, 0.0)
+            
+            if not self.path_obstructed_laser and (self._pre_path_obstructed_laser):
+                self._laser_dynamic_right = False
+                self._laser_dynamic_left = False
+                self._laser_obstructed_direction = None
+
+            self._pre_path_obstructed_laser = self.path_obstructed_laser
+        else:
+            self.move_robot_(0.0, 0.0)
 
     def walk_laser_descide_(self):
         # right is negative and left is positive
@@ -628,6 +715,7 @@ class Agent(Node):
             self.move_robot_(0.0, 1.0)
         # Drive Forward until clear
         elif self._laser_obstructed_right:
+            self._laser_obstructed_direction = self.direction_facing
             self.move_robot_(1.0, 0.0)
         # turn back forward
         else:
@@ -639,12 +727,13 @@ class Agent(Node):
             self.move_robot_(0.0, -1.0)
         # Drive Forward until clear
         elif self._laser_obstructed_left:
+            self._laser_obstructed_direction = self.direction_facing
             self.move_robot_(1.0, 0.0)
         # turn back forward
         else:
             self.move_robot_(0.0, 1.0)
 
-    def is_neighbor_in_direction_(self, current_pos, desired_pos, neighbors):
+    def is_neighbor_in_direction_(self, current_pos, desired_pos, neighbors, tolerance=None):
         '''
         :param current_pos: is the coordinates of this robot
         :param desired_pos: is the coordinates of the desired location
@@ -652,8 +741,10 @@ class Agent(Node):
 
         -Returns True if neighbor is in path
         '''
-        if type(desired_pos) != type(None) and type(neighbors) != type(None):
+        if type(tolerance) == type(None):
             tolerance = self._neighbor_tolerance_active
+
+        if type(desired_pos) != type(None) and type(neighbors) != type(None):
             diameter = self._diameter
 
             current_pos = np.array(current_pos)
@@ -697,12 +788,11 @@ class Agent(Node):
                     # check to make sure we are not being obstructed manually
                     if self._neighbor_obstructed_time == None:
                         self._neighbor_collision_vector = to_neighbor_vector
+                    self._neighbor_collision_name = name
                     return True
 
         # If no neighbors were within tolerance in the right direction or no collision path detected, return False
-        # pdb.set_trace()
         self._neighbor_tolerance_active = self._neighbor_tolerance
-        self._neighbor_obstructed_manual = False
         self._neighbor_turning_set = False
         return False
         
@@ -749,13 +839,20 @@ class Agent(Node):
             # Check if the distance to the path is less than the diameter
             if distance_to_path <= diameter and np.linalg.norm(to_neighbor_vector) <= tolerance:
                 if self._neighbor_obstructed_time == None:
-                    if not self._neighbor_obstructed_manual:
-                        self._neighbor_obstructed_time = self._path_obstructed_time
-                        self._neighbor_obstructed_manual = True
-                        self._neighbor_tolerance_active = 2 * self._neighbor_tolerance
+                    self._neighbor_obstructed_time = self._path_obstructed_time
+                    self._neighbor_tolerance_active = 2 * self._neighbor_tolerance
+                    self._neighbor_collision_name = name
+                    if name  < self.my_number:
+                        self._neighbor_delay_active = self._neighbor_delay * 2
+
+                elif name != self._neighbor_collision_name:
+                    self._neighbor_collision_name = name
+                    self._neighbor_obstructed_time = datetime.datetime.now()
+                    self._neighbor_collision_vector = to_neighbor_vector
+                    if name  < self.my_number:
+                        self._neighbor_delay_active = self._neighbor_delay * 2
                     else:
-                        self._neighbor_obstructed_time = datetime.datetime.now()
-                        self._neighbor_collision_vector = to_neighbor_vector
+                        self._neighbor_delay_active = self._neighbor_delay
                 return True
 
         # If no neighbors were within tolerance in the right direction or no collision path detected, return False
@@ -763,7 +860,7 @@ class Agent(Node):
         return False
 
     def move_around_neighbor_(self, desired_location):
-        if self._path_obstructed_time + datetime.timedelta(seconds=self._neighbor_delay) <= datetime.datetime.now():
+        if self._path_obstructed_time + datetime.timedelta(seconds=self._neighbor_delay_active) <= datetime.datetime.now():
             if self._neighbor_turning:
                 # Shifting values to prevent wrap around
                 new_direction_face = self.direction_facing
@@ -790,7 +887,7 @@ class Agent(Node):
             elif not self.is_neighbor_in_direction_manual_(self.position, self.neighbor_position):
                 self.move_around_neighbor_movement_()
             else:
-                if self._neighbor_obstructed_time + datetime.timedelta(seconds=self._neighbor_delay) <= datetime.datetime.now():
+                if self._neighbor_obstructed_time + datetime.timedelta(seconds=self._neighbor_delay_active) <= datetime.datetime.now():
                     
                     if not self._neighbor_turning_set:
                         direction_heading = self.direction_facing_vector_()
@@ -824,6 +921,21 @@ class Agent(Node):
     def direction_facing_vector_(self):
         return np.array([-np.cos(self.direction_facing), -np.sin(self.direction_facing)])
 
+    def new_controller(self):
+        # can be used to set all paraemeters back to original and start a new controller. 
+        # mainly used to recover from robot who have "errored"
+
+        self._laser_avoid_loop_count = 0
+        self._laser_avoid_directions_start_idx = 0
+        self._laser_avoid_directions_traveled = np.array([False, False, False, False])
+        self._laser_obstructed_direction = None
+        self._pre_path_obstructed_laser = False
+        self.laser_avoid_error = False
+        self.path_obstructed_laser = False
+        self.path_obstructed_neighbor = False
+        
+        return
+
     def _controller_loop(self):
         # just a pre function that is used to make sure the robot is ready before starting controller. 
         # this should not be edited
@@ -843,27 +955,23 @@ class Agent(Node):
         raises NotImplementedError.
 
         You should find your desired position you want this agent to go to and then send that to the self.move_to_position method
+        Or you can find the direction you want to head and sent that to self.move_direction()
+
+        Needed info from agent.
+        self.position                   This agents position
+        self.neighbor_position          Dictionary of neighbors position
+        self.move_direction([x,y])      Function to move in a direction
+        self.move_to_position([x,y])    Function to move to a position
 
         :raises: NotImplementedError
         """
-        # # find your desired location (x, y) and pass it into self.move_to_position((x,y))
-        # positions = [[29,3],[10,0], [-10,10], [5,2]]
-        
-        # if np.linalg.norm(self.position - positions[self.test_index]) > 0.1:
-        #     self.move_to_position(positions[self.test_index])
-        # else:
-        #     self.test_index += 1
-        #     if len(positions) >= self.test_index:
-        #         print("moving to next point", positions[self.test_index])
-        #     else:
-        #         print("done")
-        #         self.move_robot_(0.0,0.0)
 
         # self.move_to_position([5,0])
-        
+        self.move_direction([1,0])
+        # pdb.set_trace()  # self._laser_obstructed_direction = 1.1*np.pi/4
         # self.move_robot_(0.0, 0.0)
-        # return
-        raise NotImplementedError('controller() not implemented for Agent base class.')
+        return
+        # raise NotImplementedError('controller() not implemented for Agent base class.')
 
 def main(args=None):
     ## Start Simulation Script
@@ -876,7 +984,7 @@ def main(args=None):
     script_args = parser.parse_args()
 
     rclpy.init(args=args)
-    my_robot = Agent(int(script_args.index), np.array(script_args.neighbor), sim=True, laser_avoid=True, neighbor_avoid=True)
+    my_robot = Agent(int(script_args.index), np.array(script_args.neighbor), sim=True, laser_avoid=True, neighbor_avoid=True, laser_avoid_loop_max=2)
     rclpy.spin(my_robot)
     rclpy.shutdown()
 

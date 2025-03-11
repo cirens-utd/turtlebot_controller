@@ -42,6 +42,11 @@ Finally created an enviorment with the correct version of protoc. Did a fresh in
 - Then needed to get catkin_pkg, empy, lark, numpy
 --Still too old of a version for protobuf
 
+Change ros to discovery:
+- change ~/.bashrc file
+- ros2 dameon stop
+- ros2 dameon start
+
 ## Overview
 This will launch a gazebo simulaion with the very bare bones to contorl multiple turtle bots. Each turtle bot has a lidar sensor and a camera.
 
