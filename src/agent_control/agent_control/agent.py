@@ -929,11 +929,24 @@ class Agent(Node):
         self._laser_avoid_directions_start_idx = 0
         self._laser_avoid_directions_traveled = np.array([False, False, False, False])
         self._laser_obstructed_direction = None
+        self._laser_avoid_error = False
         self._pre_path_obstructed_laser = False
+        self._laser_dynamic_left = False
+        self._laser_dynamic_right = False
         self.laser_avoid_error = False
+
+        self._path_obstructed_time = None
         self.path_obstructed_laser = False
         self.path_obstructed_neighbor = False
-        
+
+        self._neighbor_collision_vector = None
+        self._neighbor_collision_name = None
+        self._neighbor_obstructed_time = None
+        self._neighbor_turning_set = False
+        self._neighbor_face_direction = None
+
+        self._desired_location = None
+        self._motion_complete = False
         return
 
     def _controller_loop(self):
@@ -965,13 +978,7 @@ class Agent(Node):
 
         :raises: NotImplementedError
         """
-
-        # self.move_to_position([5,0])
-        self.move_direction([1,0])
-        # pdb.set_trace()  # self._laser_obstructed_direction = 1.1*np.pi/4
-        # self.move_robot_(0.0, 0.0)
-        return
-        # raise NotImplementedError('controller() not implemented for Agent base class.')
+        raise NotImplementedError('controller() not implemented for Agent base class.')
 
 def main(args=None):
     ## Start Simulation Script
@@ -980,11 +987,15 @@ def main(args=None):
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--index", default="1", type=int, help="Index of this robot")
     parser.add_argument("-n", "--neighbor", default=[], nargs='+', type=int, help="Array of neighbors")
+    parser.add_argument("-s", "--sim", default=False, action="store_true", help="Set Simmulation mode")
+    parser.add_argument("-l", "--laser_avoid", default=True, action="store_false", help="Avoid using laser")
+    parser.add_argument("-m", "--loop_max", default=1, type=int, help="Laser Loop Max Number")
+    parser.add_argument("-b", "--neighbor_avoid", default=True, action="store_false", help="Avoid Using neighbor position")
     parser.add_argument("-t", "--test", default=[0,0], nargs='+', type=int, help="test var to pass in")
     script_args = parser.parse_args()
 
     rclpy.init(args=args)
-    my_robot = Agent(int(script_args.index), np.array(script_args.neighbor), sim=True, laser_avoid=True, neighbor_avoid=True, laser_avoid_loop_max=2)
+    my_robot = Agent(int(script_args.index), np.array(script_args.neighbor), sim=script_args.sim, laser_avoid=script_args.laser_avoid, neighbor_avoid=script_args.neighbor_avoid, laser_avoid_loop_max=script_args.loop_max)
     rclpy.spin(my_robot)
     rclpy.shutdown()
 

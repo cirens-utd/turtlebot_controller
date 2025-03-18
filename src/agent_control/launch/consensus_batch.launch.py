@@ -29,7 +29,6 @@ def launch_dynamic_nodes(context: LaunchContext, *args, **kwargs):
         path_config = os.path.join(pkg_path,'config','consensus_config.yaml')
         yaml_info = get_yaml(path_config)
         numbers = yaml_info['robot_numbers']
-        world_name = yaml_info['world_name']
     
     nodes = []
     for i in numbers:
@@ -53,11 +52,6 @@ def generate_launch_description():
         default_value='10',
         description="Number of robots to spawn"
     )
-    world_name_arg = DeclareLaunchArgument(
-        'world_name',
-        default_value='empty_world',
-        description="Name of world"
-    )
     yaml_load_arg = DeclareLaunchArgument(
         'yaml_load',
         default_value='True',
@@ -69,7 +63,6 @@ def generate_launch_description():
     # Launch them all!
     return LaunchDescription([
         number_robots_arg,
-        world_name_arg,
         yaml_load_arg,
         dynamic_nodes
     ])

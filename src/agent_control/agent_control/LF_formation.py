@@ -11,7 +11,7 @@ class LF_Formation(Agent):
     def __init__(self, my_number, my_neighbors=[], formation_distance=[], *args, 
         sim=False, sync_move=False,
         destination_tolerance=0.01,
-        laser_avoid=True, laser_distance=0.5, laser_delay=5, laser_walk_around=2,
+        laser_avoid=True, laser_distance=0.5, laser_delay=5, laser_walk_around=2, laser_avoid_loop_max=1,
         neighbor_avoid=True, neighbor_delay=5):
         '''
         formation_distance should be in the following formate
@@ -22,7 +22,7 @@ class LF_Formation(Agent):
         '''
         super().__init__(my_number, my_neighbors, sync_move=sync_move, sim=sim,
                         destination_tolerance=destination_tolerance,
-                        laser_avoid=laser_avoid, laser_distance=laser_distance, laser_delay=laser_delay, laser_walk_around=laser_walk_around,
+                        laser_avoid=laser_avoid, laser_distance=laser_distance, laser_delay=laser_delay, laser_walk_around=laser_walk_around, laser_avoid_loop_max=laser_avoid_loop_max,
                         neighbor_avoid=neighbor_avoid, neighbor_delay=neighbor_delay)
         self._formation_distance = formation_distance
 
@@ -90,7 +90,11 @@ def main(args=None):
     '''
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--index", default="1", type=int, help="Index of this robot")
-    parser.add_argument("-f", "--formation", type = str, default = "~/turtlebot_codes/from_jeremy/turtlebot_simulator/src/agent_control/config/agent_setup/agent_setup.yaml",help = "/path/to/agent_setup.yaml")
+    parser.add_argument("-f", "--formation", type = str, default = "path/to/ws/turtlebot_simulator/src/agent_control/config/agent_setup/agent_setup.yaml",help = "/path/to/agent_setup.yaml")
+    parser.add_argument("-s", "--sim", default=False, action="store_true", help="Set Simmulation mode")
+    parser.add_argument("-l", "--laser_avoid", default=True, action="store_false", help="Avoid using laser")
+    parser.add_argument("-m", "--loop_max", default=1, type=int, help="Laser Loop Max Number")
+    parser.add_argument("-b", "--neighbor_avoid", default=True, action="store_false", help="Avoid Using neighbor position")
     parser.add_argument("--ros-args", default=False, action="store_true")
     script_args = parser.parse_args()
 
@@ -98,7 +102,7 @@ def main(args=None):
     fd, neighbor = build_formation_distance(yaml_data, script_args.index)
 
     rclpy.init(args=args)
-    my_robot = LF_Formation(int(script_args.index), np.array(neighbor), fd, sim=True, laser_avoid=True, neighbor_avoid=True)
+    my_robot = LF_Formation(int(script_args.index), np.array(neighbor), fd, sim=script_args.sim, laser_avoid=script_args.laser_avoid, neighbor_avoid=script_args.neighbor_avoid, laser_avoid_loop_max=script_args.loop_max)
     rclpy.spin(my_robot)
     rclpy.shutdown()
 

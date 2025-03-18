@@ -10,35 +10,34 @@ from launch.substitutions import LaunchConfiguration
 from launch.actions import DeclareLaunchArgument
 from launch.launch_context import LaunchContext
 
-import numpy as np
-import yaml
-import pdb
 
+package_name='turtlebot_base'
 
+def world_function_create(context: LaunchContext, *args, **kwargs):
+    global package_name
+
+    world_name = LaunchConfiguration('world_sdf').perform(context)
+
+    # Include the Gazebo launch file, provided by the gazebo_ros package
+    gazebo = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource([os.path.join(
+            get_package_share_directory('ros_gz_sim'), 'launch', 'gz_sim.launch.py')]),
+        launch_arguments=[
+            ('gz_args', os.path.join(get_package_share_directory(package_name), 'worlds', world_name) + " -r")
+        ]
+        )
+    return [gazebo]
 
 
 def generate_launch_description():
-    robot_number_arg = DeclareLaunchArgument(
-        'robot_number',
-        default_value='1',
-        description="Number of robots to spawn"
-    )
-    world_name_arg = DeclareLaunchArgument(
-        'world_name',
-        default_value='empty_world',
-        description="Name of world"
-    )
-    yaml_load_arg = DeclareLaunchArgument(
-        'yaml_load',
-        default_value='True',
-        description="Load from config/simulation_config.yaml or load with Launch arguments"
+    global package_name
+
+    world_sdf_arg = DeclareLaunchArgument(
+        'world_sdf',
+        default_value='empty.sdf',
+        description="SDF File that is in the worlds folder"
     )
 
-    package_name='turtlebot_base'
-    # pkg_path = os.path.join(get_package_share_directory(package_name))
-    # sim_path_config = os.path.join(pkg_path,'config','simulation_config.yaml')
-    # my_yaml = get_yaml(sim_path_config)
-    # pdb.set_trace()
 
     rsp = IncludeLaunchDescription(
                 PythonLaunchDescriptionSource([os.path.join(
@@ -46,14 +45,7 @@ def generate_launch_description():
                 )]), launch_arguments={'use_sim_time': 'true'}.items()
     )
 
-    # Include the Gazebo launch file, provided by the gazebo_ros package
-    gazebo = IncludeLaunchDescription(
-                PythonLaunchDescriptionSource([os.path.join(
-                    get_package_share_directory('ros_gz_sim'), 'launch', 'gz_sim.launch.py')]),
-                launch_arguments=[
-                    ('gz_args', os.path.join(get_package_share_directory(package_name), 'worlds', 'empty.sdf') + " -r")
-                ]
-             )
+    world_node = OpaqueFunction(function=world_function_create)
         
     # Bring up joint states
     joint_publisher = Node(
@@ -74,19 +66,11 @@ def generate_launch_description():
                     ]
                 )
 
-    # robot_nodes = IncludeLaunchDescription(
-    #             PythonLaunchDescriptionSource([os.path.join(
-    #                 get_package_share_directory(package_name),'launch','launch_robots.launch.py'
-    #             )])
-    # )
-
     # Launch them all!
     return LaunchDescription([
-        robot_number_arg,
-        world_name_arg,
-        yaml_load_arg,
+        world_sdf_arg,
         rsp,
-        gazebo,
+        world_node,
         joint_publisher, 
         odom_pub
     ])

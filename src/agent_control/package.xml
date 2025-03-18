@@ -7,6 +7,7 @@
   <maintainer email="stufmuff@todo.todo">stufmuff</maintainer>
   <license>TODO: License declaration</license>
 
+  <depend>rclcpp</depend>
   <depend>rclpy</depend>
   <depend>geometry_msgs</depend>
   <depend>numpy</depend>
@@ -17,7 +18,7 @@
   <test_depend>python3-pytest</test_depend>
 
   <export>
-    <!-- <build_type>ament_cmake</build_type> -->
-    <build_type>ament_python</build_type>
+    <build_type>ament_cmake</build_type>
+    <!-- <build_type>ament_python</build_type> -->
   </export>
 </package>
