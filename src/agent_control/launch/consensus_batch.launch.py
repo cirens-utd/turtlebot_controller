@@ -21,6 +21,7 @@ def get_yaml(path):
 
 def launch_dynamic_nodes(context: LaunchContext, *args, **kwargs):
     package_name = 'agent_control'
+    sim_mode = LaunchConfiguration('sim_mode').perform(context)
     yaml_load = LaunchConfiguration('yaml_load').perform(context)
     number_robots = LaunchConfiguration('number_robots').perform(context)
     numbers = np.arange(1, int(number_robots) + 1)
@@ -30,18 +31,24 @@ def launch_dynamic_nodes(context: LaunchContext, *args, **kwargs):
         yaml_info = get_yaml(path_config)
         numbers = yaml_info['robot_numbers']
     
+    sim_argument = []
+    if sim_mode == "True":
+        sim_argument = ['-s']
+    
     nodes = []
     for i in numbers:
         neighbors = [str(j) for j in numbers if j != i]
         nodes.append(
             Node(
                 package=package_name,
-                executable='consensus_node',
+                executable='consensus.py',
                 output='screen',
                 arguments=[
-                    '-i', str(i), 
+                    '-i', str(i),
                     '-n'
-                ] + [str(item) for sublist in [[neighbor] for neighbor in neighbors] for item in sublist]
+                ] + [str(item) for sublist in [[neighbor] for neighbor in neighbors] for item in sublist] +
+                sim_argument
+           
             )
         )
     return nodes
@@ -57,6 +64,11 @@ def generate_launch_description():
         default_value='True',
         description="Load from config/consensus_config.yaml or load with Launch arguments"
     )
+    sim_arg = DeclareLaunchArgument(
+        'sim_mode',
+        default_value='False',
+        description="Run in simulation formate"
+    )
 
     dynamic_nodes = OpaqueFunction(function=launch_dynamic_nodes)
 
@@ -64,5 +76,6 @@ def generate_launch_description():
     return LaunchDescription([
         number_robots_arg,
         yaml_load_arg,
+        sim_arg,
         dynamic_nodes
     ])

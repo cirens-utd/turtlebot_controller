@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import numpy as np
 import rclpy
 from agent_control.agent import Agent
@@ -83,7 +85,9 @@ def build_formation_distance(data, my_number):
 def main(args=None):
     ## Start Simulation Script
     ## ros2 launch turtlebot_base launch_sim.launch.py 
-    ## ros2 launch turtlebot_base launch_robots.launch.py
+    ## ros2 launch turtlebot_base launch_robots.launch.py yaml_load:=False robot_number:=6
+    ## ros2 launch agent_control lf_formation.launch.py sim_mode:=True
+    ## Note: Need to edit config/agent_setup/agent_setup.yaml
     '''
     You formation yaml should have robot numbers in it and the formation distances.
     You pass in which node is this one through -i and all the others will be neighbors

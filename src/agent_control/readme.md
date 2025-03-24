@@ -154,11 +154,12 @@ consensus and LF_Formation
 - -m --loop_max (Default: 1) # number of loops the laser will make before error
 - -b --neighbor_avoid (Default: True) # Avoid neighbors using position
 ### Launch file
-ros2 launch agent_control consensus_batch.launch.py
+ros2 launch agent_control consensus_batch.launch.py sim_mode:=True
 - default is to load from config/consensus_config.yaml (only way to specify robot numbers)
 Other args
 - number_robots (Default: 10) # Number of robots you are controlling (sequential numbering)
 - yaml_load (Default: True) # Used to load yaml
+- sim_mode (Default: False) # Used to run in simulation mode
 ## LF_formation
 ### Args
 - -i --index (Default: 1) # Index of this robot
@@ -167,6 +168,10 @@ Other args
 - -m --loop_max (Default: 1) # number of loops the laser will make before error
 - -b --neighbor_avoid (Default: True) # Avoid neighbors using position
 - -f --formation (Deafult: Not valid path) # path to formation yaml. Example in src/agent_control/config/agent_setup/agent_setup.yaml
+### Launch File
+ros2 launch agent_control lf_formation.launch.py sim_mode:=True
+Args:
+- sim_mode (Default: False) # Used to run in simulation mode
 
 # Special Notes
-This is a cpp package that also includes python. This has an added step of adding the python packages in the CMakeLists.txt file. 
+This is a cpp package that also includes python. This has an added step of adding the python packages in the CMakeLists.txt file. Also, the nodes will be called by the python script name and not the name seutp in the setup.py file

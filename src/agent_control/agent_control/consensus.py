@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import numpy as np
 import rclpy
 from agent_control.agent import Agent
@@ -46,7 +48,8 @@ class Consensus(Agent):
 
 def main(args=None):
     ## Start Simulation Script
-    ## ros2 launch turtlebot_base launch_sim.launch.py yaml_load:=False robot_number:=2
+    ## ros2 launch turtlebot_base launch_sim.launch.py 
+    ## ros2 launch turtlebot_base launch_robots.launch.py yaml_load:=False robot_number:=4
     ## ros2 launch agent_control consensus_batch.launch.py yaml_load:=False number_robots=4
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--index", default="1", type=int, help="Index of this robot")
