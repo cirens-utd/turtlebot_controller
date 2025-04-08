@@ -12,3 +12,10 @@ Backbone for the simulation of the turtlebots. Need to use the two launch script
 
 ## agent_control
 This gives an easy way to control the turtle bot. It is able to do lidar obsticle avoidance, neighbor avoidance, moving to a desired position (x,y) and move in a desired direction. The goal is to make implementation of control systems easier by using this as a backbone. The readme for this node explains on the features that it is capable of. 
+
+## SSH Setup
+### Generate Key
+ssh-keygen -t rsa -b 4096 -C "your_email@example.com"
+
+### Copy Key
+ssh-copy-id user@remote_host
