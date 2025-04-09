@@ -17,7 +17,7 @@ operation="$1"
 shift
 
 # IP Address
-pi_ip="172.17.144.78"
+pi_ip="10.0.0.204"
 robot_num="$1"
 
 echo "Performing '$operation' on robot$robot_num at IP $pi_ip..."
@@ -31,10 +31,23 @@ case "$operation" in
 "build")
     echo "Building workspace at $pi_ip..."
     ssh ${USER}@${pi_ip} << EOF
+
         cd $pi_wrk_space
+
+        # Loop through all Python files
+        for file in ./src/agent_control/agent_control/*.py; do
+            # Check if the file exists (in case there are no .py files)
+            if [ "\$file" != "./src/agent_control/agent_control/*.py" ]; then
+                # Mark the file as executable
+                chmod +x "\$file"
+                echo "Marked \$file as Executable"
+            else
+                echo "No Python Files Found!"
+            fi
+        done
+        
         if [ ! -d build ]; then
             echo "Building needed..."
-            #colcon build
             colcon build --symlink-install
         else
             echo "Workspace already built."
@@ -46,16 +59,29 @@ EOF
 "run")
     echo "Running ROS2 nodes at $pi_ip..."
     ssh ${USER}@${pi_ip} << EOF
-        # Start tmux session for the first terminal
-        #tmux new-session -d -s ros_sessions1 "bash -c 'ros2 launch vrpn_mocap client.launch.yaml server:=192.168.0.131 port:=3883 update_freq:=180 >> $pi_wrk_space/mocab_log.txt 2>&1'"
-        screen -dmS ros_sessions1 bash -c "ros2 launch vrpn_mocap client.launch.yaml server:=192.168.0.131 port:=3883 update_freq:=180 >> $pi_wrk_space/mocab_log.txt 2>&1"
 
+        # Start tmux session for the first terminal
+        tmux new-session -d -s ros_session1 "bash -c 'source /opt/ros/humble/setup.bash && ros2 launch vrpn_mocap client.launch.yaml server:=192.168.0.131 port:=3883 update_freq:=180 >> $pi_wrk_space/mocab_log.txt 2>&1'"
+        
+        # Check if screen session is running
+        if [ $? -ne 0 ]; then
+            echo "Error starting session ros_session1"
+        else
+            echo "ros_session1 started successfully."
+        fi
 
         # Split window and run commands for second terminal
-        #tmux new-session -d -s ros_sessions2 "bash -c 'cd $pi_wrk_space && if [ ! -d build ]; then colcon build; fi && source install/setup.bash && ./start_node.sh $robot_num \"@\" >> $pi_wrk_space/log.txt 2>&1'"
-        screen -dmS ros_sessions2 bash -c "cd $pi_wrk_space && if [ ! -d build ]; then colcon build; fi && source install/setup.bash && ./start_node.sh $robot_num \"@\" >> $pi_wrk_space/log.txt 2>&1"
+        tmux new-session -d -s ros_session2 "bash -c 'source /opt/ros/humble/setup.bash && cd $pi_wrk_space && colcon build --symlink-install && source install/setup.bash && ./start_node.sh $robot_num $@ >> $pi_wrk_space/log.txt 2>&1'"
+        
+        # Check if screen session is running
+        if [ $? -ne 0 ]; then
+            echo "Error starting session ros_session2"
+        else
+            echo "ros_session2 started successfully."
+        fi
 
-        #Note: Reattach screen: screen -r ros_sessions1
+        #Note: Reattach screen: screen -r ros_session1
+        #Note: Reattach tmux: tmux attach-session -t ros_session1
 EOF
     ;;
 
@@ -68,10 +94,8 @@ EOF
         #./end_node.sh
 
         # Kill tmux sessions
-        #tmux kill-session -t ros_sessions1
-        #tmux kill-session -t ros_sessions2
-        screen -X -S ros_sessions1 quit
-        screen -X -S ros_sessions2 quit
+        tmux kill-session -t ros_session1
+        tmux kill-session -t ros_session2
 
 
         echo "Nodes have been killed on $pi_ip."
