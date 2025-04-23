@@ -4,7 +4,7 @@
 Need to have ros_gz installed (sudo apt install ros-humble-ros-gz)
 Need to build custom package cirens_ros_bridge and have it sourced to use c_ros_gz_bridge
     - This can be found in the CIReNS Github
-    TODO: Add link
+    https://github.com/cirens-utd/cirens_ros_bridge
 
 # Overview
 This will launch a gazebo simulaion with the very bare bones to contorl multiple turtle bots. Each turtle bot has a lidar sensor and a camera. Due to errors with timing. there are two main scripts to launch. One for the enviorment and one for the bots. More documentation to come to creating custom worlds.

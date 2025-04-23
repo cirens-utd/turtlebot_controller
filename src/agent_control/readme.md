@@ -1,9 +1,14 @@
 # Agent Controller Overview
 
-** Need to scrub through to make sure document is updated with current changes **
-
 ## Overview
 The goal of this package is to give you an Agent class that handles are the tedious back end information for navigating the turtlebots. For example, the robots can only move foward and backwards and turn on the Z axis. However, most agent controllers will give a desired direction to go in. 
+
+## Starting Controler
+The robot will wait for the required topics to be present before it can start moving. For example, if you are  using lidar detection, the lidar topic needs to be posting. Additionally, all the neighbors you have in your list need to have their positions positing before it will start.
+
+After the robot is ready to move, the self.robot_ready will go true. The robot will turn to have a heading of 0. (coded in the init method. self._start_heading) After the robot sees all its neighbors have their heading of 0 as well, the self.robot_moving will turn true and the controller will start working
+
+After the controller is completed, the robot will do the end_controller method. This can be chained to allow mutliple controller sequances or visual keys to let users know it is done. By default, this will turn to a heading of pi. (coded in the init method. self._end_heading)
 
 ## Structure
 When you create the agent, you will pass in the robot number. This number will be used to get all the topics listed below:
@@ -37,6 +42,12 @@ Additional options:
 - sync_move (default: False)            # Not implemented yet. Will make all the nodes move in synce with each other
 - desination_tolerance (default: 0.01)  # How far away from the target before we are considered to be at goal
 - angle_tolerance (default: 0.1)        # How far away from the angle we can be and still considered at target
+- at_goal_historisis                    # After reaching goal, how far the new goal needs to go before starting back up 
+- restricted_area                       # Boolean to restrict where the robot can move into on a planed move
+- restricted_x_min                      # The lowest x value that the robot will go to
+- restricted_x_max                      # The highest x value that the robot will go to
+- restricted_y_min                      # The lowest y value the robot will go to
+- restricted_y_max                      # The highest y value the robot will go to
 - laser_avoid (default: True)           # Use lidar to avoid obsticles 
 - laser_distance (default: 0.5)         # How close the lidar can see an item before it stops and avoids it
 - laser_delay (default: 5)              # When avoiding, the robot will delay this amount of seconds (not, when avoiding a neighbor, the higher number robot will wait 2x this number)
@@ -64,12 +75,26 @@ This is the function that should be over written. This should hold the code for 
  Needed info from agent.
         self.position                   This agents position
         self.neighbor_position          Dictionary of neighbors position
+        self.neighbor_orientation       Dictionary of neighbors heading
         self.move_direction([x,y])      Function to move in a direction
         self.move_to_position([x,y])    Function to move to a position
+
+### end_controller
+This can be overriden to determin what the robot will do when the controller is completed.
+By default, the robot will face to have a heading of Pi.
+
+### new_controller
+This can be called to reset all the values back to their default and start a new controller
 
 ## Agent Property
 - self.robot_ready
     Returns the status of the robot being ready
+- self.robot_moving
+    Returns the status of the robot is moving (aka, all neighbors and self are ready and contoller started)
+- self.destination_reached
+    Returns the status of the robot reaching its goal destination
+- self.desired_heading
+    Returns the status of heading control of the robot. When demanding the robot to turn to an angle, this will go true when it reaches that angle.
 - self.position
     Returns the self._position (The (x, y) of the robot)
     Set with self.position([x,y])
@@ -117,6 +142,10 @@ This is the function that should be over written. This should hold the code for 
     Start moving the robot to the desired direction. This handles when to drive vs when to turn. Also handles setting speeds for each
     :param desired_location: a position vector [x, y] you want to go to
     :return: None
+- move_to_angle
+    Change the robot to have a desired heading
+    :param rad: a radian you want to go to [0, 2pi)
+    :return: None
 - move_robot_
     Internal Method used to send ROS topic. Not intended to for outside use. But is the main controller for sending direct commands to the robot
     :param x: The desired value to put into linear X
@@ -133,6 +162,18 @@ This is the function that should be over written. This should hold the code for 
     You should find your desired position you want this agent to go to and then send that to the self.move_to_position method
 
     :raises: NotImplementedError
+- end_controller
+    This is a "Controller Complete Sequance"
+
+    This can be overridden depending on what you want your default state to be at the end of your controller. The default is for the bot to turn to the pretermined angle and just wait
+
+    When modifing this, after the robot reaches the desired position, it will call this mehod until motion_complete is set to true. If a new destination is called, this method will stop
+    being called and the robot will move to the new positon
+
+    example to change this method:
+    if you want to flash LED's or Play a song on completetion
+    if you have more advanced logic to prepare for the next controller to be called
+
 ## Agent Arguments
 - -i --index (Default: 1) # Index of this robot
 - -n --neighbor (Default: []) # Array of neighbors
@@ -140,10 +181,11 @@ This is the function that should be over written. This should hold the code for 
 - -l --laser_avoid (Default: True) # Avoid obsticles using laser
 - -m --loop_max (Default: 1) # number of loops the laser will make before error
 - -b --neighbor_avoid (Default: True) # Avoid neighbors using position
+- -f --formation # Path to yaml for formation control
 
 # Exmples:
 Current Examples include:
-consensus and LF_Formation
+consensus, LF_Formation, followMe
 
 ## Consensus
 ### Args
@@ -172,6 +214,19 @@ Other args
 ros2 launch agent_control lf_formation.launch.py sim_mode:=True
 Args:
 - sim_mode (Default: False) # Used to run in simulation mode
+## FollowMe
+### Args
+- -i --index (Default: 1) # Index of this robot
+- -s --sim (Default: False) # Running in simmulation mode
+- -l --laser_avoid (Default: True) # Avoid obsticles using laser
+- -m --loop_max (Default: 1) # number of loops the laser will make before error
+- -b --neighbor_avoid (Default: True) # Avoid neighbors using position
+- -f --formation (Deafult: Not valid path) # path to formation yaml. Example in src/agent_control/config/agent_setup/agent_setup.yaml
+### Launch File,
+No launch file yet. 
+### TODO
+This uses a 3 node formation control and will be used to see how a leader node effects the formation
+
 
 # Special Notes
 This is a cpp package that also includes python. This has an added step of adding the python packages in the CMakeLists.txt file. Also, the nodes will be called by the python script name and not the name seutp in the setup.py file
