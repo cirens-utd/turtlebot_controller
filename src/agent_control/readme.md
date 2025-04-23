@@ -1,6 +1,25 @@
 # Agent Controller Overview
 
 ** Need to scrub through to make sure document is updated with current changes **
+added:
+    // didn't work because the robots cannot see the other robots topics
+    new topic to see all agents are ready
+    robot_moving
+
+    move_to_angle
+    _desired_heading
+    _destination_reached
+
+    Start and ending facing
+
+Increased tolerance for leaving "destination complete"
+Stay inside a boundary: (-2.9, 2.9), (4, -5)
+    - only effects goal destination
+    - walk arounds will still go off area
+
+End controller method
+added self.neighbor_orientation to show neighbors orientation as well
+followMe Node
 
 ## Overview
 The goal of this package is to give you an Agent class that handles are the tedious back end information for navigating the turtlebots. For example, the robots can only move foward and backwards and turn on the Z axis. However, most agent controllers will give a desired direction to go in. 

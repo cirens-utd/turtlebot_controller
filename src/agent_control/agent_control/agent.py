@@ -3,6 +3,7 @@
 import numpy as np
 import rclpy
 from rclpy.node import Node
+from std_msgs.msg import Bool
 from geometry_msgs.msg import PoseArray, PoseStamped, Twist
 from sensor_msgs.msg import LaserScan
 from rclpy.qos import qos_profile_sensor_data
@@ -13,7 +14,8 @@ import pdb
 
 class Agent(Node):
     def __init__(self, my_number, my_neighbors=[], *args, sim=False, sync_move=False,
-        destination_tolerance=0.01, angle_tolerance=0.1,
+        destination_tolerance=0.01, angle_tolerance=0.1, at_goal_historisis = 1,
+        restricted_area = False, restricted_x_min = -2.9, restricted_x_max = 2.9, restricted_y_min = -5, restricted_y_max = 4,
         laser_avoid=True, laser_distance=0.5, laser_delay=5, laser_walk_around=2, laser_avoid_loop_max = 1,
         neighbor_avoid=True, neighbor_delay=5):
         # start with this agents number and the numbers for its neighbors
@@ -30,6 +32,17 @@ class Agent(Node):
         self._position_started = False
         self._neighbors_started = not bool(len(my_neighbors))
         self._lidar_started = not laser_avoid
+        self._neighbors_ready = {}
+        self._start_heading = 0    # Direction robot turns to start from 0 - 2pi
+        self._end_heading = np.pi  # Direction robot turns to end from 0 - 2pi
+        self._robot_moving = False
+        self._desired_heading = False
+
+        self._restricted_area = restricted_area
+        self._restricted_x_min = restricted_x_min
+        self._restricted_x_max = restricted_x_max
+        self._restricted_y_min = restricted_y_min
+        self._restricted_y_max = restricted_y_max
 
         self.get_logger().info(f"{self.my_name} has been started.")
 
@@ -41,20 +54,25 @@ class Agent(Node):
         
         # Create Subscriber for position
         self.position_sub_ = self.create_subscription(PoseStamped, f"/vrpn_mocap/turtlebot{self.my_number}/pose", self.pose_callback_, policy)
+        
+        # Creating Subscribers for neighbors
         self.neighbor_position_sub_ = {}
+        self.neighbor_ready_sub_ = {}
         for number in my_neighbors:
+            # Positions
             try:
                 self.neighbor_position_sub_[number] = self.create_subscription(
                     PoseStamped, 
                     f"/vrpn_mocap/turtlebot{number}/pose", 
-                    lambda msg,name=number: self.neighbor_pose_callback_(msg, name), 
+                    lambda msg, name=number: self.neighbor_pose_callback_(msg, name), 
                     policy
                 )
                 self.get_logger().info(f"{self.my_name} Subscribed to neighbor number {number}")
+                self._neighbors_ready[number] = False
             except:
                 self.get_logger().warning(f"Could not subscribe to turtlebot{number} Position")
     
-        self.lidar_sub_ = self.create_subscription(LaserScan, f"/{name}/scan", self.lidar_callback_, 10)
+            self.lidar_sub_ = self.create_subscription(LaserScan, f"/{name}/scan", self.lidar_callback_, 10)
 
         self.timer = self.create_timer(0.1, self._controller_loop)
         
@@ -63,6 +81,7 @@ class Agent(Node):
 
         # track where my neighbors are
         self.neighbor_position = {}
+        self.neighbor_orientation = {}
 
         # Laser Avoidance Vars
         self.laser_avoid = laser_avoid          # Boolean to use laser to avoid obstructions
@@ -108,11 +127,14 @@ class Agent(Node):
         self._neighbor_face_direction = None    # Which direction do I want to face
 
         # status for the agent
-        self._max_speed = 2.0 # 0.5                   # max speed you can command the robot to move
-        self._max_angle = 2.0                     # max speed you can command the robot to turn
+        self._max_speed = 2.0 # 0.5             # max speed you can command the robot to move
+        self._max_angle = 2.0                   # max speed you can command the robot to turn
         self._desired_location = None
+        self._destination_reached = False
         self._motion_complete = False
         self._destination_tolerance = destination_tolerance
+        self._in_motion_tolerance = destination_tolerance
+        self._at_goal_historisis = at_goal_historisis   # how far way you need to be from your goal before you start moving again
         self._angle_tolerance = angle_tolerance
         self._direction_facing = 0
         self._sync_move = sync_move     # Boolean used to activate sync move mode
@@ -144,14 +166,39 @@ class Agent(Node):
             self.path_obstructed_neighbor = self.is_neighbor_in_direction_(self.position, self.desired_location, self.neighbor_position)
 
     def neighbor_pose_callback_(self, pose: PoseStamped, name):
+        orientation = pose.pose.orientation
         x,y = pose.pose.position.x, pose.pose.position.y
+        neighbor_facing = self.get_angle_quad(orientation)
         self.neighbor_position[name] = [x,y]
+        self.neighbor_orientation[name] = neighbor_facing
 
         # check if all have been found
         if not self._neighbors_started and len(self.neighbor_position) == len(self.neighbor_position_sub_):
             self._neighbors_started = True
             self.get_logger().info(f"{self.my_name}: All Neighbor Topics Recieved")
+
+        # check to see that all robots are in the right orientation
+        if not self.robot_moving:
+            test_angle = self._start_heading
+            if self._start_heading == 0 or self._start_heading == np.pi * 2:
+                test_angle = (self._start_heading + np.pi) % (np.pi * 2)
+                neighbor_facing = (neighbor_facing + np.pi) % (np.pi * 2)
+            if np.abs(neighbor_facing - test_angle) < self._angle_tolerance:
+                self._neighbors_ready[name] = True
+            
+            if self.desired_heading:
+                all_good = True
+                for key, value in self._neighbors_ready.items():
+                    if not value:
+                        all_good = False
+                        break
+                
+                if all_good:
+                    self.robot_moving = True
+                    self.get_logger().info(f"{self.my_name} Sees all neighbors are ready.")
+
     
+        
     def lidar_callback_(self, msg: LaserScan):
 
         # Something is in the way if there is something between 2.8 and 3.469 radian
@@ -237,11 +284,37 @@ class Agent(Node):
         self._robot_ready = bool(value)
 
     @property
+    def robot_moving(self):
+        return self._robot_moving
+    @robot_moving.setter
+    def robot_moving(self, value):
+        self._robot_moving = bool(value)
+
+    @property
     def motion_complete(self):
         return self._motion_complete
     @motion_complete.setter
     def motion_complete(self, value):
         self._motion_complete = bool(value)
+
+
+    @property
+    def destination_reached(self):
+        return self._destination_reached
+    @destination_reached.setter
+    def destination_reached(self, value):
+        self._destination_reached = bool(value)
+        if bool(value):
+            self._destination_tolerance = self._at_goal_historisis
+        else:
+            self._destination_tolerance = self._in_motion_tolerance
+
+    @property 
+    def desired_heading(self):
+        return self._desired_heading
+    @desired_heading.setter
+    def desired_heading(self, value):
+        self._desired_heading = bool(value)
 
     @property
     def direction_facing(self):
@@ -271,6 +344,16 @@ class Agent(Node):
     def desired_location(self, location):
         # location = [x,y]
         location = np.array(location)
+        if self._restricted_area:
+            if location[0] < self._restricted_x_min:
+                location[0] = self._restricted_x_min
+            elif location[0] > self._restricted_x_max:
+                location[0] = self._restricted_x_max
+            if location[1] < self._restricted_y_min:
+                location[1] = self._restricted_y_min
+            elif location[1] > self._restricted_y_max:
+                location[1] = self._restricted_y_max
+
         if type(self._desired_location) == type(None):
             self._desired_location = location
             return
@@ -395,7 +478,7 @@ class Agent(Node):
 
     def get_angle_quad(self,q):
         """
-        Finds the heading angle of the robot from its quaternion orientation.
+        Finds the heading angle of the robot from its quaternion orientation from 0 - 2 pi
         :param q: quaternion rotation from ROS msg
         :return: radians 
         """
@@ -420,10 +503,11 @@ class Agent(Node):
         Finds the smalles angle between two angles.
         :param x: a radian between 0 - 2pi
         :param y: a radian between 0 - 2pi
-        :return: radians
+        :return: radians -pi - pi
         """
         diff = x - y 
         diff = (diff + np.pi) % (2 * np.pi) - np.pi
+        # diff = (diff + np.pi) % (2 * np.pi)
         return diff
 
     def setup_laser_config_(self, msg):
@@ -513,10 +597,8 @@ class Agent(Node):
     def scale_movement_(self, value, angle=False):
         '''
         Creating cut off points for the movement
+        When using for movement, do desired - self.direction_facing
         '''
-        # constant = -1 if value < 0 else 1
-
-        # return 0.5 * constant if value else 0.0
 
         if angle:
             new_value = max(-1 * self._max_angle, min(value, self._max_angle))
@@ -563,6 +645,24 @@ class Agent(Node):
         magnitude = np.linalg.norm(self.position - desired_location)
         angle = self.angle(self.position, desired_location)
 
+        if magnitude <= self._destination_tolerance:
+            if not self.destination_reached:
+                self.get_logger().info(f"{self.my_name} reached location")
+                self.destination_reached = True
+                move_x = 0.0
+                move_z = 0.0
+                self.move_robot_(move_x, move_z)
+            
+            if not self.motion_complete:
+                self.end_controller()
+            return
+
+        if self.destination_reached:
+            self.get_logger().info(f"{self.my_name} started moving again")
+            self.motion_complete = False
+            self.desired_heading = False
+            self.destination_reached = False
+
         if not self.path_obstructed:
             z = self.scale_movement_(self.diff_angles(angle, self.direction_facing), True)
             x = self.scale_movement_(magnitude)
@@ -597,16 +697,9 @@ class Agent(Node):
                     move_x = kv_fine * x
                     move_z = krot_fine * z
             else:
-                if not self.motion_complete:
-                    self.get_logger().info(f"{self.my_name} reached location")
-                    self.motion_complete = True
                 move_x = 0.0
                 move_z = 0.0
             self.move_robot_(move_x, move_z)
-
-            if x and self.motion_complete:
-                self.get_logger().info(f"{self.my_name} started moving again")
-                self.motion_complete = False
 
         elif self.laser_avoid and self.path_obstructed_laser:
             self.move_around_laser_(desired_location)
@@ -614,7 +707,31 @@ class Agent(Node):
             self.move_around_neighbor_(desired_location)
         else:
             self.move_robot_(0.0, 0.0)
-            self.get_logger().info(f"Robot{my_number} is obstructed but no detour method selected.")
+            self.get_logger().info(f"{self.my_name} is obstructed but no detour method selected.")
+
+    def move_to_angle(self, rad):
+
+        krot = 2
+        krot_fine = 0.5
+
+        rad_error = self.diff_angles(rad, self.direction_facing)
+        z = self.scale_movement_(rad_error, True)
+
+        if rad_error > 3 * np.pi / 2:
+            move_z = krot * z
+            if self.desired_heading:
+                self.desired_heading = False
+        elif np.abs(rad_error) < self._angle_tolerance:
+            move_z = 0.0
+            if not self.desired_heading:
+                self.get_logger().info(f"{self.my_name} Reached desired heading")
+                self.desired_heading = True
+        else:
+            move_z = krot_fine * z 
+            if self.desired_heading:
+                self.desired_heading = False
+
+        self.move_robot_(0.0, move_z)
 
     def move_robot_(self, x, z):
         """
@@ -949,14 +1066,29 @@ class Agent(Node):
 
         self._desired_location = None
         self._motion_complete = False
+        self._destination_reached = False
+        self._desired_heading = False
+        self._robot_moving = False
+        self._robot_ready = False
         return
 
     def _controller_loop(self):
         # just a pre function that is used to make sure the robot is ready before starting controller. 
         # this should not be edited
+        
+        # self.get_logger().info("Status of Robot")
+        # self.get_logger().info(f"Robot Ready: {self.robot_ready}")
+        # self.get_logger().info(f"Desired Heading: {self.desired_heading}")
+        # self.get_logger().info(f"Robot Movoing: {self.robot_moving}")
+        # self.get_logger().info(f"Direction Facing: {self.direction_facing}")
 
         if self.robot_ready:
-            self.controller()
+            if not self.desired_heading:
+                self.move_to_angle(self._start_heading)
+
+            # wait for all neighbors to be running
+            if self.robot_moving:
+                self.controller()
             return
         
         self.check_robot_ready_()
@@ -981,6 +1113,24 @@ class Agent(Node):
         :raises: NotImplementedError
         """
         raise NotImplementedError('controller() not implemented for Agent base class.')
+
+    def end_controller(self):
+        """
+        This is a "Controller Complete Sequance"
+
+        This can be overridden depending on what you want your default state to be at the end of your controller. The default is for the bot to turn to the pretermined angle and just wait
+
+        When modifing this, after the robot reaches the desired position, it will call this mehod until motion_complete is set to true. If a new destination is called, this method will stop
+        being called and the robot will move to the new positon
+
+        example to change this method:
+        if you want to flash LED's or Play a song on completetion
+        if you have more advanced logic to prepare for the next controller to be called
+        """
+        self.move_to_angle(self._end_heading)
+        if self.destination_reached:
+            self.motion_complete = True
+            self.get_logger().info(f"{self.my_name} Completed Controller")
 
 def main(args=None):
     ## Start Simulation Script

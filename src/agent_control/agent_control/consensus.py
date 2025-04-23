@@ -11,10 +11,12 @@ import pdb
 class Consensus(Agent):
     def __init__(self, my_number, my_neighbors=[], *args, sim=False, sync_move=False,
         destination_tolerance=0.01,
+        restricted_area = False, restricted_x_min = -2.9, restricted_x_max = 2.9, restricted_y_min = -5, restricted_y_max = 4,
         laser_avoid=True, laser_distance=0.5, laser_delay=5, laser_walk_around=2, laser_avoid_loop_max=1,
         neighbor_avoid=True, neighbor_delay=5):
         super().__init__(my_number, my_neighbors, sim=sim, sync_move=sync_move, 
                         destination_tolerance=destination_tolerance,
+                        restricted_area=restricted_area, restricted_x_min=restricted_x_min, restricted_x_max=restricted_x_max, restricted_y_min=restricted_y_min, restricted_y_max=restricted_y_max,
                         laser_avoid=laser_avoid, laser_distance=laser_distance, laser_delay=laser_delay, laser_walk_around=laser_walk_around, laser_avoid_loop_max=laser_avoid_loop_max,
                         neighbor_avoid=neighbor_avoid, neighbor_delay=neighbor_delay)
 
@@ -62,7 +64,8 @@ def main(args=None):
     script_args = parser.parse_args()
 
     rclpy.init(args=args)
-    my_robot = Consensus(int(script_args.index), np.array(script_args.neighbor), sim=script_args.sim, laser_avoid=script_args.laser_avoid, neighbor_avoid=script_args.neighbor_avoid, laser_avoid_loop_max=script_args.loop_max)
+    my_robot = Consensus(int(script_args.index), np.array(script_args.neighbor), sim=script_args.sim, 
+        restricted_area=True, laser_avoid=script_args.laser_avoid, neighbor_avoid=script_args.neighbor_avoid, laser_avoid_loop_max=script_args.loop_max)
     rclpy.spin(my_robot)
     rclpy.shutdown()
 

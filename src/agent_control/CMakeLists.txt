@@ -27,6 +27,7 @@ ament_python_install_package(${PROJECT_NAME})
 install(PROGRAMS
   agent_control/consensus.py 
   agent_control/LF_formation.py 
+  agent_control/followMe_triangle.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

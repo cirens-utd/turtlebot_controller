@@ -22,6 +22,7 @@ setup(
         'console_scripts': [
             "consensus_node = agent_control.consensus:main",
             "formation_node = agent_control.LF_formation:main",
+            "followMe_node = agent_control.followMe:main"
         ],
     },
 )
