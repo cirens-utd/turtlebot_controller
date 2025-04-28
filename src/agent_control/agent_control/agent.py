@@ -9,6 +9,7 @@ from sensor_msgs.msg import LaserScan
 from rclpy.qos import qos_profile_sensor_data
 import argparse
 import datetime
+import time
 
 import pdb
 
@@ -30,7 +31,8 @@ class Agent(Node):
 
         self._robot_ready = False
         self._position_started = False
-        self._neighbors_started = not bool(len(my_neighbors))
+        self._has_neighbors = bool(len(my_neighbors))
+        self._neighbors_started = not self._has_neighbors
         self._lidar_started = not laser_avoid
         self._neighbors_ready = {}
         self._start_heading = 0    # Direction robot turns to start from 0 - 2pi
@@ -728,6 +730,10 @@ class Agent(Node):
             if not self.desired_heading:
                 self.get_logger().info(f"{self.my_name} Reached desired heading")
                 self.desired_heading = True
+
+                # If not using neighbors, enable robot to move
+                if not self._has_neighbors and not self.robot_moving:
+                    self.robot_moving = True
         else:
             move_z = krot_fine * z 
             if self.desired_heading:
@@ -1115,6 +1121,7 @@ class Agent(Node):
 
         :raises: NotImplementedError
         """
+        
         raise NotImplementedError('controller() not implemented for Agent base class.')
 
     def end_controller(self):
