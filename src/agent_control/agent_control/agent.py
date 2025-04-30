@@ -749,13 +749,10 @@ class Agent(Node):
             if not self.desired_heading:
                 self.get_logger().info(f"{self.my_name} Reached desired heading")
                 self.desired_heading = True
-<<<<<<< HEAD
-=======
 
                 # If not using neighbors, enable robot to move
                 if not self._has_neighbors and not self.robot_moving:
                     self.robot_moving = True
->>>>>>> 463f78a0590553871f2a71466c0e556d2b4b0cbe
         else:
             move_z = krot_fine * z 
             if self.desired_heading:
