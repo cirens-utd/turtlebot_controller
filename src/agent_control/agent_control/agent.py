@@ -728,14 +728,11 @@ class Agent(Node):
             self.get_logger().info(f"{self.my_name} is obstructed but no detour method selected.")
 
     def move_to_angle(self, rad):
-<<<<<<< HEAD
-=======
         """
         Make the robot turn to a desired heading
         :param rad: a radian you want to go to [0, 2pi)
         :return: None
         """
->>>>>>> 463f78a0590553871f2a71466c0e556d2b4b0cbe
 
         krot = 2
         krot_fine = 0.5
