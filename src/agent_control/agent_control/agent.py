@@ -9,6 +9,7 @@ from sensor_msgs.msg import LaserScan
 from rclpy.qos import qos_profile_sensor_data
 import argparse
 import datetime
+import time
 
 import pdb
 
@@ -30,7 +31,8 @@ class Agent(Node):
 
         self._robot_ready = False
         self._position_started = False
-        self._neighbors_started = not bool(len(my_neighbors))
+        self._has_neighbors = bool(len(my_neighbors))
+        self._neighbors_started = not self._has_neighbors
         self._lidar_started = not laser_avoid
         self._neighbors_ready = {}
         self._start_heading = 0    # Direction robot turns to start from 0 - 2pi
@@ -196,9 +198,7 @@ class Agent(Node):
                 if all_good:
                     self.robot_moving = True
                     self.get_logger().info(f"{self.my_name} Sees all neighbors are ready.")
-
-    
-        
+ 
     def lidar_callback_(self, msg: LaserScan):
 
         # Something is in the way if there is something between 2.8 and 3.469 radian
@@ -297,6 +297,24 @@ class Agent(Node):
     def motion_complete(self, value):
         self._motion_complete = bool(value)
 
+
+    @property
+    def destination_reached(self):
+        return self._destination_reached
+    @destination_reached.setter
+    def destination_reached(self, value):
+        self._destination_reached = bool(value)
+        if bool(value):
+            self._destination_tolerance = self._at_goal_historisis
+        else:
+            self._destination_tolerance = self._in_motion_tolerance
+
+    @property 
+    def desired_heading(self):
+        return self._desired_heading
+    @desired_heading.setter
+    def desired_heading(self, value):
+        self._desired_heading = bool(value)
 
     @property
     def destination_reached(self):
@@ -434,19 +452,19 @@ class Agent(Node):
         # Right
         if direction >= np.pi / 4 and direction < 3 * np.pi / 4:
             # check to see if we need to change the state
-            complete = self._check_laser_direction_progress(3)
+            complete = self.check_laser_direction_progress_(3)
         # Forward
         elif direction >= 3 * np.pi / 4 and direction < 5 * np.pi / 4:
             # check to see if we need to change the state
-            complete = self._check_laser_direction_progress(0)
+            complete = self.check_laser_direction_progress_(0)
         # Left
         elif direction >= 5 * np.pi / 4 and direction < 7 * np.pi / 4:
             # check to see if we need to change the state
-            complete = self._check_laser_direction_progress(1)
+            complete = self.check_laser_direction_progress_(1)
         # Back
         elif direction >= 7 * np.pi / 4 or direction < np.pi / 4:
             # check to see if we need to change the state
-            complete = self._check_laser_direction_progress(2)
+            complete = self.check_laser_direction_progress_(2)
 
 
         # On the last Stretch
@@ -458,7 +476,7 @@ class Agent(Node):
             self.get_logger().warning(f"{self.my_name} Reacheched Laser Avoid Max Loop of {self._laser_avoid_loop_max}")
             self.laser_avoid_error = True
 
-    def _check_laser_direction_progress(self, index):
+    def check_laser_direction_progress_(self, index):
         # see if complete
         if self._laser_avoid_loop_count % 2:
             if np.all(~self._laser_avoid_directions_traveled) and index == self._laser_avoid_directions_start_idx:
@@ -710,6 +728,14 @@ class Agent(Node):
             self.get_logger().info(f"{self.my_name} is obstructed but no detour method selected.")
 
     def move_to_angle(self, rad):
+<<<<<<< HEAD
+=======
+        """
+        Make the robot turn to a desired heading
+        :param rad: a radian you want to go to [0, 2pi)
+        :return: None
+        """
+>>>>>>> 463f78a0590553871f2a71466c0e556d2b4b0cbe
 
         krot = 2
         krot_fine = 0.5
@@ -726,6 +752,13 @@ class Agent(Node):
             if not self.desired_heading:
                 self.get_logger().info(f"{self.my_name} Reached desired heading")
                 self.desired_heading = True
+<<<<<<< HEAD
+=======
+
+                # If not using neighbors, enable robot to move
+                if not self._has_neighbors and not self.robot_moving:
+                    self.robot_moving = True
+>>>>>>> 463f78a0590553871f2a71466c0e556d2b4b0cbe
         else:
             move_z = krot_fine * z 
             if self.desired_heading:
@@ -1107,11 +1140,13 @@ class Agent(Node):
         Needed info from agent.
         self.position                   This agents position
         self.neighbor_position          Dictionary of neighbors position
+        self.neighbor_orientation       Dictionary of neighbors heading
         self.move_direction([x,y])      Function to move in a direction
         self.move_to_position([x,y])    Function to move to a position
 
         :raises: NotImplementedError
         """
+        
         raise NotImplementedError('controller() not implemented for Agent base class.')
 
     def end_controller(self):
