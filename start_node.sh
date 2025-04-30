@@ -16,5 +16,10 @@ ROBOT_NUM=$1
 shift
 other_robots="$@"
 
-tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control consensus.py -l -i $ROBOT_NUM -n $other_robots &> ./log.txt'"
-#tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control LF_formation.py -l -i $ROBOT_NUM -f ~/Turtlebot_Controller/src/agent_control/config/agent_setup/agent_setup.yaml &> ./log.txt'"
+# have only one command uncommented at a time
+
+# consensus command
+#tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control consensus.py -l -i $ROBOT_NUM -n $other_robots &> ./log.txt'"
+
+# formation control command
+tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control LF_formation.py -l -i $ROBOT_NUM -f ~/Turtlebot_Controller/src/agent_control/config/agent_setup/agent_setup.yaml &> ./log.txt'"
