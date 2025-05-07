@@ -12,6 +12,7 @@ import pdb
 class FollowMe(Agent):
     def __init__(self, my_number, my_neighbors=[], formation_distance=[], *args, 
         sim=False, sync_move=False,
+        at_goal_historisis=0.15,
         restricted_area = False, restricted_x_min = -2.9, restricted_x_max = 2.9, restricted_y_min = -5, restricted_y_max = 4,
         destination_tolerance=0.01,
         laser_avoid=True, laser_distance=0.5, laser_delay=5, laser_walk_around=2, laser_avoid_loop_max=1,
@@ -29,8 +30,12 @@ class FollowMe(Agent):
                         laser_avoid=laser_avoid, laser_distance=laser_distance, laser_delay=laser_delay, laser_walk_around=laser_walk_around, laser_avoid_loop_max=laser_avoid_loop_max,
                         neighbor_avoid=neighbor_avoid, neighbor_delay=neighbor_delay)
         self._formation_distance = formation_distance
+        self._leader = None
 
         for number in my_neighbors:
+            if type(self._leader) == type(None) or number > self._leader:
+                self._leader = number
+                
             if str(number) not in formation_distance:
                 raise NotImplementedError('When Passing formation distance into LF_Formation, all neighbors must have a set distance')
 
@@ -65,14 +70,13 @@ class FollowMe(Agent):
         # want to copy the followers angle
         # use self.neighbor_orientation[name]
 
-        desired = self.direction_facing
-        num_neighbors = 1
-        for name, neighbor in self.neighbor_orientation.items():
-            num_neighbors += 1
-            desired += neighbor
+        desired = self.neighbor_orientation[self._leader]
+        # num_neighbors = 1
+        # for name, neighbor in self.neighbor_orientation.items():
+        #     num_neighbors += 1
+        #     desired += neighbor
 
-        desired /= num_neighbors
-
+        # desired /= num_neighbors
         self.move_to_angle(desired)
 
 
