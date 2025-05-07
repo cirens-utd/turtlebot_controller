@@ -28,7 +28,11 @@ for robot_num in "$@"; do
         echo "Coping directory to $pi_ip..."
         scp -r ./src ./start_node.sh ./start_mocap.sh ./test_node.sh ${USER}@${pi_ip}:${pi_wrk_space}
         
-        ## rsync -avz --delete source destination
+        ;;
+
+    "sync")
+        echo "Syncing up files to $pi_ip..."
+        rsync -avz --delete ./src ./start_node.sh ./start_mocap.sh ./test_node.sh ${USER}@${pi_ip}:${pi_wrk_space}
         ;;
 
     "build")
@@ -73,7 +77,7 @@ EOF
             if [ \$(ros2 node list | wc -l) -lt 12 ]; then
                 echo "****Restarting Services!!!!******"
                 sudo systemctl restart turtlebot4.service
-                sleep 30
+                sleep 3
             fi
 
             # Launching Mocab
