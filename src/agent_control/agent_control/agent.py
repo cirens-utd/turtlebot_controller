@@ -35,10 +35,13 @@ class Agent(Node):
         self._neighbors_started = not self._has_neighbors
         self._lidar_started = not laser_avoid
         self._neighbors_ready = {}
-        self._start_heading = 0    # Direction robot turns to start from 0 - 2pi
-        self._end_heading = np.pi  # Direction robot turns to end from 0 - 2pi
+        self.neighbor_poses = {}
+
+        self.start_heading = 0    # Direction robot turns to start from 0 - 2pi
+        self.end_heading = np.pi  # Direction robot turns to end from 0 - 2pi
         self._robot_moving = False
         self._desired_heading = False
+        self.restart_start_position = True
 
         self._restricted_area = restricted_area
         self._restricted_x_min = restricted_x_min
@@ -60,6 +63,7 @@ class Agent(Node):
         # Creating Subscribers for neighbors
         self.neighbor_position_sub_ = {}
         self.neighbor_ready_sub_ = {}
+        empty_poseStamped = PoseStamped()
         for number in my_neighbors:
             # Positions
             try:
@@ -71,6 +75,7 @@ class Agent(Node):
                 )
                 self.get_logger().info(f"{self.my_name} Subscribed to neighbor number {number}")
                 self._neighbors_ready[number] = False
+                self.neighbor_poses[number] = empty_poseStamped.pose
             except:
                 self.get_logger().warning(f"Could not subscribe to turtlebot{number} Position")
     
@@ -79,7 +84,9 @@ class Agent(Node):
         self.timer = self.create_timer(0.1, self._controller_loop)
         
         # track my location
+        self.pose = None
         self._position = None
+        self._direction_heading = 0
 
         # track where my neighbors are
         self.neighbor_position = {}
@@ -132,13 +139,14 @@ class Agent(Node):
         self._max_speed = 2.0 # 0.5             # max speed you can command the robot to move
         self._max_angle = 2.0                   # max speed you can command the robot to turn
         self._desired_location = None
+        self._desired_angle = None
         self._destination_reached = False
         self._motion_complete = False
+        self._neighbors_complete = False
         self._destination_tolerance = destination_tolerance
         self._in_motion_tolerance = destination_tolerance
         self._at_goal_historisis = at_goal_historisis   # how far way you need to be from your goal before you start moving again
         self._angle_tolerance = angle_tolerance
-        self._direction_facing = 0
         self._sync_move = sync_move     # Boolean used to activate sync move mode
         self._synce_state = 0           # State of this agent. 0 = not ready 1 = ready 2 = complete 4 = obstructed
         self._path_obstructed_time = None
@@ -162,7 +170,7 @@ class Agent(Node):
         orientation = pose.pose.orientation
         x,y = pose.pose.position.x, pose.pose.position.y
         self.position = [x,y]
-        self.direction_facing = self.get_angle_quad(orientation)
+        self.direction_heading = self.get_angle_quad(orientation)
 
         if self.neighbor_avoid:
             self.path_obstructed_neighbor = self.is_neighbor_in_direction_(self.position, self.desired_location, self.neighbor_position)
@@ -171,6 +179,7 @@ class Agent(Node):
         orientation = pose.pose.orientation
         x,y = pose.pose.position.x, pose.pose.position.y
         neighbor_facing = self.get_angle_quad(orientation)
+        self.neighbor_poses[name] = pose.pose
         self.neighbor_position[name] = [x,y]
         self.neighbor_orientation[name] = neighbor_facing
 
@@ -181,9 +190,9 @@ class Agent(Node):
 
         # check to see that all robots are in the right orientation
         if not self.robot_moving:
-            test_angle = self._start_heading
-            if self._start_heading == 0 or self._start_heading == np.pi * 2:
-                test_angle = (self._start_heading + np.pi) % (np.pi * 2)
+            test_angle = self.start_heading
+            if self.start_heading == 0 or self.start_heading == np.pi * 2:
+                test_angle = (self.start_heading + np.pi) % (np.pi * 2)
                 neighbor_facing = (neighbor_facing + np.pi) % (np.pi * 2)
             if np.abs(neighbor_facing - test_angle) < self._angle_tolerance:
                 self._neighbors_ready[name] = True
@@ -298,6 +307,13 @@ class Agent(Node):
         self._motion_complete = bool(value)
 
     @property
+    def neighbors_complete(self):
+        return self._neighbors_complete
+    @neighbors_complete.setter
+    def neighbors_complete(self, value):
+        self._neighbors_complete = bool(value)
+
+    @property
     def destination_reached(self):
         return self._destination_reached
     @destination_reached.setter
@@ -316,17 +332,17 @@ class Agent(Node):
         self._desired_heading = bool(value)
 
     @property
-    def direction_facing(self):
+    def direction_heading(self):
         # Yaw in gazebo will go from pi to -pi
         # Direction facing is in radians. pi is toward positive x (0 in gazebo)
         # 2pi is facing - x (pi in gazebo)
         # 0 is facing -x (-pi in gazebo)
         # Positive yaw (in gazebo) is counter clockwise, toward postive y+
-        return self._direction_facing
-    @direction_facing.setter
-    def direction_facing(self, q):
-        if type(self._direction_facing) == type(None) or np.abs(q - self._direction_facing) > self._destination_tolerance:
-            self._direction_facing = q
+        return self._direction_heading
+    @direction_heading.setter
+    def direction_heading(self, q):
+        if type(self._direction_heading) == type(None) or np.abs(q - self._direction_heading) > self._destination_tolerance:
+            self._direction_heading = q
 
     @property
     def position(self):
@@ -358,6 +374,18 @@ class Agent(Node):
             return
         if np.linalg.norm(location - self._desired_location) > self._destination_tolerance and not self.path_obstructed:
             self._desired_location = location
+            return
+
+    @property
+    def desired_angle(self):
+        return self.desired_angle
+    @desired_angle.setter
+    def desired_locdesired_angleation(self, angle):
+        if type(self._desired_angle) == type(None):
+            self._desired_angle = angle:
+            return
+        if np.abs(angle - self.direction_heading) > self._angle_tolerance:
+            self._desired_angle = angle
             return
 
     @property
@@ -584,7 +612,7 @@ class Agent(Node):
         :return boolean: returns True if our path is clear and false if it is not
         """
 
-        diff_angle = self.diff_angles(angle, self.direction_facing)
+        diff_angle = self.diff_angles(angle, self.direction_heading)
         idx = self.laser_radian_index_(diff_angle, True)
 
         buffer = int(self._laser_right_index / 2)
@@ -596,7 +624,7 @@ class Agent(Node):
     def scale_movement_(self, value, angle=False):
         '''
         Creating cut off points for the movement
-        When using for movement, do desired - self.direction_facing
+        When using for movement, do desired - self.direction_heading
         '''
 
         if angle:
@@ -654,6 +682,8 @@ class Agent(Node):
             
             if not self.motion_complete:
                 self.end_controller()
+            elif not self.neighbors_complete:
+                self.check_neighbors_finished()
             return
 
         if self.destination_reached:
@@ -663,11 +693,11 @@ class Agent(Node):
             self.destination_reached = False
 
         if not self.path_obstructed:
-            z = self.scale_movement_(self.diff_angles(angle, self.direction_facing), True)
+            z = self.scale_movement_(self.diff_angles(angle, self.direction_heading), True)
             x = self.scale_movement_(magnitude)
             # x = 0.0
-            # print(f"{angle} , {self.direction_facing}, {z}")
-            # print(x, z, magnitude, angle, self.direction_facing)
+            # print(f"{angle} , {self.direction_heading}, {z}")
+            # print(x, z, magnitude, angle, self.direction_heading)
 
             # # check to make sure we are not facing the wrong direction
             # if np.abs(z) <= 3*np.pi/2:
@@ -718,7 +748,10 @@ class Agent(Node):
         krot = 2
         krot_fine = 0.5
 
-        rad_error = self.diff_angles(rad, self.direction_facing)
+        self.desired_angle = rad
+        rad = self.desired_angle
+
+        rad_error = self.diff_angles(rad, self.direction_heading)
         z = self.scale_movement_(rad_error, True)
 
         if rad_error > 3 * np.pi / 2:
@@ -842,7 +875,7 @@ class Agent(Node):
             self.move_robot_(0.0, 1.0)
         # Drive Forward until clear
         elif self._laser_obstructed_right:
-            self._laser_obstructed_direction = self.direction_facing
+            self._laser_obstructed_direction = self.direction_heading
             self.move_robot_(1.0, 0.0)
         # turn back forward
         else:
@@ -854,7 +887,7 @@ class Agent(Node):
             self.move_robot_(0.0, -1.0)
         # Drive Forward until clear
         elif self._laser_obstructed_left:
-            self._laser_obstructed_direction = self.direction_facing
+            self._laser_obstructed_direction = self.direction_heading
             self.move_robot_(1.0, 0.0)
         # turn back forward
         else:
@@ -939,7 +972,7 @@ class Agent(Node):
         current_pos = np.array(current_pos)
         
         # Calculate direction vector based on orientation (radians)
-        direction_vector = self.direction_facing_vector_()
+        direction_vector = self.direction_heading_vector_()
         
         # Check each neighbor
         for name, neighbor in neighbors.items():
@@ -990,7 +1023,7 @@ class Agent(Node):
         if self._path_obstructed_time + datetime.timedelta(seconds=self._neighbor_delay_active) <= datetime.datetime.now():
             if self._neighbor_turning:
                 # Shifting values to prevent wrap around
-                new_direction_face = self.direction_facing
+                new_direction_face = self.direction_heading
                 new_face = self._neighbor_face_direction
                 if self._neighbor_face_direction < np.pi/2 or self._neighbor_face_direction > 3 * np.pi /2:
                     new_face = (new_face + np.pi) % 2 * np.pi
@@ -1017,7 +1050,7 @@ class Agent(Node):
                 if self._neighbor_obstructed_time + datetime.timedelta(seconds=self._neighbor_delay_active) <= datetime.datetime.now():
                     
                     if not self._neighbor_turning_set:
-                        direction_heading = self.direction_facing_vector_()
+                        direction_heading = self.direction_heading_vector_()
                         # Get Cross product
                         cross_product = direction_heading[0] * self._neighbor_collision_vector[1] - direction_heading[1] * self._neighbor_collision_vector[0]
                         
@@ -1033,9 +1066,9 @@ class Agent(Node):
                             
                     self._neighbor_turning = self._neighbor_turning_set
                     if self._neighbor_turning_set == 2:
-                        self._neighbor_face_direction = (self.direction_facing - np.pi / 2) % (2 * np.pi)
+                        self._neighbor_face_direction = (self.direction_heading - np.pi / 2) % (2 * np.pi)
                     else:
-                        self._neighbor_face_direction = (self.direction_facing + np.pi / 2) % (2 * np.pi)
+                        self._neighbor_face_direction = (self.direction_heading + np.pi / 2) % (2 * np.pi)
                 else:
                     self.move_robot_(0.0, 0.0)
         else:
@@ -1045,8 +1078,8 @@ class Agent(Node):
         # thinking I may expand on this more later. Not very efficent, but it works
         self.move_robot_(1.0, 0.0)
 
-    def direction_facing_vector_(self):
-        return np.array([-np.cos(self.direction_facing), -np.sin(self.direction_facing)])
+    def direction_heading_vector_(self):
+        return np.array([-np.cos(self.direction_heading), -np.sin(self.direction_heading)])
 
     def new_controller(self):
         # can be used to set all paraemeters back to original and start a new controller. 
@@ -1076,8 +1109,14 @@ class Agent(Node):
         self._motion_complete = False
         self._destination_reached = False
         self._desired_heading = False
-        self._robot_moving = False
-        self._robot_ready = False
+        self._neighbors_complete = False
+
+        if self.restart_start_position:
+            self._robot_moving = False
+            self._robot_ready = False
+            for key, value in self._neighbors_ready.items():
+                self._neighbors_ready[key] = False
+
         return
 
     def _controller_loop(self):
@@ -1088,11 +1127,11 @@ class Agent(Node):
         # self.get_logger().info(f"Robot Ready: {self.robot_ready}")
         # self.get_logger().info(f"Desired Heading: {self.desired_heading}")
         # self.get_logger().info(f"Robot Movoing: {self.robot_moving}")
-        # self.get_logger().info(f"Direction Facing: {self.direction_facing}")
+        # self.get_logger().info(f"Direction Facing: {self.direction_heading}")
 
         if self.robot_ready:
             if not self.desired_heading:
-                self.move_to_angle(self._start_heading)
+                self.move_to_angle(self.start_heading)
 
             # wait for all neighbors to be running
             if self.robot_moving:
@@ -1137,10 +1176,35 @@ class Agent(Node):
         if you want to flash LED's or Play a song on completetion
         if you have more advanced logic to prepare for the next controller to be called
         """
-        self.move_to_angle(self._end_heading)
+        self.move_to_angle(self.end_heading)
         if self.destination_reached:
             self.motion_complete = True
             self.get_logger().info(f"{self.my_name} Completed Controller")
+
+    def check_neighbors_finished(self):
+        """
+        This is how we can determin if our neighbors are completed.
+
+        This will be called after motion_completed is true and will continue to run until neighbors_complete is True.
+        """
+
+        test_angle = self.end_heading
+
+        for name, orientation in self.neighbor_orientation.items():
+            neighbor_facing = self.get_angle_quad(orientation)
+            if self.end_heading == 0 or self.end_heading == np.pi * 2:
+                test_angle = (self.end_heading + np.pi) % (np.pi * 2)
+                neighbor_facing = (neighbor_facing + np.pi) % (np.pi * 2)
+
+            # if any are not in the tolerance, then we are not all complete
+            if not np.abs(neighbor_facing - test_angle) < self._angle_tolerance: 
+                self.neighbors_complete = False
+                return
+            
+            
+        self.neighbors_complete = True
+        self.get_logger().info(f"{self.my_name} Sees all neighbors are done.")
+ 
 
 def main(args=None):
     ## Start Simulation Script

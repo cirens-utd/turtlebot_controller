@@ -3,12 +3,24 @@
 ## Overview
 The goal of this package is to give you an Agent class that handles are the tedious back end information for navigating the turtlebots. For example, the robots can only move foward and backwards and turn on the Z axis. However, most agent controllers will give a desired direction to go in. 
 
+## Release Updates:
+5/7/23
+- Added monitoring to see if neighbors are completed
+- Added boolean to decide if new controller starts with start position or just start with the current position
+- Updated variable names start_heading, end_heading to not have the internal reference
+- Updated direction_facing to be direction_heading
+
 ## Starting Controler
 The robot will wait for the required topics to be present before it can start moving. For example, if you are  using lidar detection, the lidar topic needs to be posting. Additionally, all the neighbors you have in your list need to have their positions positing before it will start.
 
-After the robot is ready to move, the self.robot_ready will go true. The robot will turn to have a heading of 0. (coded in the init method. self._start_heading) After the robot sees all its neighbors have their heading of 0 as well, the self.robot_moving will turn true and the controller will start working
+After the robot is ready to move, the self.robot_ready will go true. The robot will turn to have a heading of 0. (coded in the init method. self.start_heading) After the robot sees all its neighbors have their heading of 0 as well, the self.robot_moving will turn true and the controller will start working
 
-After the controller is completed, the robot will do the end_controller method. This can be chained to allow mutliple controller sequances or visual keys to let users know it is done. By default, this will turn to a heading of pi. (coded in the init method. self._end_heading)
+After the controller is completed, the robot will do the end_controller method. This can be chained to allow mutliple controller sequances or visual keys to let users know it is done. By default, this will turn to a heading of pi. (coded in the init method. self.end_heading)
+
+## Multi Controller System
+After the controller is complete, the destination_reached will be True. This will then call the end_controller function to do any post-controller processing. The default is to turn to the end_heading position. The end_controller function should then set motion_complete to True. This will then trigger the checking of the neighbors position through the function check_neighbors_finished. The Default for this is to check if all neighbors are in the end_heading direction. This function will then set neighbors_complete to True. At this point, you are able to issue the new_controller function to reset the state of the agent and launch a new controller. (Note: you can set restart_start_position to False if you don't want to run the robot ready verifications)
+
+Additional Comments: you can modify any of these functions as you do with controller. Just keep in mind, that the end_controller and check_neighbors_finished are working off the same assumption to determine if the agents are completed. These both should be modified if one is modified.
 
 ## Structure
 When you create the agent, you will pass in the robot number. This number will be used to get all the topics listed below:
@@ -61,7 +73,7 @@ Additional options:
 This is called every time we get an updated position from our neighbors. It will update the agent attribute self._neighbor_position[2]. This has an array (x,y) for that neighbors position
 
 ### pose_callback
-This is called every time my own position is updated. This will set the attributes self.direction_facing (Gives the angle the robot is facing) and self.position (Gives an array of (x, y) position). 
+This is called every time my own position is updated. This will set the attributes self.direction_heading (Gives the angle the robot is facing) and self.position (Gives an array of (x, y) position). 
 
 ### lidar_callback
 Lidar is used to avoid obsitcals by default. If you pass in laser_avoid = False, this will be disabled.
@@ -83,8 +95,11 @@ This is the function that should be over written. This should hold the code for 
 This can be overriden to determin what the robot will do when the controller is completed.
 By default, the robot will face to have a heading of Pi.
 
+### check_neighbors_finished
+This will go through and see if all the neighbors are finished. When they are, it will set self.neighbors_completed to True
+
 ### new_controller
-This can be called to reset all the values back to their default and start a new controller
+This can be called to reset all the values back to their default and start a new controller. You can change restart_start_position to False if you don't want all robots to go through the ready sequance again
 
 ## Agent Property
 - self.robot_ready
@@ -97,19 +112,20 @@ This can be called to reset all the values back to their default and start a new
     Returns the status of heading control of the robot. When demanding the robot to turn to an angle, this will go true when it reaches that angle.
 - self.position
     Returns the self._position (The (x, y) of the robot)
-    Set with self.position([x,y])
 - self.rate
     Returns the position refresh rate
     (Not used)
-- self.direction_facing
+- self.direction_heading
     Returns the angle the robot is facing
-    Set with self.direction_facing(q)
 - self.desired_location
     The current destination that the robot is attempting to go to
     This is not updated when robot is attempting to avoid an obsticle
+- self.desired_angle
+    The current goal angle for the robot
 - self.motion_complete
     Returns when agent has reached its goal
-    Set with self.motion_complete(True)
+- self.neighbors_complete
+    Returns when agents sees all their neighbors are in the end position
 - self.path_obstructed
     This has no setter. This is if any of the obstruction vars are set. Inside the setter of the obsturuction vars, you should call "set_path_obstructed_"
     ** Note: if adding obsturction vars, you need to modify this method
@@ -120,6 +136,7 @@ This can be called to reset all the values back to their default and start a new
     Returns when a neighbor is blocking the robots path
 - self.laser_avoid_error
     This will return true if the robot reaches the max loops when avoiding an obsticle.
+- restart_start_position
 
 ## Agent Methods
 - get_angle_quad
