@@ -306,6 +306,25 @@ class Agent(Node):
     def motion_complete(self, value):
         self._motion_complete = bool(value)
 
+
+    @property
+    def destination_reached(self):
+        return self._destination_reached
+    @destination_reached.setter
+    def destination_reached(self, value):
+        self._destination_reached = bool(value)
+        if bool(value):
+            self._destination_tolerance = self._at_goal_historisis
+        else:
+            self._destination_tolerance = self._in_motion_tolerance
+
+    @property 
+    def desired_heading(self):
+        return self._desired_heading
+    @desired_heading.setter
+    def desired_heading(self, value):
+        self._desired_heading = bool(value)
+
     @property
     def neighbors_complete(self):
         return self._neighbors_complete
