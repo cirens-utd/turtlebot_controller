@@ -701,7 +701,7 @@ class Agent(Node):
             
             if not self.motion_complete:
                 self.end_controller()
-            elif not self.neighbors_complete:
+            else:
                 self.check_neighbors_finished()
             return
 
