@@ -378,11 +378,11 @@ class Agent(Node):
 
     @property
     def desired_angle(self):
-        return self.desired_angle
+        return self._desired_angle
     @desired_angle.setter
-    def desired_locdesired_angleation(self, angle):
+    def desired_angle(self, angle):
         if type(self._desired_angle) == type(None):
-            self._desired_angle = angle:
+            self._desired_angle = angle
             return
         if np.abs(angle - self.direction_heading) > self._angle_tolerance:
             self._desired_angle = angle
