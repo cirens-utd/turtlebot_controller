@@ -182,7 +182,7 @@ class Agent(Node):
         neighbor_facing = self.get_angle_quad(orientation)
         self.neighbor_poses[name] = pose.pose
         self.neighbor_position[name] = [x,y]
-        self.neighbor_orientation[name] = neighbor_facing
+        self.neighbor_orientation[name] = orientation
 
         # check if all have been found
         if not self._neighbors_started and len(self.neighbor_position) == len(self.neighbor_position_sub_):
