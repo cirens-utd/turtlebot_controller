@@ -9,6 +9,7 @@ V0.0.1 - 5/7/2025
 - Added boolean to decide if new controller starts with start position or just start with the current position
 - Updated variable names start_heading, end_heading to not have the internal reference
 - Updated direction_facing to be direction_heading
+- Added a variable driving_heading_tolerance
 
 ## Starting Controler
 The robot will wait for the required topics to be present before it can start moving. For example, if you are  using lidar detection, the lidar topic needs to be posting. Additionally, all the neighbors you have in your list need to have their positions positing before it will start.
@@ -137,6 +138,9 @@ This can be called to reset all the values back to their default and start a new
 - self.laser_avoid_error
     This will return true if the robot reaches the max loops when avoiding an obsticle.
 - restart_start_position
+    This will flag if you want to return to start position before starting a new controller
+- driving_heading_tolerance
+    This controlls how close to a striaght line you need to be before you start moving forward
 
 ## Agent Methods
 - get_angle_quad

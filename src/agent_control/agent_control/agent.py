@@ -39,6 +39,7 @@ class Agent(Node):
 
         self.start_heading = 0    # Direction robot turns to start from 0 - 2pi
         self.end_heading = np.pi  # Direction robot turns to end from 0 - 2pi
+        self.driving_heading_tolerance = np.pi/4
         self._robot_moving = False
         self._desired_heading = False
         self.restart_start_position = True
@@ -676,7 +677,8 @@ class Agent(Node):
         :return: None
         """
 
-        heading_tolerance = 3*np.pi/2       # how close can we be facing our destination before we start driving
+        # 3*pi/2: Will move in an arch even when almost facing straight backward
+        heading_tolerance = self.driving_heading_tolerance      # how close can we be facing our destination before we start driving
         kv = 1                              # gain on the forward direction
         kv_rot = 1/4                        # gain on the forward direction when we are on the edge of our heading direction
         krot = 2                            # gain on the rotation
@@ -714,16 +716,6 @@ class Agent(Node):
         if not self.path_obstructed:
             z = self.scale_movement_(self.diff_angles(angle, self.direction_heading), True)
             x = self.scale_movement_(magnitude)
-            # x = 0.0
-            # print(f"{angle} , {self.direction_heading}, {z}")
-            # print(x, z, magnitude, angle, self.direction_heading)
-
-            # # check to make sure we are not facing the wrong direction
-            # if np.abs(z) <= 3*np.pi/2:
-            #     self.move_robot_(x, z)
-            # # going the oposite direction
-            # else:
-            #     self.move_robot_(-x, -z)
 
             if magnitude > fine_tolerance:
                 if np.abs(z) < heading_tolerance:

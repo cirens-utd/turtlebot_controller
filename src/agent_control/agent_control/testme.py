@@ -49,7 +49,7 @@ class TestMe(Agent):
         self.move_to_position([x,y])    Function to move to a position
         '''
 
-        self.move_to_position([0,0])
+        self.move_to_position([5,0])
 
     # def end_controller(self):
     #     # want to copy the followers angle
