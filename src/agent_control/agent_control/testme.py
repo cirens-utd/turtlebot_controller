@@ -6,15 +6,15 @@ from agent_control.agent import Agent
 import argparse
 import datetime
 import yaml
+import traceback
 
 import pdb
 
-class FollowMe(Agent):
-    def __init__(self, my_number, my_neighbors=[], formation_distance=[], *args, 
+class TestMe(Agent):
+    def __init__(self, my_number, my_neighbors=[], *args, 
         sim=False, sync_move=False,
-        at_goal_historisis=0.15,
-        restricted_area = False, restricted_x_min = -2.9, restricted_x_max = 2.9, restricted_y_min = -5, restricted_y_max = 4,
-        destination_tolerance=0.01,
+        logging=True, restricted_area = False, restricted_x_min = -2.9, restricted_x_max = 2.9, restricted_y_min = -5, restricted_y_max = 4,
+        destination_tolerance=0.01, angle_tolerance=0.2,
         laser_avoid=True, laser_distance=0.5, laser_delay=5, laser_walk_around=2, laser_avoid_loop_max=1,
         neighbor_avoid=True, neighbor_delay=5):
         '''
@@ -25,19 +25,13 @@ class FollowMe(Agent):
         }
         '''
         super().__init__(my_number, my_neighbors, sync_move=sync_move, sim=sim,
-                        destination_tolerance=destination_tolerance,
+                        destination_tolerance=destination_tolerance, logging=logging, angle_tolerance=angle_tolerance,
                         restricted_area=restricted_area, restricted_x_min=restricted_x_min, restricted_x_max=restricted_x_max, restricted_y_min=restricted_y_min, restricted_y_max=restricted_y_max,
                         laser_avoid=laser_avoid, laser_distance=laser_distance, laser_delay=laser_delay, laser_walk_around=laser_walk_around, laser_avoid_loop_max=laser_avoid_loop_max,
                         neighbor_avoid=neighbor_avoid, neighbor_delay=neighbor_delay)
-        self._formation_distance = formation_distance
-        self._leader = None
 
-        for number in my_neighbors:
-            if type(self._leader) == type(None) or number > self._leader:
-                self._leader = number
-                
-            if str(number) not in formation_distance:
-                raise NotImplementedError('When Passing formation distance into LF_Formation, all neighbors must have a set distance')
+        self.angles = [0, self.end_heading]
+        self.test_index = 0
 
     def controller(self):
         '''
@@ -54,45 +48,30 @@ class FollowMe(Agent):
         self.move_to_position([x,y])    Function to move to a position
         '''
 
-        start = False
-        total = [0,0]
-        tolerance = 0.1
+        # self.move_to_position([5,0])
+        # self.move_to_angle(self.angles[self.test_index])
+        # if self.desired_heading:
+        #     self.get_logger().info(f"Finished index: {self.test_index}")
+        #     self.test_index += 1
+        #     if self.test_index > 1:
+        #         self.test_index = 0
 
-        for name, neighbor in self.neighbor_position.items():
-            start = True
-            difference = np.array(neighbor) - np.array(self.position)
-            if abs(np.linalg.norm(difference) - self._formation_distance[str(name)])  > tolerance:
-                total += (np.linalg.norm(difference) - self._formation_distance[str(name)]) * difference
-        if start:
-            self.move_direction(total)
+        # self.move_to_angle(np.pi)
+        pdb.set_trace()
 
-    def end_controller(self):
-        # want to copy the followers angle
-        # use self.neighbor_orientation[name]
+    # def end_controller(self):
+    #     # want to copy the followers angle
+    #     # use self.neighbor_orientation[name]
 
-        desired = self.neighbor_orientation[self._leader]
-        # num_neighbors = 1
-        # for name, neighbor in self.neighbor_orientation.items():
-        #     num_neighbors += 1
-        #     desired += neighbor
+    #     desired = self.direction_facing
+    #     num_neighbors = 1
+    #     for name, neighbor in self.neighbor_orientation.items():
+    #         num_neighbors += 1
+    #         desired += neighbor
 
-        # desired /= num_neighbors
-        self.move_to_angle(desired)
+    #     desired /= num_neighbors
 
-
-def build_formation_distance(neighbor_array, my_number):
-    fd = {}
-    set_index = my_number
-    neighbor = []
-
-    for index, number in enumerate(neighbor_array):
-        neighbor.append(number)
-    
-    if set_index != -1:
-        for index, number in enumerate(neighbor_array):
-            fd[str(number)] = 2
-        
-        return fd, neighbor
+    #     self.move_to_angle(desired)
 
 
 def main(args=None):
@@ -115,12 +94,10 @@ def main(args=None):
     parser.add_argument("--ros-args", default=False, action="store_true")
     script_args = parser.parse_args()
 
-    fd,_ = build_formation_distance(np.array(script_args.neighbor), script_args.index)
-
     try:
         rclpy.init(args=args)
-        my_robot = FollowMe(int(script_args.index), np.array(script_args.neighbor), fd, sim=script_args.sim, 
-            restricted_area=True, laser_avoid=script_args.laser_avoid, neighbor_avoid=script_args.neighbor_avoid, laser_avoid_loop_max=script_args.loop_max)
+        my_robot = TestMe(int(script_args.index), np.array(script_args.neighbor), sim=script_args.sim, 
+            logging=False, restricted_area=True, laser_avoid=script_args.laser_avoid, neighbor_avoid=script_args.neighbor_avoid, laser_avoid_loop_max=script_args.loop_max)
         rclpy.spin(my_robot)
     except Exception as e:
         traceback.print_exc()

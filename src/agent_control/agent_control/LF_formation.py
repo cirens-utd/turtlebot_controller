@@ -65,23 +65,24 @@ def get_yaml(path):
     with open(path, 'r') as f:
         return yaml.safe_load(f)
 
-def build_formation_distance(data, my_number):
+def build_formation_distance(data, my_number, input_neighbors):
     fd = {}
     set_index = -1
     neighbor = []
 
-    for index, number in enumerate(data['robot_numbers']):
+
+    for index, number in enumerate(input_neighbors):
         if number == my_number:
             set_index = index
         else:
             neighbor.append(number)
     
     if set_index != -1:
-        for index, number in enumerate(data['robot_numbers']):
+        for index, number in enumerate(input_neighbors):
             fd[str(number)] = data['formation_distances'][set_index][index]
         
         return fd, neighbor
-    raise NotImplementedError("Attempted to start LF_Formation Node but the number given didn't match a number in the yaml.")
+    raise NotImplementedError("Attempted to start LF_Formation Node but the number given in neighbor argument didn't match the size of the formation matrix.")
 
 
 def main(args=None):
@@ -93,25 +94,32 @@ def main(args=None):
     '''
     You formation yaml should have robot numbers in it and the formation distances.
     You pass in which node is this one through -i and all the others will be neighbors
+    This requires that all the robots in teh system are passed in neighbor, including our index
     '''
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--index", default="1", type=int, help="Index of this robot")
     parser.add_argument("-f", "--formation", type = str, default = "path/to/ws/turtlebot_simulator/src/agent_control/config/agent_setup/agent_setup.yaml",help = "/path/to/agent_setup.yaml")
     parser.add_argument("-s", "--sim", default=False, action="store_true", help="Set Simmulation mode")
     parser.add_argument("-l", "--laser_avoid", default=True, action="store_false", help="Avoid using laser")
+    parser.add_argument("-n", "--neighbor", default=[], nargs='+', type=int, help="Array of neighbors")
     parser.add_argument("-m", "--loop_max", default=1, type=int, help="Laser Loop Max Number")
     parser.add_argument("-b", "--neighbor_avoid", default=True, action="store_false", help="Avoid Using neighbor position")
     parser.add_argument("--ros-args", default=False, action="store_true")
     script_args = parser.parse_args()
 
     yaml_data = get_yaml(script_args.formation)
-    fd, neighbor = build_formation_distance(yaml_data, script_args.index)
+    fd, neighbor = build_formation_distance(yaml_data, script_args.index, script_args.neighbor)
 
-    rclpy.init(args=args)
-    my_robot = LF_Formation(int(script_args.index), np.array(neighbor), fd, sim=script_args.sim, 
-        restricted_area=True, laser_avoid=script_args.laser_avoid, neighbor_avoid=script_args.neighbor_avoid, laser_avoid_loop_max=script_args.loop_max)
-    rclpy.spin(my_robot)
-    rclpy.shutdown()
+    try:
+        rclpy.init(args=args)
+        my_robot = LF_Formation(int(script_args.index), np.array(neighbor), fd, sim=script_args.sim, 
+            restricted_area=True, laser_avoid=script_args.laser_avoid, neighbor_avoid=script_args.neighbor_avoid, laser_avoid_loop_max=script_args.loop_max)
+        rclpy.spin(my_robot)
+    except Exception as e:
+        traceback.print_exc()
+    finally:
+        my_robot.shutdown
+        rclpy.shutdown()
 
 if __name__ == '__main__':
     main()

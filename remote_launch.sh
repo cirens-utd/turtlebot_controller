@@ -28,7 +28,11 @@ for robot_num in "$@"; do
         echo "Coping directory to $pi_ip..."
         scp -r ./src ./start_node.sh ./start_mocap.sh ./test_node.sh ${USER}@${pi_ip}:${pi_wrk_space}
         
-        ## rsync -avz --delete source destination
+        ;;
+
+    "sync")
+        echo "Syncing up files to $pi_ip..."
+        rsync -avz --delete ./src ./start_node.sh ./start_mocap.sh ./test_node.sh ${USER}@${pi_ip}:${pi_wrk_space}
         ;;
 
     "build")
@@ -57,6 +61,32 @@ for robot_num in "$@"; do
             chmod +x start_node.sh start_mocap.sh test_node.sh
 EOF
         ;;
+    "deepBuild")
+        echo "Building workspace at $pi_ip..."
+        ssh ${USER}@${pi_ip} << EOF
+
+            source /opt/ros/humble/setup.bash
+            source /etc/turtlebot4/setup.bash
+
+            cd $pi_wrk_space
+
+            # Loop through all Python files
+            for file in ./src/agent_control/agent_control/*.py; do
+                # Check if the file exists (in case there are no .py files)
+                if [ "\$file" != "./src/agent_control/agent_control/*.py" ]; then
+                    # Mark the file as executable
+                    chmod +x "\$file"
+                    echo "Marked \$file as Executable"
+                else
+                    echo "No Python Files Found!"
+                fi
+            done
+            
+            echo "Building..."
+            colcon build
+            chmod +x start_node.sh start_mocap.sh test_node.sh
+EOF
+        ;;
 
     "run")
         echo "Running ROS2 nodes at $pi_ip..."
@@ -73,7 +103,7 @@ EOF
             if [ \$(ros2 node list | wc -l) -lt 12 ]; then
                 echo "****Restarting Services!!!!******"
                 sudo systemctl restart turtlebot4.service
-                sleep 30
+                sleep 3
             fi
 
             # Launching Mocab
