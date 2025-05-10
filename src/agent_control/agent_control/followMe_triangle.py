@@ -117,11 +117,16 @@ def main(args=None):
 
     fd,_ = build_formation_distance(np.array(script_args.neighbor), script_args.index)
 
-    rclpy.init(args=args)
-    my_robot = FollowMe(int(script_args.index), np.array(script_args.neighbor), fd, sim=script_args.sim, 
-        restricted_area=True, laser_avoid=script_args.laser_avoid, neighbor_avoid=script_args.neighbor_avoid, laser_avoid_loop_max=script_args.loop_max)
-    rclpy.spin(my_robot)
-    rclpy.shutdown()
+    try:
+        rclpy.init(args=args)
+        my_robot = FollowMe(int(script_args.index), np.array(script_args.neighbor), fd, sim=script_args.sim, 
+            restricted_area=True, laser_avoid=script_args.laser_avoid, neighbor_avoid=script_args.neighbor_avoid, laser_avoid_loop_max=script_args.loop_max)
+        rclpy.spin(my_robot)
+    except Exception as e:
+        traceback.print_exc()
+    finally:
+        my_robot.shutdown()
+        rclpy.shutdown()
 
 if __name__ == '__main__':
     main()

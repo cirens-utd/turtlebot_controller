@@ -107,11 +107,16 @@ def main(args=None):
     yaml_data = get_yaml(script_args.formation)
     fd, neighbor = build_formation_distance(yaml_data, script_args.index)
 
-    rclpy.init(args=args)
-    my_robot = LF_Formation(int(script_args.index), np.array(neighbor), fd, sim=script_args.sim, 
-        restricted_area=True, laser_avoid=script_args.laser_avoid, neighbor_avoid=script_args.neighbor_avoid, laser_avoid_loop_max=script_args.loop_max)
-    rclpy.spin(my_robot)
-    rclpy.shutdown()
+    try:
+        rclpy.init(args=args)
+        my_robot = LF_Formation(int(script_args.index), np.array(neighbor), fd, sim=script_args.sim, 
+            restricted_area=True, laser_avoid=script_args.laser_avoid, neighbor_avoid=script_args.neighbor_avoid, laser_avoid_loop_max=script_args.loop_max)
+        rclpy.spin(my_robot)
+    except Exception as e:
+        traceback.print_exc()
+    finally:
+        my_robot.shutdown()
+        rclpy.shutdown()
 
 if __name__ == '__main__':
     main()
