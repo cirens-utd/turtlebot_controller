@@ -32,11 +32,9 @@ class Agent(Node):
         self.my_number = my_number
         self._diameter = 0.4
         self._sim = sim
-        self.logging_enable = logging
+        self._logging_enable = logging
         self._replay_dict = []
-        self._replay_file = f"{name}_{self.start_time}"
-        self._uncompress_file = f"{self._replay_file}.replay"
-        self._compress_file = f"{self._replay_file}.turtleReplay"
+        self._creat_log_file_names(self.start_time)
         policy = qos_profile_sensor_data
 
         self._robot_ready = False
@@ -537,6 +535,29 @@ class Agent(Node):
             self._path_obstructed_time = None
 
         self._path_obstructed = cur_value
+
+    @property
+    def logging_enable(self):
+        return self._logging_enable
+    @logging_enable.setter
+    def logging_enable(self, value):
+        # turn off logging
+        if not value and self._logging_enable:
+            self._zip_logger()
+            if hasattr(self, 'log_timer'):
+                self.log_timer.cancel()
+                self.destroy_timer(self.log_timer)
+                del self.log_timer
+
+        # turn on logging
+        if value and not self._logging_enable:
+            if not hasattr(self, 'log_timer'):
+                self._replay_dict = []
+                self._creat_log_file_names(datetime.datetime.now().strftime("%Y-%m-%d.%H%M%S"))
+                self.log_timer = self.create_timer(0.1, self._log_recording)
+                
+        self._logging_enable = bool(value) 
+
 
     def record_laser_direction_heading_(self, direction):
         '''
@@ -1208,6 +1229,14 @@ class Agent(Node):
                 self._neighbors_ready[key] = False
 
         return
+
+    def _creat_log_file_names(self, time_now):
+        '''
+        Creating Needed files for logging
+        '''
+        self._replay_file = f"{self.my_name}_{time_now}"
+        self._uncompress_file = f"{self._replay_file}.replay"
+        self._compress_file = f"{self._replay_file}.turtleReplay"
 
     def _log_recording(self):
         '''

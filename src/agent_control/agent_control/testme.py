@@ -56,7 +56,8 @@ class TestMe(Agent):
         #     if self.test_index > 1:
         #         self.test_index = 0
 
-        self.move_to_angle(np.pi)
+        # self.move_to_angle(np.pi)
+        pdb.set_trace()
 
     # def end_controller(self):
     #     # want to copy the followers angle
