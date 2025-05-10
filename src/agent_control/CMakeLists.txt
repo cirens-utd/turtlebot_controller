@@ -28,6 +28,7 @@ install(PROGRAMS
   agent_control/consensus.py 
   agent_control/LF_formation.py 
   agent_control/followMe_triangle.py
+  agent_control/LF_multi_formation.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
