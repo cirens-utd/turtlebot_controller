@@ -18,10 +18,10 @@ class Led_state(Enum):
     COMPLETE = 2
     
 class LF_multi_formation(Agent):
-    def __init__(self, my_number, my_neighbors=[], formation_distance=[], *args, 
-        sim=False, sync_move=False,
+    def __init__(self, my_number, my_neighbors=[], formation_distance=[], all_formation=[], *args, 
+        sim=False, sync_move=False, logging=False, angle_tolerance=0.2,
         restricted_area = False, restricted_x_min = -2.9, restricted_x_max = 2.9, restricted_y_min = -5, restricted_y_max = 4,
-        destination_tolerance=0.01,
+        destination_tolerance=0.01,at_goal_historisis = 0.01,
         laser_avoid=True, laser_distance=0.5, laser_delay=5, laser_walk_around=2, laser_avoid_loop_max=1,
         neighbor_avoid=True, neighbor_delay=5):
         '''
@@ -32,18 +32,26 @@ class LF_multi_formation(Agent):
         }
         '''
         super().__init__(my_number, my_neighbors, sync_move=sync_move, sim=sim,
-                        destination_tolerance=destination_tolerance,
+                        destination_tolerance=destination_tolerance, logging=logging, angle_tolerance=angle_tolerance, at_goal_historisis=at_goal_historisis,
                         restricted_area=restricted_area, restricted_x_min=restricted_x_min, restricted_x_max=restricted_x_max, restricted_y_min=restricted_y_min, restricted_y_max=restricted_y_max,
                         laser_avoid=laser_avoid, laser_distance=laser_distance, laser_delay=laser_delay, laser_walk_around=laser_walk_around, laser_avoid_loop_max=laser_avoid_loop_max,
                         neighbor_avoid=neighbor_avoid, neighbor_delay=neighbor_delay)
         
         self.formation_distance = formation_distance
+        self.all_fd = all_formation
+
         #Added for multiple formations
         if isinstance(formation_distance,list):
             self._formation_list = formation_distance
             self._formation_idx = 0
             self._formation_distance = self._formation_list[self._formation_idx]
         self.led_pub = self.create_publisher(LightringLeds, '/'+self.my_name+'/cmd_lightring', qos_profile_sensor_data)
+
+        self.complete_counter = 0
+        self.new_counter = 0
+        self.new_formation = False
+        self.delay_cycles = [150, 150, 150, None]
+        self.next_formation = False
 
         for number in my_neighbors:
             if str(number) not in self._formation_distance:
@@ -65,18 +73,21 @@ class LF_multi_formation(Agent):
         self.move_direction([x,y])      Function to move in a direction
         self.move_to_position([x,y])    Function to move to a position
         '''
-        self.get_logger().info(f"neighbors_complete:{self.neighbors_complete}")
-        if self.neighbors_complete and self._formation_idx < len(self._formation_list):
-            self.led_state(2)
-            self._formation_idx += 1
-            self._formation_distance = self._formation_list[self._formation_idx]
-            self.get_logger().info(f"formation index: {self._formation_idx}")
-            self.get_logger().info(f"formation_list: {self._formation_list}")
-            self.neighbors_complete = False
+        # self.get_logger().info(f"neighbors_complete:{self.neighbors_complete}")
+        if self.next_formation and self._formation_idx < len(self._formation_list):
+            if True:
+                self.led_state(2)
+                self._formation_idx += 1
+                self._formation_distance = self._formation_list[self._formation_idx]
+                self.get_logger().info(f"formation index: {self._formation_idx}")
+                self.get_logger().info(f"formation_list: {self._formation_list}")
+                self.neighbors_complete = False
+                self.next_formation = False
         elif self.path_obstructed:
             self.led_state(0)
         else:
             self.led_state(1)
+
         start = False
         total = [0,0]
         tolerance = 0.1
@@ -89,6 +100,15 @@ class LF_multi_formation(Agent):
         if start:
             self.move_direction(total)
             self.led_state(1)
+
+        if not self.next_formation and type(self.delay_cycles[self._formation_idx]) != type(None):
+            if self.complete_counter > self.delay_cycles[self._formation_idx]:
+                self.next_formation = True
+                self.complete_counter = 0
+            else:
+                self.complete_counter += 1
+
+        self.get_logger().info(f"{self.my_name}: My Index Number is: {self._formation_idx}\n my_counter: {self.complete_counter}\n What: {self.next_formation}")
 
     def led_state(self, state):
         lightring_msg = LightringLeds()
@@ -111,6 +131,22 @@ class LF_multi_formation(Agent):
                     led.green =255
                     led.blue = 0
         self.led_pub.publish(lightring_msg)
+
+    def really_complete(self):
+        for name, neighbor in self.neighbor_position.items():
+            for name1, neighbor1 in self.neighbor_position.items():
+                distance  = self.all_fd[str(name)][str(name1)]
+                actual_distance = np.linalg.norm(np.array(neighbor) - np.array(neighbor1))
+                if np.abs(actual_distance - distance) > self._destination_tolerance:
+                    self.get_logger().info(f"Distance Desired: {distance}\t What I got: {actual_distance}")
+                    return False
+            distance  = self.all_fd[str(name)][str(self.my_number)]
+            actual_distance = np.linalg.norm(np.array(neighbor) - np.array(self.position))
+            if np.abs(actual_distance - distance) > self._destination_tolerance:
+                self.get_logger().info(f"Distance Desired: {distance}\t What I got: {actual_distance}")
+                return False
+        return True
+            
     
 def get_yaml(path):
     with open(path, 'r') as f:
@@ -120,6 +156,7 @@ def build_formation_distance(data, my_number, input_neighbors):
     fd = {}
     set_index = -1
     neighbor = []
+    all_fd = {}
 
 
     for index, number in enumerate(input_neighbors):
@@ -127,12 +164,15 @@ def build_formation_distance(data, my_number, input_neighbors):
             set_index = index
         else:
             neighbor.append(number)
+            all_fd[str(number)] = {}
+            for idx, num in enumerate(input_neighbors):
+                all_fd[str(number)][str(num)] = data['formation_distances'][index][idx]
     
     if set_index != -1:
         for index, number in enumerate(input_neighbors):
             fd[str(number)] = data['formation_distances'][set_index][index]
         
-        return fd, neighbor
+        return fd, neighbor, all_fd
     raise NotImplementedError("Attempted to start LF_Formation Node but the number given in neighbor argument didn't match the size of the formation matrix.")
 
 
@@ -163,8 +203,13 @@ def main(args=None):
     ## want to add new formations or change adjacency matrices in the future.  Also, right now the agent's neighborhood
     ## will end up being the same no matter the yaml file. We probably want to adjust this in the future. 
     yaml_data = []
-    list = ['1','2','3','4']
+    # 1 is circle
+    # 3 is star
+    # 2 is square
+    # 4 is smiley
+    list = ['1', '3', '2', '4']
     for num in list:
+        # yaml_data.append(get_yaml(f"/home/cirens/turtlebot_codes/turtlebot_controller/src/agent_control/config/shapes/agent_setup({num}).yaml"))
         yaml_data.append(get_yaml(f"/home/ubuntu/Turtlebot_Controller/src/agent_control/config/shapes/agent_setup({num}).yaml"))
     # for file in os.listdir(script_args.formation):
     #     if file.endswith(".yaml") or file.endswith(".yml"):
@@ -178,7 +223,7 @@ def main(args=None):
         fd_list = []
         neighbor_list = []
         for data in yaml_data:
-            fd,neighbor = build_formation_distance(data, script_args.index, script_args.neighbor)
+            fd,neighbor,all_fd = build_formation_distance(data, script_args.index, script_args.neighbor)
             fd_list.append(fd)
     else:
          ##This should remain the same as the original code if there is only one yaml file
@@ -186,7 +231,7 @@ def main(args=None):
         fd_list = fd
 
     rclpy.init(args=args)
-    my_robot = LF_multi_formation(int(script_args.index), np.array(neighbor), fd_list, sim=script_args.sim, 
+    my_robot = LF_multi_formation(int(script_args.index), np.array(neighbor), fd_list, all_fd, sim=script_args.sim, 
         restricted_area=True, laser_avoid=script_args.laser_avoid, neighbor_avoid=script_args.neighbor_avoid, laser_avoid_loop_max=script_args.loop_max)
     rclpy.spin(my_robot)
     rclpy.shutdown()
