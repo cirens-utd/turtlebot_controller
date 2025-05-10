@@ -10,6 +10,10 @@ V0.0.1 - 5/7/2025
 - Updated variable names start_heading, end_heading to not have the internal reference
 - Updated direction_facing to be direction_heading
 - Added a variable driving_heading_tolerance
+- Added Logging
+- Added shutdown method to be called before shutting down rclp
+- FIXED: Angle control more consistant to all angles
+ - Found error in setters for desired angle and direction heading
 
 ## Starting Controler
 The robot will wait for the required topics to be present before it can start moving. For example, if you are  using lidar detection, the lidar topic needs to be posting. Additionally, all the neighbors you have in your list need to have their positions positing before it will start.
@@ -17,6 +21,9 @@ The robot will wait for the required topics to be present before it can start mo
 After the robot is ready to move, the self.robot_ready will go true. The robot will turn to have a heading of 0. (coded in the init method. self.start_heading) After the robot sees all its neighbors have their heading of 0 as well, the self.robot_moving will turn true and the controller will start working
 
 After the controller is completed, the robot will do the end_controller method. This can be chained to allow mutliple controller sequances or visual keys to let users know it is done. By default, this will turn to a heading of pi. (coded in the init method. self.end_heading)
+
+## Ending Script
+If you are using the logging feature, be sure to have your code end cleanly so you can call the shutdown function from the agent Node. This will package up the replay file and zip it.
 
 ## Multi Controller System
 After the controller is complete, the destination_reached will be True. This will then call the end_controller function to do any post-controller processing. The default is to turn to the end_heading position. The end_controller function should then set motion_complete to True. This will then trigger the checking of the neighbors position through the function check_neighbors_finished. The Default for this is to check if all neighbors are in the end_heading direction. This function will then set neighbors_complete to True. At this point, you are able to issue the new_controller function to reset the state of the agent and launch a new controller. (Note: you can set restart_start_position to False if you don't want to run the robot ready verifications)
@@ -53,6 +60,8 @@ When starting your agent, you are required to pass in:
 Additional options:
 - sim (default: False)                  # Used when running in Simulator to setup message type
 - sync_move (default: False)            # Not implemented yet. Will make all the nodes move in synce with each other
+- logging (default: True)
+    Saves logging information to a file. 
 - desination_tolerance (default: 0.01)  # How far away from the target before we are considered to be at goal
 - angle_tolerance (default: 0.1)        # How far away from the angle we can be and still considered at target
 - at_goal_historisis                    # After reaching goal, how far the new goal needs to go before starting back up 
@@ -141,6 +150,8 @@ This can be called to reset all the values back to their default and start a new
     This will flag if you want to return to start position before starting a new controller
 - driving_heading_tolerance
     This controlls how close to a striaght line you need to be before you start moving forward
+- logging_enable
+    Boolean to know if the file needs to be zipped. By setting this, you will create and distroy the logging timer and zip up the file.
 
 ## Agent Methods
 - get_angle_quad
@@ -194,6 +205,10 @@ This can be called to reset all the values back to their default and start a new
     example to change this method:
     if you want to flash LED's or Play a song on completetion
     if you have more advanced logic to prepare for the next controller to be called
+- shutdown
+    Adding function to clean up the enviorment. Currently only finishing the log file stuff
+
+# Logging Information
 
 ## Agent Arguments
 - -i --index (Default: 1) # Index of this robot
