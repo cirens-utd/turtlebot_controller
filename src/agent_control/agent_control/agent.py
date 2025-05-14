@@ -10,6 +10,7 @@ from rclpy.qos import qos_profile_sensor_data
 import argparse
 import datetime
 import time
+import zipfile
 import traceback
 import os
 import json
@@ -107,7 +108,7 @@ class Agent(Node):
                 )
                 self.get_logger().info(f"{self.my_name} Subscribed to neighbor number {number}")
                 self._neighbors_ready[number] = False
-                self.neighbor_poses[number] = empty_poseStamped.pose
+                self.neighbor_poses[str(number)] = empty_poseStamped.pose
             except:
                 self.get_logger().warning(f"Could not subscribe to turtlebot{number} Position")
     
@@ -237,7 +238,7 @@ class Agent(Node):
         x,y = pose.pose.position.x, pose.pose.position.y
         neighbor_facing = self.get_angle_quad(orientation)
 
-        self.neighbor_poses[name] = {
+        self.neighbor_poses[str(name)] = {
             "header": {
                 "stamp": {
                     "sec": pose.header.stamp.sec,
@@ -1295,12 +1296,14 @@ class Agent(Node):
         Saving information from replay dict to the file
         '''
 
-        with open(self._uncompress_file, 'a+') as file:
-            try:
+        try:
+            with open(self._uncompress_file, 'a+') as file:
                 file.write(json.dumps(self._replay_dict) + "\n")
-            except Exception as e:
-                print(f"Error: {e}")
-                pdb.set_trace()
+        except Exception as e:
+            self.get_logger().error(f"{self.my_name}: Error during saving logging: {e}")
+            pdb.set_trace()
+            os.remove(self._uncompress_file)
+                
 
     def _zip_logger(self):
         '''

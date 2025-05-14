@@ -152,6 +152,8 @@ This can be called to reset all the values back to their default and start a new
     This controlls how close to a striaght line you need to be before you start moving forward
 - logging_enable
     Boolean to know if the file needs to be zipped. By setting this, you will create and distroy the logging timer and zip up the file.
+- logging_paused
+    Boolean to pause the logging recording feature as long as it is set to true
 
 ## Agent Methods
 - get_angle_quad
