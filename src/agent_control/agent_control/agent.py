@@ -10,7 +10,6 @@ from rclpy.qos import qos_profile_sensor_data
 import argparse
 import datetime
 import time
-import zipfile
 import traceback
 import os
 import json
@@ -18,7 +17,7 @@ import json
 import pdb
 
 class Agent(Node):
-    def __init__(self, my_number, my_neighbors=[], *args, sim=False, sync_move=False, logging=True,
+    def __init__(self, my_number, my_neighbors=[], *args, sim=False, sync_move=False, logging=False,
         destination_tolerance=0.01, angle_tolerance=0.1, at_goal_historisis = 1,
         restricted_area = False, restricted_x_min = -2.9, restricted_x_max = 2.9, restricted_y_min = -5, restricted_y_max = 4,
         laser_avoid=True, laser_distance=0.5, laser_delay=5, laser_walk_around=2, laser_avoid_loop_max = 1,
@@ -33,6 +32,7 @@ class Agent(Node):
         self._diameter = 0.4
         self._sim = sim
         self._logging_enable = logging
+        self.logging_pasued = False
         self._replay_dict = []
         self._creat_log_file_names(self.start_time)
         policy = qos_profile_sensor_data
@@ -1251,36 +1251,41 @@ class Agent(Node):
             self._replay_dict = []
 
         try:
-            self._replay_dict.append({
-                "time": datetime.datetime.now().strftime("%Y-%m-%d.%H%M%S"),
+            if not self.logging_pasued:
+                desired_location = self.desired_location
+                if type(self.desired_location) != type(None): 
+                    desired_location = desired_location.tolist() 
 
-                # Robot Conditions
-                "robot_ready": self.robot_ready,
-                "position_started": self._position_started, 
-                "neigbhors_started": self._neighbors_started, 
-                "lidar_started": self._lidar_started,
-                "robot_moving": self.robot_moving,
-                "desired_heading": self.desired_heading,
-                "destination_reached": self.destination_reached,
-                "motion_complete": self.motion_complete,
-                "neighbors_complete": self.neighbors_complete,
+                self._replay_dict.append({
+                    "time": datetime.datetime.now().strftime("%Y-%m-%d.%H%M%S"),
 
-                # Avodidance Conditions
-                "path_obstructed": self.path_obstructed,
-                "path_obstructed_laser": self._path_obstructed_laser,
-                "path_obstructed_neighbor": self.path_obstructed_neighbor,
-                "laser_avoid_error": self.laser_avoid_error,
+                    # Robot Conditions
+                    "robot_ready": self.robot_ready,
+                    "position_started": self._position_started, 
+                    "neigbhors_started": self._neighbors_started, 
+                    "lidar_started": self._lidar_started,
+                    "robot_moving": self.robot_moving,
+                    "desired_heading": self.desired_heading,
+                    "destination_reached": self.destination_reached,
+                    "motion_complete": self.motion_complete,
+                    "neighbors_complete": self.neighbors_complete,
 
-                # Goal Info
-                "destination_tolerance": self._destination_tolerance,
-                "angle_tolerance": self._angle_tolerance,
-                "desired_location": self.desired_location,
-                "desired_angle": self.desired_angle,
-        
-                # Tracking positions
-                "my_pose": self.pose,
-                "neighbor_poses": self.neighbor_poses
-            })
+                    # Avodidance Conditions
+                    "path_obstructed": self.path_obstructed,
+                    "path_obstructed_laser": self._path_obstructed_laser,
+                    "path_obstructed_neighbor": self.path_obstructed_neighbor,
+                    "laser_avoid_error": self.laser_avoid_error,
+
+                    # Goal Info
+                    "destination_tolerance": self._destination_tolerance,
+                    "angle_tolerance": self._angle_tolerance,
+                    "desired_location": desired_location,
+                    "desired_angle": self.desired_angle,
+            
+                    # Tracking positions
+                    "my_pose": self.pose,
+                    "neighbor_poses": self.neighbor_poses
+                })
         except MemoryError:
             self.get_logger().warning(f"Log replay overflowed!")
             self._save_logger()
@@ -1291,47 +1296,15 @@ class Agent(Node):
         '''
 
         with open(self._uncompress_file, 'a+') as file:
-            file.write(json.dumps(self._replay_dict) + "\n")
+            try:
+                file.write(json.dumps(self._replay_dict) + "\n")
+            except Exception as e:
+                print(f"Error: {e}")
+                pdb.set_trace()
 
     def _zip_logger(self):
         '''
         Zipping Final Results
-
-        ##NOTE: **Get info from file
-        with zipfile.ZipFile(location + file_name, 'r') as zip_ref:
-            zip_ref.extractall("usable_replay")
-
-        file_name = listdir(r"usable_replay/")[0]
-
-        I don't think I will do this because I don't have the time stamp on front
-        with open(r"usable_replay/" + file_name, 'r', errors="ignore") as curFile:
-            lines = curFile.read().splitlines()
-            for i in range(len(lines)):
-                start = 0
-                end = len(lines[i])
-                for j in range(end):
-                    if not start:
-                        if lines[i][j] == '{':
-                            start = j
-                        
-                    else:
-                        if lines[i][j] == '\t':
-                            end = j
-                            break
-                        
-
-                lines[i] = lines[i][start:end]
-
-                
-            for i in range(len(lines)):
-                try:
-                    added_info = json.loads(lines[i])
-                    if type(added_info) is dict:
-                    json_var.append(added_info)
-                except json.decoder.JSONDecodeError:
-                    print(f"line {i} could not decode")
-        remove(r"usable_replay/" + file_name)
-        rmdir(r"usable_replay/")
         '''
         if len(self._replay_dict):
             self._save_logger()
