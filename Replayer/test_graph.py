@@ -15,7 +15,11 @@ file_name = listdir(r"usable_replay/")[0]
 data = []
 
 with open(r"usable_replay/" + file_name, 'r', errors="ignore") as curFile:
-    data = json.load(curFile)
+    file_content = curFile.read()
+    json_arrays = file_content.strip().split("\n")
+    for json_array in json_arrays:
+        data.append(json.loads(json_array))
+
 remove(r"usable_replay/" + file_name)
 rmdir(r"usable_replay/")
 
@@ -44,9 +48,15 @@ ax.set_xlim(-10, 10)
 ax.set_ylim(-10, 10)
 ax.set_title("Robot Position Over Time")
 
-# Robot Marker
+# Main Robot Marker
 robot_marker = patches.RegularPolygon((0,0), numVertices=3, radius=0.4, orientation=0, color='blue', zorder=10)
 ax.add_patch(robot_marker)
+
+# Neighbor Robot Markers - Use last item to guarentee all are present
+neighbor_marker = []
+for name, pose in data[-1]["neighbor_poses"].items():
+    pass
+
 
 # Trail
 trail, = ax.plot([], [], 'o-', color='lightblue', markersize=4, zorder=5)
@@ -98,6 +108,7 @@ ani = animation.FuncAnimation(fig, update, frames=len(data), interval=100, blit=
 #ax.invert_yaxis()
 #ax.invert_xaxis()
 
+print(len(data))
 plt.show()
 
 # ## Save to MP4 (requires ffmpeg)

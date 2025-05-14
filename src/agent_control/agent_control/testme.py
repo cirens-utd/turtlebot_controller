@@ -14,7 +14,7 @@ class TestMe(Agent):
     def __init__(self, my_number, my_neighbors=[], *args, 
         sim=False, sync_move=False,
         logging=True, restricted_area = False, restricted_x_min = -2.9, restricted_x_max = 2.9, restricted_y_min = -5, restricted_y_max = 4,
-        destination_tolerance=0.01, angle_tolerance=0.5,
+        destination_tolerance=0.01, angle_tolerance=0.1,
         laser_avoid=True, laser_distance=0.5, laser_delay=5, laser_walk_around=2, laser_avoid_loop_max=1,
         neighbor_avoid=True, neighbor_delay=5):
         '''
@@ -32,6 +32,7 @@ class TestMe(Agent):
 
         self.angles = [0, self.end_heading]
         self.run_index = 0
+        self._log_dict_length = 150
 
     def controller(self):
         '''
@@ -97,7 +98,7 @@ def main(args=None):
     try:
         rclpy.init(args=args)
         my_robot = TestMe(int(script_args.index), np.array(script_args.neighbor), sim=script_args.sim, 
-            logging=True, restricted_area=True, laser_avoid=script_args.laser_avoid, neighbor_avoid=script_args.neighbor_avoid, laser_avoid_loop_max=script_args.loop_max)
+            logging=True, restricted_area=False, laser_avoid=script_args.laser_avoid, neighbor_avoid=script_args.neighbor_avoid, laser_avoid_loop_max=script_args.loop_max)
         rclpy.spin(my_robot)
     except Exception as e:
         traceback.print_exc()

@@ -35,6 +35,7 @@ class Agent(Node):
         self._logging_enable = logging
         self.logging_pasued = False
         self._replay_dict = []
+        self._log_dict_length = 9000                    # this is about 15 min
         self._creat_log_file_names(self.start_time)
         policy = qos_profile_sensor_data
 
@@ -53,7 +54,8 @@ class Agent(Node):
         self._desired_heading = False
         self.restart_start_position = True
 
-        self._restricted_area = restricted_area
+        self._restricted_area = restricted_area         # Boolean to restrict robot movement
+        self._robot_restricted_movement = False
         self._restricted_x_min = restricted_x_min
         self._restricted_x_max = restricted_x_max
         self._restricted_y_min = restricted_y_min
@@ -457,16 +459,22 @@ class Agent(Node):
     def desired_location(self, location):
         # location = [x,y]
         location = np.array(location)
+        restricted = False
         if self._restricted_area:
             if location[0] < self._restricted_x_min:
                 location[0] = self._restricted_x_min
+                restricted = True
             elif location[0] > self._restricted_x_max:
                 location[0] = self._restricted_x_max
+                restricted = True
             if location[1] < self._restricted_y_min:
                 location[1] = self._restricted_y_min
+                restricted = True
             elif location[1] > self._restricted_y_max:
                 location[1] = self._restricted_y_max
+                restricted = True
 
+        self._robot_restricted_movement = restricted
         if type(self._desired_location) == type(None):
             self._desired_location = location
             return
@@ -1247,7 +1255,7 @@ class Agent(Node):
         After program finishes or crashes, save and zip
         '''
 
-        if len(self._replay_dict) > 9000: # This will take about 15 min
+        if len(self._replay_dict) > self._log_dict_length: # This will take about 15 min
             self._save_logger()
             self._replay_dict = []
 
@@ -1270,6 +1278,7 @@ class Agent(Node):
                     "destination_reached": self.destination_reached,
                     "motion_complete": self.motion_complete,
                     "neighbors_complete": self.neighbors_complete,
+                    "movement_restricted": self._robot_restricted_movement,
 
                     # Avodidance Conditions
                     "path_obstructed": self.path_obstructed,
