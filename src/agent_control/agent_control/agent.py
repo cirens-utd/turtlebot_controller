@@ -18,7 +18,7 @@ import json
 import pdb
 
 class Agent(Node):
-    def __init__(self, my_number, my_neighbors=[], *args, sim=False, sync_move=False, logging=True,
+    def __init__(self, my_number, my_neighbors=[], *args, sim=False, sync_move=False, logging=False,
         destination_tolerance=0.01, angle_tolerance=0.1, at_goal_historisis = 1,
         restricted_area = False, restricted_x_min = -2.9, restricted_x_max = 2.9, restricted_y_min = -5, restricted_y_max = 4,
         laser_avoid=True, laser_distance=0.5, laser_delay=5, laser_walk_around=2, laser_avoid_loop_max = 1,
