@@ -1271,7 +1271,7 @@ class Agent(Node):
                     # Robot Conditions
                     "robot_ready": self.robot_ready,
                     "position_started": self._position_started, 
-                    "neigbhors_started": self._neighbors_started, 
+                    "neighors_started": self._neighbors_started, 
                     "lidar_started": self._lidar_started,
                     "robot_moving": self.robot_moving,
                     "desired_heading": self.desired_heading,
