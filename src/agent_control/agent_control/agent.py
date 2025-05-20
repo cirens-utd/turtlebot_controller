@@ -822,6 +822,9 @@ class Agent(Node):
             self.desired_heading = False
             self.destination_reached = False
 
+        if self.desired_heading:
+            self.desired_heading = False
+
         if not self.path_obstructed:
             z = self.scale_movement_(self.diff_angles(angle, self.direction_heading), True)
             x = self.scale_movement_(magnitude)
