@@ -7,3 +7,5 @@
 .DS_Store
 ._*
 *.swp
+/Replays/
+*.replay*
