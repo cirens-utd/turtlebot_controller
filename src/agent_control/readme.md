@@ -211,6 +211,9 @@ This can be called to reset all the values back to their default and start a new
     Adding function to clean up the enviorment. Currently only finishing the log file stuff
 
 # Logging Information
+** Add variables to be logged
+** Can edit the _log_dict_length **
+** Enable Variables? Neighbor avoid, lasar avoid, area_restricted, ect
 
 ## Agent Arguments
 - -i --index (Default: 1) # Index of this robot
