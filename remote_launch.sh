@@ -1,7 +1,7 @@
 #!/bin/bash
 
 USER="ubuntu"
-pi_wrk_space="~/Turtlebot_Controller"
+pi_wrk_space="/home/$USER/Turtlebot_Controller"
 
 # Check if we have arguments (robot numbers)
 if [ $# -lt 2 ]; then
@@ -25,8 +25,10 @@ for robot_num in "$@"; do
 
     case "$operation" in
         "copy")
-        echo "Coping directory to $pi_ip..."
-        scp -r ./src ./start_node.sh ./start_mocap.sh ./test_node.sh ${USER}@${pi_ip}:${pi_wrk_space}
+        # echo "Coping directory to $pi_ip..."
+        # scp -r ./src ./start_node.sh ./start_mocap.sh ./test_node.sh ${USER}@${pi_ip}:${pi_wrk_space}
+
+        gnome-terminal -- bash -c "./copy_code.sh $USER $pi_ip $pi_wrk_space || exec bash"
         
         ;;
 
