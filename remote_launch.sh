@@ -27,14 +27,14 @@ for robot_num in "$@"; do
         "copy")
         # echo "Coping directory to $pi_ip..."
         # scp -r ./src ./start_node.sh ./start_mocap.sh ./test_node.sh ${USER}@${pi_ip}:${pi_wrk_space}
-
-        gnome-terminal -- bash -c "./copy_code.sh $USER $pi_ip $pi_wrk_space || exec bash"
+        
+        gnome-terminal -- bash -c "scp -r ./src ./start_node.sh ./start_mocap.sh ./test_node.sh ${USER}@${pi_ip}:${pi_wrk_space} || exec bash"
         
         ;;
 
     "sync")
         echo "Syncing up files to $pi_ip..."
-        rsync -avz --delete ./src ./start_node.sh ./start_mocap.sh ./test_node.sh ${USER}@${pi_ip}:${pi_wrk_space}
+        gnome-terminal -- bash -c "rsync -avz --delete ./src ./start_node.sh ./start_mocap.sh ./test_node.sh ${USER}@${pi_ip}:${pi_wrk_space} || exec bash"
         ;;
 
     "build")
