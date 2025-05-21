@@ -33,7 +33,9 @@ class Agent(Node):
         self._diameter = 0.4
         self._sim = sim
         self._logging_enable = logging
+        self.logging_pasued = False
         self._replay_dict = []
+        self._log_dict_length = 9000                    # this is about 15 min
         self._creat_log_file_names(self.start_time)
         policy = qos_profile_sensor_data
 
@@ -52,7 +54,8 @@ class Agent(Node):
         self._desired_heading = False
         self.restart_start_position = True
 
-        self._restricted_area = restricted_area
+        self._restricted_area = restricted_area         # Boolean to restrict robot movement
+        self._robot_restricted_movement = False
         self._restricted_x_min = restricted_x_min
         self._restricted_x_max = restricted_x_max
         self._restricted_y_min = restricted_y_min
@@ -107,7 +110,7 @@ class Agent(Node):
                 )
                 self.get_logger().info(f"{self.my_name} Subscribed to neighbor number {number}")
                 self._neighbors_ready[number] = False
-                self.neighbor_poses[number] = empty_poseStamped.pose
+                self.neighbor_poses[str(number)] = empty_poseStamped.pose
             except:
                 self.get_logger().warning(f"Could not subscribe to turtlebot{number} Position")
     
@@ -237,7 +240,7 @@ class Agent(Node):
         x,y = pose.pose.position.x, pose.pose.position.y
         neighbor_facing = self.get_angle_quad(orientation)
 
-        self.neighbor_poses[name] = {
+        self.neighbor_poses[str(name)] = {
             "header": {
                 "stamp": {
                     "sec": pose.header.stamp.sec,
@@ -456,16 +459,22 @@ class Agent(Node):
     def desired_location(self, location):
         # location = [x,y]
         location = np.array(location)
+        restricted = False
         if self._restricted_area:
             if location[0] < self._restricted_x_min:
                 location[0] = self._restricted_x_min
+                restricted = True
             elif location[0] > self._restricted_x_max:
                 location[0] = self._restricted_x_max
+                restricted = True
             if location[1] < self._restricted_y_min:
                 location[1] = self._restricted_y_min
+                restricted = True
             elif location[1] > self._restricted_y_max:
                 location[1] = self._restricted_y_max
+                restricted = True
 
+        self._robot_restricted_movement = restricted
         if type(self._desired_location) == type(None):
             self._desired_location = location
             return
@@ -812,6 +821,9 @@ class Agent(Node):
             self.motion_complete = False
             self.desired_heading = False
             self.destination_reached = False
+
+        if self.desired_heading:
+            self.desired_heading = False
 
         if not self.path_obstructed:
             z = self.scale_movement_(self.diff_angles(angle, self.direction_heading), True)
@@ -1246,41 +1258,47 @@ class Agent(Node):
         After program finishes or crashes, save and zip
         '''
 
-        if len(self._replay_dict) > 9000: # This will take about 15 min
+        if len(self._replay_dict) > self._log_dict_length: # This will take about 15 min
             self._save_logger()
             self._replay_dict = []
 
         try:
-            self._replay_dict.append({
-                "time": datetime.datetime.now().strftime("%Y-%m-%d.%H%M%S"),
+            if not self.logging_pasued:
+                desired_location = self.desired_location
+                if type(self.desired_location) != type(None): 
+                    desired_location = desired_location.tolist() 
 
-                # Robot Conditions
-                "robot_ready": self.robot_ready,
-                "position_started": self._position_started, 
-                "neigbhors_started": self._neighbors_started, 
-                "lidar_started": self._lidar_started,
-                "robot_moving": self.robot_moving,
-                "desired_heading": self.desired_heading,
-                "destination_reached": self.destination_reached,
-                "motion_complete": self.motion_complete,
-                "neighbors_complete": self.neighbors_complete,
+                self._replay_dict.append({
+                    "time": datetime.datetime.now().strftime("%Y-%m-%d.%H%M%S"),
 
-                # Avodidance Conditions
-                "path_obstructed": self.path_obstructed,
-                "path_obstructed_laser": self._path_obstructed_laser,
-                "path_obstructed_neighbor": self.path_obstructed_neighbor,
-                "laser_avoid_error": self.laser_avoid_error,
+                    # Robot Conditions
+                    "robot_ready": self.robot_ready,
+                    "position_started": self._position_started, 
+                    "neighors_started": self._neighbors_started, 
+                    "lidar_started": self._lidar_started,
+                    "robot_moving": self.robot_moving,
+                    "desired_heading": self.desired_heading,
+                    "destination_reached": self.destination_reached,
+                    "motion_complete": self.motion_complete,
+                    "neighbors_complete": self.neighbors_complete,
+                    "movement_restricted": self._robot_restricted_movement,
 
-                # Goal Info
-                "destination_tolerance": self._destination_tolerance,
-                "angle_tolerance": self._angle_tolerance,
-                "desired_location": self.desired_location,
-                "desired_angle": self.desired_angle,
-        
-                # Tracking positions
-                "my_pose": self.pose,
-                "neighbor_poses": self.neighbor_poses
-            })
+                    # Avodidance Conditions
+                    "path_obstructed": self.path_obstructed,
+                    "path_obstructed_laser": self._path_obstructed_laser,
+                    "path_obstructed_neighbor": self.path_obstructed_neighbor,
+                    "laser_avoid_error": self.laser_avoid_error,
+
+                    # Goal Info
+                    "destination_tolerance": self._destination_tolerance,
+                    "angle_tolerance": self._angle_tolerance,
+                    "desired_location": desired_location,
+                    "desired_angle": self.desired_angle,
+            
+                    # Tracking positions
+                    "my_pose": self.pose,
+                    "neighbor_poses": self.neighbor_poses
+                })
         except MemoryError:
             self.get_logger().warning(f"Log replay overflowed!")
             self._save_logger()
@@ -1290,48 +1308,18 @@ class Agent(Node):
         Saving information from replay dict to the file
         '''
 
-        with open(self._uncompress_file, 'a+') as file:
-            file.write(json.dumps(self._replay_dict) + "\n")
+        try:
+            with open(self._uncompress_file, 'a+') as file:
+                file.write(json.dumps(self._replay_dict) + "\n")
+        except Exception as e:
+            self.get_logger().error(f"{self.my_name}: Error during saving logging: {e}")
+            pdb.set_trace()
+            os.remove(self._uncompress_file)
+                
 
     def _zip_logger(self):
         '''
         Zipping Final Results
-
-        ##NOTE: **Get info from file
-        with zipfile.ZipFile(location + file_name, 'r') as zip_ref:
-            zip_ref.extractall("usable_replay")
-
-        file_name = listdir(r"usable_replay/")[0]
-
-        I don't think I will do this because I don't have the time stamp on front
-        with open(r"usable_replay/" + file_name, 'r', errors="ignore") as curFile:
-            lines = curFile.read().splitlines()
-            for i in range(len(lines)):
-                start = 0
-                end = len(lines[i])
-                for j in range(end):
-                    if not start:
-                        if lines[i][j] == '{':
-                            start = j
-                        
-                    else:
-                        if lines[i][j] == '\t':
-                            end = j
-                            break
-                        
-
-                lines[i] = lines[i][start:end]
-
-                
-            for i in range(len(lines)):
-                try:
-                    added_info = json.loads(lines[i])
-                    if type(added_info) is dict:
-                    json_var.append(added_info)
-                except json.decoder.JSONDecodeError:
-                    print(f"line {i} could not decode")
-        remove(r"usable_replay/" + file_name)
-        rmdir(r"usable_replay/")
         '''
         if len(self._replay_dict):
             self._save_logger()
