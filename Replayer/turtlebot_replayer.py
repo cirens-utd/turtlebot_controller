@@ -8,7 +8,8 @@ from os import listdir, remove, rmdir
 import zipfile
 import pdb
 
-turtle_replay_file = "Example.turtleReplay"
+turtle_replay_file = r"../Replays/robot1_2024-08-25.004151.turtleReplay"
+# turtle_replay_file = "../Replays/Example.turtleReplay"
 # turtle_replay_file = "Example_Pretty.turtleReplay"
 
 trail_length = 100
@@ -45,6 +46,10 @@ for line in data:
         total_frames += 1
 
         # Saving status Booleans
+        # ## TODO: TEMPERARY
+        # entry['neighbors_started'] = entry['neighors_started']
+
+
         robot_ready.append(entry['robot_ready'])
         position_started.append(entry['position_started'])
         neighbors_started.append(entry['neighbors_started'])
@@ -67,12 +72,18 @@ for line in data:
         desired_angle.append(entry['desired_angle'])
 
         # Saving main robot information
-        x_vals.append(entry['my_pose']['pose']['position']['x'])
-        y_vals.append(entry['my_pose']['pose']['position']['y'])
-        ori = entry['my_pose']['pose']['orientation']
-        qx, qy, qz, qw = ori['x'], ori['y'], ori['z'], ori['w']
-        yaw = np.remainder((np.arctan2(2 * (qw * qz + qx * qy),1 - 2 * (qy * qy + qz * qz)) + np.pi) , 2 * np.pi)
-        yaws.append(yaw)
+        if type(entry['my_pose']) != type(None):
+            x_vals.append(entry['my_pose']['pose']['position']['x'])
+            y_vals.append(entry['my_pose']['pose']['position']['y'])
+            ori = entry['my_pose']['pose']['orientation']
+            qx, qy, qz, qw = ori['x'], ori['y'], ori['z'], ori['w']
+            yaw = np.remainder((np.arctan2(2 * (qw * qz + qx * qy),1 - 2 * (qy * qy + qz * qz)) + np.pi) , 2 * np.pi)
+            yaws.append(yaw)
+        else:
+            x_vals.append(0)
+            y_vals.append(0)
+            yaws.append(0)
+
 
         # Saving Neighbors Info
         neighbor_poses.append({})
@@ -418,7 +429,7 @@ def restart(event):
         start_animation()
 
 # interval is time between frames: 100 = 10 frams per second
-frame_rate = 60 # 10 frames is "Real time"
+frame_rate = 10 # 10 frames is "Real time"
 start_animation()
 # ani = animation.FuncAnimation(fig, update, frames=total_frames, interval=1000/frame_rate, blit=False, repeat=False)
 restart_button.on_clicked(restart)
@@ -434,4 +445,4 @@ if save_mp4:
 
 plt.show()
 
-
+# pdb.set_trace()
