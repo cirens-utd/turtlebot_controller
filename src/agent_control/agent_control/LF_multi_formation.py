@@ -11,6 +11,7 @@ import pdb
 from irobot_create_msgs.msg import LightringLeds
 from rclpy.qos import qos_profile_sensor_data
 from enum import Enum
+import traceback
 
 class Led_state(Enum):
     READY = 0
@@ -19,7 +20,7 @@ class Led_state(Enum):
     
 class LF_multi_formation(Agent):
     def __init__(self, my_number, my_neighbors=[], formation_distance=[], all_formation=[], *args, 
-        sim=False, sync_move=False, logging=False, angle_tolerance=0.2,
+        sim=False, sync_move=False, logging=False, angle_tolerance=0.1,
         restricted_area = False, restricted_x_min = -2.9, restricted_x_max = 2.9, restricted_y_min = -5, restricted_y_max = 4,
         destination_tolerance=0.01,at_goal_historisis = 0.01,
         laser_avoid=True, laser_distance=0.5, laser_delay=5, laser_walk_around=2, laser_avoid_loop_max=1,
@@ -230,11 +231,19 @@ def main(args=None):
         fd, neighbor = build_formation_distance(yaml_data[0], script_args.index, script_args.neighbor)
         fd_list = fd
 
-    rclpy.init(args=args)
-    my_robot = LF_multi_formation(int(script_args.index), np.array(neighbor), fd_list, all_fd, sim=script_args.sim, 
-        restricted_area=True, laser_avoid=script_args.laser_avoid, neighbor_avoid=script_args.neighbor_avoid, laser_avoid_loop_max=script_args.loop_max)
-    rclpy.spin(my_robot)
-    rclpy.shutdown()
+    try:
+        rclpy.init(args=args)
+        my_robot = LF_multi_formation(int(script_args.index), np.array(neighbor), fd_list, all_fd, sim=script_args.sim, logging=True,
+            restricted_area=True, laser_avoid=script_args.laser_avoid, neighbor_avoid=script_args.neighbor_avoid, laser_avoid_loop_max=script_args.loop_max)
+        rclpy.spin(my_robot)
+    except Exception as e:
+        traceback.print_exc()
+    finally:
+        try:
+            my_robot.shutdown()
+            rclpy.shutdown()
+        except Exception as e:
+            my_robot.get_logger().info(f"Error shutting down. {e}")
 
 if __name__ == '__main__':
     main()
