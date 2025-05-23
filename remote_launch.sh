@@ -6,7 +6,7 @@ pi_wrk_space="~/Turtlebot_Controller"
 # Check if we have arguments (robot numbers)
 if [ $# -lt 2 ]; then
   echo "Usage: $0 <operation> <robot_number1> <robot_number2> ..."
-  echo "Operations: build, copy, run, stop, test"
+  echo "Operations: build, copy, sync, deepBuid, run, stop, pullLogs, test"
   echo "Example: $0 copy 1 3 5"
   exit 1
 fi
@@ -88,6 +88,16 @@ EOF
 EOF
         ;;
 
+    "pullLogs")
+        echo "Coping directory to $pi_ip..."
+        scp -r ${USER}@${pi_ip}:${pi_wrk_space}/Replays ./
+
+        ;;
+    "clearLogs")
+        echo "Clearing Log Files to $pi_ip..."
+        ssh ${USER}@${pi_ip} "rm -rf ${pi_wrk_space}/Replays/*"
+
+        ;;
     "run")
         echo "Running ROS2 nodes at $pi_ip..."
         ssh ${USER}@${pi_ip} << EOF
@@ -127,8 +137,11 @@ EOF
             #screen -X -S ros_session1 quit
             #screen -X -S ros_session2 quit
             #screen -X -S .ubuntu quit
-            tmux kill-session -t ros_session1
-            tmux kill-session -t ros_session2
+            tmux send-keys -t ros_session1 C-c
+            tmux send-keys -t ros_session2 C-c
+            # sleep 1
+            # tmux kill-session -t ros_session1
+            # tmux kill-session -t ros_session2
 
 
             echo "Nodes have been killed on $pi_ip."
