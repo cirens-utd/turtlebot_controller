@@ -14,6 +14,7 @@ import zipfile
 import traceback
 import os
 import json
+from copy import deepcopy 
 
 import pdb
 
@@ -110,7 +111,7 @@ class Agent(Node):
                 )
                 self.get_logger().info(f"{self.my_name} Subscribed to neighbor number {number}")
                 self._neighbors_ready[number] = False
-                self.neighbor_poses[str(number)] = empty_poseStamped.pose
+                self.neighbor_poses[str(number)] = deepcopy(pose_dict)
             except:
                 self.get_logger().warning(f"Could not subscribe to turtlebot{number} Position")
     
@@ -1274,7 +1275,7 @@ class Agent(Node):
                     # Robot Conditions
                     "robot_ready": self.robot_ready,
                     "position_started": self._position_started, 
-                    "neighors_started": self._neighbors_started, 
+                    "neighbors_started": self._neighbors_started, 
                     "lidar_started": self._lidar_started,
                     "robot_moving": self.robot_moving,
                     "desired_heading": self.desired_heading,
@@ -1331,12 +1332,13 @@ class Agent(Node):
             jungle_zip.write(self._uncompress_file, compress_type=zipfile.ZIP_DEFLATED)
             os.remove(self._uncompress_file)
         else: 
-            print("MY file doesn't exist?")
+            print("My file doesn't exist?")
 
     def shutdown(self):
         '''
         Cleanup enviorment
         '''
+        self.get_logger().error(f"{self.my_name}: Shutting down")
         if self.logging_enable:
             self._zip_logger()
 

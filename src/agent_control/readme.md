@@ -4,7 +4,7 @@
 The goal of this package is to give you an Agent class that handles are the tedious back end information for navigating the turtlebots. For example, the robots can only move foward and backwards and turn on the Z axis. However, most agent controllers will give a desired direction to go in. 
 
 ## Release Updates:
-V0.0.1 - 5/7/2025
+V0.0.1 - 5/23/25
 - Added monitoring to see if neighbors are completed
 - Added boolean to decide if new controller starts with start position or just start with the current position
 - Updated variable names start_heading, end_heading to not have the internal reference
@@ -14,6 +14,7 @@ V0.0.1 - 5/7/2025
 - Added shutdown method to be called before shutting down rclp
 - FIXED: Angle control more consistant to all angles
  - Found error in setters for desired angle and direction heading
+- Added Replay veiwer
 
 ## Starting Controler
 The robot will wait for the required topics to be present before it can start moving. For example, if you are  using lidar detection, the lidar topic needs to be posting. Additionally, all the neighbors you have in your list need to have their positions positing before it will start.
@@ -211,6 +212,29 @@ This can be called to reset all the values back to their default and start a new
     Adding function to clean up the enviorment. Currently only finishing the log file stuff
 
 # Logging Information
+Variables that are saved in logger:
+- time: Time sample was pulled
+- robot_ready
+- position_started
+- neighbors_started
+- lidar_started
+- robot_moving
+- desired_heading
+- destination_reached
+- motion_complete
+- neighbors_complete
+- neighbors_complete
+- movement_restricted
+- path_obstructed
+- path_obstructed_laser
+- path_obstructed_neighbor
+- laser_avoid_error
+- destination_tolerance
+- angle_tolerance
+- desired_location
+- desired_angle
+- my_pose
+- neighbor_poses
 
 ## Agent Arguments
 - -i --index (Default: 1) # Index of this robot
