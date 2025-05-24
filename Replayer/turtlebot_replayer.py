@@ -1,7 +1,7 @@
 import json
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
-from matplotlib.widgets import Button
+from matplotlib.widgets import Button, Slider
 import matplotlib.animation as animation
 import numpy as np
 from os import listdir, remove, rmdir
@@ -113,8 +113,17 @@ ax.set_title("Robot Position Over Time")
 robot_radius = 0.4
 
 # Main Robot Marker
-robot_marker = patches.RegularPolygon((0,0), numVertices=3, radius=robot_radius, orientation=0, color='blue', zorder=10)
-ax.add_patch(robot_marker)
+robot_marker_circle = patches.Circle((0, 0), radius=robot_radius, color='mistyrose', ec='blue', zorder=10)
+ax.add_patch(robot_marker_circle)
+
+arrow_length = 1.2 * robot_radius
+arrow_dx = arrow_length * np.cos(0)
+arrow_dy = arrow_length * np.sin(0)
+robot_marker_arrow = patches.FancyArrowPatch((0, 0), (arrow_dy, arrow_dx), 
+                                        arrowstyle='->',
+                                        mutation_scale=20, color='blue',
+                                        linewidth=2, zorder=11)
+ax.add_patch(robot_marker_arrow)
 
 # Trail
 trail, = ax.plot([], [], 'o-', color='lightblue', markersize=4, zorder=5)
@@ -122,13 +131,25 @@ trail_coords = []
 
 # Neighbor Robot Markers - Use last item to guarentee all are present
 neighbor_marker = {}
+neighbor_arrow = {}
 for name, pose in data[-1][-1]["neighbor_poses"].items():
-    neighbor_marker[name] = patches.RegularPolygon((-100,-100), numVertices=3, radius=robot_radius, orientation=0, color='orange', zorder=8)
+    neighbor_marker[name] = patches.Circle((-100, -100), radius=robot_radius, color='peachpuff', ec='darkorange', zorder=8)
     ax.add_patch(neighbor_marker[name])
 
+    neighbor_arrow[name] = patches.FancyArrowPatch((-100, -100), (-100+arrow_dy, -100+arrow_dx), 
+                                        arrowstyle='->',
+                                        mutation_scale=20, color='darkorange',
+                                        linewidth=2, zorder=9)
+    ax.add_patch(neighbor_arrow[name])
+
+
+
 # Saving goal destination
-goal_marker_x = ax.plot(-100,-100, marker='x', color='purple', markersize=15, zorder=11)[0]
-goal_marker_anlge = patches.RegularPolygon((-100,-100), numVertices=3, radius=robot_radius, orientation=0, color='purple', zorder=9)
+goal_marker_x = ax.plot(-100,-100, marker='x', color='#FF10F0', markersize=15, zorder=11)[0]
+goal_marker_anlge = patches.FancyArrowPatch((-100, -100), (-100+arrow_dy, -100+arrow_dx), 
+                                        arrowstyle='->',
+                                        mutation_scale=20, color='#FF10F0',
+                                        linewidth=2, zorder=12)
 ax.add_patch(goal_marker_anlge)
 goal_radius = patches.Circle((-100, -100), radius=0.015, color="lightblue", zorder=8)
 ax.add_patch(goal_radius)
@@ -222,9 +243,13 @@ complete_circle = patches.Ellipse((0.50,0.95), width=radius*2, height=2*radius*a
 complete_text = fig.text(0.50 + radius * 2, 0.96 + radius / 2, "Simulation Running", fontsize=18, ha='left', va='top')
 fig.patches.append(complete_circle)
 
-# restart button
+# Adding Widgets
 ax_button = plt.axes([0.85, 0.9, 0.1, 0.065])   # Left, bottom, width, height
 restart_button = Button(ax_button, 'Restart')
+
+ax_slider = plt.axes([0.35, start_line_y - delta_line_y * 15.5, 0.53, 0.03])
+slider = Slider(ax_slider, '', 0, total_frames-1, valinit=0, valstep=1)
+prev_slider = 0
 
 '''
 I want to show the frame number so I know where it is at in the file
@@ -232,22 +257,47 @@ I want to show the frame number so I know where it is at in the file
 def init():
     global goal_marker_x
     global trail
+    global trail_coords
+    global robot_radius
+    global robot_marker_arrow
+    global goal_marker_anlge
 
-    robot_marker.xy = (0, 0)    # note they are backwards
-    robot_marker.orientation = 0
-    robot_marker.set_color('red')
+    robot_marker_circle.xy = (0, 0)    # note they are backwards
+    robot_marker_circle.set_color('red')
+
+    robot_marker_arrow.remove()
+    arrow_length = 1.2 * robot_radius
+    arrow_dx = arrow_length * np.cos(0)
+    arrow_dy = arrow_length * np.sin(0)
+    robot_marker_arrow = patches.FancyArrowPatch((0, 0), (arrow_dy, arrow_dx), 
+                                                arrowstyle='->',
+                                                mutation_scale=20, color='mistyrose',
+                                                linewidth=2, zorder=11)
+    ax.add_patch(robot_marker_arrow)
 
     # update neighbor position
     for name, pose in neighbor_poses[-1].items():
-        neighbor_marker[name].xy = (-100, -100)
-        neighbor_marker[name].orientation = 0
+        neighbor_marker[name].set_center((-100, -100))
+        neighbor_arrow[name].remove()
+        neighbor_arrow[name] = patches.FancyArrowPatch((-100, -100), (-100+arrow_dy, -100+arrow_dx), 
+                                        arrowstyle='->',
+                                        mutation_scale=20, color='darkorange',
+                                        linewidth=2, zorder=9)
+        ax.add_patch(neighbor_arrow[name])
 
     # updating goal location 
     if goal_marker_x not in ax.lines:
-        goal_marker_x = ax.plot(-100,-100, marker='x', color='purple', markersize=15, zorder=11)[0]
+        goal_marker_x = ax.plot(-100,-100, marker='x', color='#FF10F0', markersize=15, zorder=11)[0]
+    if trail not in ax.lines:
+        trail, = ax.plot([], [], 'o-', color='lightblue', markersize=4, zorder=5)
+
     goal_marker_x.set_data([-100], [-100])
-    goal_marker_anlge.xy = (-100,-100)
-    goal_marker_anlge.orientation = 0
+    goal_marker_anlge.remove()
+    goal_marker_anlge = patches.FancyArrowPatch((-100, -100), (-100+arrow_dy, -100+arrow_dx), 
+                                        arrowstyle='->',
+                                        mutation_scale=20, color='#FF10F0',
+                                        linewidth=2, zorder=12)
+    ax.add_patch(goal_marker_anlge)
 
 
     # updating status variables
@@ -302,36 +352,76 @@ def init():
 
 
     trail_coords = []
+    set_slider(0)
     
-    return robot_marker
+    return robot_marker_circle
 
 def update(frame):
     global goal_marker_x
     global aspect
+    global trail
+    global trail_coords
+    global robot_radius
+    global robot_marker_arrow
+    global goal_marker_anlge
+
+    frame = slider.val
 
     # update my position
     x,y = x_vals[frame], y_vals[frame]
-    yaw = yaws[frame]
+    yaw = yaws[frame] + np.pi
 
-    robot_marker.xy = (y, x)    # note they are backwards
-    robot_marker.orientation = yaw + np.pi
-    robot_marker.set_color('green' if robot_ready[frame] else 'red')
+    robot_marker_circle.set_center((y, x))    # note they are backwards
+    robot_marker_circle.set_color('lightgreen' if robot_ready[frame] else 'mistyrose')
+
+    robot_marker_arrow.remove()
+    arrow_length = 1.2 * robot_radius
+    arrow_dx = arrow_length * np.cos(yaw)
+    arrow_dy = arrow_length * np.sin(yaw)
+    robot_marker_arrow = patches.FancyArrowPatch((y, x), (y+arrow_dy, x+arrow_dx), 
+                                                arrowstyle='->',
+                                                mutation_scale=20, color='blue',
+                                                linewidth=2, zorder=11)
+    ax.add_patch(robot_marker_arrow)
 
     # update neighbor position
     for name, pose in neighbor_poses[frame].items():
-        neighbor_marker[name].xy = (pose['y'], pose['x'])
-        neighbor_marker[name].orientation = pose['yaw'] + np.pi
+        neighbor_marker[name].set_center((pose['y'], pose['x']))
+
+        neighbor_arrow[name].remove()
+        neighbor_orientation = pose['yaw'] + np.pi
+        arrow_dx = arrow_length * np.cos(neighbor_orientation)
+        arrow_dy = arrow_length * np.sin(neighbor_orientation)
+        neighbor_arrow[name] = patches.FancyArrowPatch((pose['y'], pose['x']), (pose['y']+arrow_dy, pose['x']+arrow_dx), 
+                                                    arrowstyle='->',
+                                                    mutation_scale=20, color='darkorange',
+                                                    linewidth=2, zorder=9)
+        ax.add_patch(neighbor_arrow[name])
 
     # updating goal location 
     if destination_reached[frame]:
         if goal_marker_x in ax.lines:
             goal_marker_x.remove()
-        goal_marker_anlge.xy = (desired_location[frame][1], desired_location[frame][0])
-        goal_marker_anlge.orientation = desired_angle[frame] + np.pi
+        goal_y, goal_x = desired_location[frame][1], desired_location[frame][0]
+        goal_ori = desired_angle[frame] + np.pi
+        arrow_dx = arrow_length * np.cos(goal_ori)
+        arrow_dy = arrow_length * np.sin(goal_ori)
+        goal_marker_anlge.remove()
+        goal_marker_anlge = patches.FancyArrowPatch((goal_y, goal_x), (goal_y+arrow_dy, goal_x+arrow_dx), 
+                                            arrowstyle='->',
+                                            mutation_scale=20, color='#FF10F0',
+                                            linewidth=2, zorder=12)
+        ax.add_patch(goal_marker_anlge)
 
     else:
+        goal_marker_anlge.remove()
+        goal_marker_anlge = patches.FancyArrowPatch((-100, -100), (0, -100), 
+                                            arrowstyle='->',
+                                            mutation_scale=20, color='#FF10F0',
+                                            linewidth=2, zorder=12)
+        ax.add_patch(goal_marker_anlge)
         if goal_marker_x not in ax.lines:
-            goal_marker_x = ax.plot(-100,-100, marker='x', color='purple', markersize=15, zorder=11)[0]
+            goal_marker_x = ax.plot(-100,-100, marker='x', color='#FF10F0', markersize=15, zorder=11)[0]
         if type(desired_location[frame]) != type(None):
             goal_marker_x.set_data([desired_location[frame][1]], [desired_location[frame][0]])
 
@@ -390,16 +480,38 @@ def update(frame):
     trail_coords.append((y, x))
     if len(trail_coords) > trail_length:
         trail_coords.pop(0)
+    
+    if trail not in ax.lines:
+        trail, = ax.plot([], [], 'o-', color='lightblue', markersize=4, zorder=5)
     trail.set_data(*zip(*trail_coords))
 
     if frame ==  total_frames - 1:
         on_animation_complete()
-    
-    return robot_marker
+    else:
+        set_slider(frame+1)
+    return robot_marker_circle
 
+def set_slider(val):
+    global prev_slider
+    prev_slider = slider.val
+
+    slider.eventson = False
+    slider.set_val(val)
+    slider.eventson = True
+
+def slider_changed(val):
+    global prev_slider
+
+    if val < prev_slider:
+        ani.event_source.stop()
+        ani.frame_seq = ani.new_frame_seq()
+        ani.event_source.start()
+    
+        
 def on_animation_complete():
     complete_circle.set_color('green')
     complete_text.set_text("Simulation Complete")
+    ani.event_source.stop()
     fig.canvas.draw_idle()
 
 def start_animation():
@@ -420,14 +532,35 @@ def start_animation():
 
 def restart(event):
     global ani
+    global trail
+    global trail_coords
+    goal_marker_anlge
+
+    complete_circle.set_color('red')
+    complete_text.set_text('Motion Not Complete')
+
+
+    goal_marker_anlge.remove()
+    goal_marker_anlge = patches.FancyArrowPatch((-100, -100), (0, -100), 
+                                        arrowstyle='->',
+                                        mutation_scale=20, color='#FF10F0',
+                                        linewidth=2, zorder=12)
+    ax.add_patch(goal_marker_anlge)
+    if goal_marker_x in ax.lines:
+        goal_marker_x.remove()
+    if trail in ax.lines:
+        trail.remove()
+    trail_coords = []
 
     if type(ani.event_source) != type(None):
         ani.event_source.stop()
+        set_slider(0)
         ani.frame_seq = ani.new_frame_seq()
         ani.event_source.start()
     else:
         start_animation()
 
+slider.on_changed(slider_changed)
 # interval is time between frames: 100 = 10 frams per second
 frame_rate = 10 # 10 frames is "Real time"
 start_animation()
