@@ -212,9 +212,29 @@ This can be called to reset all the values back to their default and start a new
     Adding function to clean up the enviorment. Currently only finishing the log file stuff
 
 # Logging Information
-** Add variables to be logged
-** Can edit the _log_dict_length **
-** Enable Variables? Neighbor avoid, lasar avoid, area_restricted, ect
+Variables that are saved in logger:
+- time: Time sample was pulled
+- robot_ready
+- position_started
+- neighbors_started
+- lidar_started
+- robot_moving
+- desired_heading
+- destination_reached
+- motion_complete
+- neighbors_complete
+- neighbors_complete
+- movement_restricted
+- path_obstructed
+- path_obstructed_laser
+- path_obstructed_neighbor
+- laser_avoid_error
+- destination_tolerance
+- angle_tolerance
+- desired_location
+- desired_angle
+- my_pose
+- neighbor_poses
 
 ## Agent Arguments
 - -i --index (Default: 1) # Index of this robot
