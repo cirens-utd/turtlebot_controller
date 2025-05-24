@@ -12,8 +12,11 @@ ssh ${USER}@${pi_ip} << EOF
     #screen -X -S ros_session1 quit
     #screen -X -S ros_session2 quit
     #screen -X -S .ubuntu quit
-    tmux kill-session -t ros_session1
-    tmux kill-session -t ros_session2
+    tmux send-keys -t ros_session1 C-c
+    tmux send-keys -t ros_session2 C-c
+    # sleep 1
+    # tmux kill-session -t ros_session1
+    # tmux kill-session -t ros_session2
 
 
     echo "Nodes have been killed on $pi_ip."
