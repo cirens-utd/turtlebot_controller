@@ -4,7 +4,7 @@
 The goal of this package is to give you an Agent class that handles are the tedious back end information for navigating the turtlebots. For example, the robots can only move foward and backwards and turn on the Z axis. However, most agent controllers will give a desired direction to go in. 
 
 ## Release Updates:
-V0.0.1 - 5/7/2025
+V0.0.1 - 5/23/25
 - Added monitoring to see if neighbors are completed
 - Added boolean to decide if new controller starts with start position or just start with the current position
 - Updated variable names start_heading, end_heading to not have the internal reference
@@ -14,6 +14,7 @@ V0.0.1 - 5/7/2025
 - Added shutdown method to be called before shutting down rclp
 - FIXED: Angle control more consistant to all angles
  - Found error in setters for desired angle and direction heading
+- Added Replay veiwer
 
 ## Starting Controler
 The robot will wait for the required topics to be present before it can start moving. For example, if you are  using lidar detection, the lidar topic needs to be posting. Additionally, all the neighbors you have in your list need to have their positions positing before it will start.
