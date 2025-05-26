@@ -4,11 +4,27 @@ import matplotlib.patches as patches
 from matplotlib.widgets import Button, Slider
 import matplotlib.animation as animation
 import numpy as np
-from os import listdir, remove, rmdir
+from os import listdir, remove, rmdir, path, getcwd
 import zipfile
+import tkinter as tk
+from tkinter import filedialog
 import pdb
 
-turtle_replay_file = r"../Replays/robot1_2024-08-25.004151.turtleReplay"
+root = tk.Tk()
+root.withdraw()
+start_path = path.abspath(path.join(getcwd(), "..", "Replays"))
+if not path.exists(start_path):
+    start_path = path.abspath(path.join(getcwd(), "Replays"))
+
+turtle_replay_file = filedialog.askopenfilename(
+    title="Select Relay file",
+    initialdir=start_path,
+    filetypes=[("Replay Files", "*.turtleReplay")]
+)
+
+root.destroy()
+
+# turtle_replay_file = r"../Replays/robot1_2024-08-25.004151.turtleReplay"
 # turtle_replay_file = "../Replays/Example.turtleReplay"
 # turtle_replay_file = "Example_Pretty.turtleReplay"
 
