@@ -8,6 +8,7 @@ from geometry_msgs.msg import PoseArray, PoseStamped, Twist
 from sensor_msgs.msg import LaserScan
 from rclpy.qos import qos_profile_sensor_data
 import argparse
+import yaml
 import datetime
 import time
 import zipfile
@@ -39,6 +40,11 @@ class Agent(Node):
         self._log_dict_length = 9000                    # this is about 15 min
         self._creat_log_file_names(self.start_time)
         policy = qos_profile_sensor_data
+
+        self._use_config_setup = True
+        self.config_file = "turtlebot_global_config.yaml"
+        self._offset_x = 0
+        self._offset_y = 0
 
         self._robot_ready = False
         self._position_started = False
@@ -193,11 +199,47 @@ class Agent(Node):
         self._path_obstructed_laser = False
         self._path_obstructed_neighbor = False
 
+    def setup_robot_(self):
+        '''
+        Pulling the configuration information from the yaml
+        '''
+        path_to_file = os.path.abspath(os.path.join(os.getcwd(), "Config", self.config_file))
+        with open(path_to_file, 'r') as f:
+            data = yaml.safe_load(f)
+            self._offset_x = data['shift_x']
+            self._offset_y = data['shift_y']
+
+    def quaternion_to_rotation_matrix(self, quaternion):
+        '''
+        Creating a rotation matrix from the quaternion
+        '''
+        x, y, z, w = quaternion.x, quaternion.y, quaternion.z, quaternion.w
+        return np.array([
+            [1 - 2*(y*y + z*z),     2*(x*y - z*w),     2*(x*z + y*w)],
+            [    2*(x*y + z*w), 1 - 2*(x*x + z*z),     2*(y*z - x*w)],
+            [    2*(x*z - y*w),     2*(y*z + x*w), 1 - 2*(x*x + y*y)]
+        ])
+
+    def correct_position_(self, x, y, quaternion):
+        '''
+        adjust the positon provided by the publihser
+        '''
+        offset = [self._offset_x, self._offset_y, 0]
+        rot_matrix = self.quaternion_to_rotation_matrix(quaternion)
+        offset_rotated = rot_matrix @ offset
+        
+        corrected_position = np.array([x, y, 0]) - offset_rotated
+        return corrected_position.tolist()[:2]
+
+
     def check_robot_ready_(self):
         checks = np.array([self._position_started, self._neighbors_started, self._lidar_started])
         if checks.all():
             self.get_logger().info(f"{self.my_name} Now ready to move.")
             self.robot_ready = True
+
+            if self._use_config_setup:
+                self.setup_robot_()
         return
 
     def pose_callback_(self, pose: PoseStamped):
@@ -230,7 +272,7 @@ class Agent(Node):
         }
         orientation = pose.pose.orientation
         x,y = pose.pose.position.x, pose.pose.position.y
-        self.position = [x,y]
+        self.position = self.correct_position_(x,y, orientation)
         self.direction_heading = self.get_angle_quad(orientation)
 
         if self.neighbor_avoid:
@@ -1331,6 +1373,7 @@ class Agent(Node):
             jungle_zip = zipfile.ZipFile(f"Replays/{self._compress_file}", 'w')
             jungle_zip.write(self._uncompress_file, compress_type=zipfile.ZIP_DEFLATED)
             os.remove(self._uncompress_file)
+            self.get_logger().info(f"File saved to {os.path.abspath(os.path.join(os.getcwd(), 'Replays', self._compress_file))}")
         else: 
             print("My file doesn't exist?")
 
