@@ -23,6 +23,10 @@ other_robots="$@"
 # formation control command
 tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control LF_multi_formation.py -l -n $other_robots -i $ROBOT_NUM  &> ./log.txt'"
 
+# testme 
+# tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control testme.py -i $ROBOT_NUM  &> ./log.txt'"
+# Calibration 
+# tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control calibration.py -i $ROBOT_NUM  &> ./log.txt'"
 
 
 ## Old Node not used
