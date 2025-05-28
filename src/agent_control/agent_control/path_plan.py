@@ -1,0 +1,64 @@
+import numpy as np
+import heapq
+# Parameters
+map_size = (100, 100)  # Grid dimensions (e.g., 100x100 cells)
+resolution = 0.1  # Size of each grid cell (meters)
+costmap = np.zeros(map_size)
+
+# Constants
+SAFE_RADIUS = 0.5  # Safe distance (meters) around each robot
+MAX_COST = 255  # Maximum cos
+
+def world_to_grid(x, y, resolution):
+    return int(x / resolution), int(y / resolution)
+
+def update_costmap(costmap, robot_positions, safe_radius, resolution):
+    for x, y in robot_positions:
+        cx, cy = world_to_grid(x, y, resolution)
+        radius_cells = int(safe_radius / resolution)
+        
+        for dx in range(-radius_cells, radius_cells + 1):
+            for dy in range(-radius_cells, radius_cells + 1):
+                gx, gy = cx + dx, cy + dy
+                if 0 <= gx < costmap.shape[0] and 0 <= gy < costmap.shape[1]:
+                    dist = np.hypot(dx, dy) * resolution
+                    if dist <= safe_radius:
+                        costmap[gx, gy] = MAX_COST
+    return costmap
+def astar(costmap, start, goal):
+    open_set = []
+    heapq.heappush(open_set, (0 + np.linalg.norm(np.array(start) - np.array(goal)), 0, start, [start]))
+    visited = set()
+    
+    while open_set:
+        est_total, cost, current, path = heapq.heappop(open_set)
+        if current == goal:
+            return path
+        if current in visited:
+            continue
+        visited.add(current)
+
+        x, y = current
+        for dx, dy in [(-1,0), (1,0), (0,-1), (0,1)]:
+            nx, ny = x + dx, y + dy
+            if 0 <= nx < costmap.shape[0] and 0 <= ny < costmap.shape[1] and costmap[nx, ny] < MAX_COST:
+                heapq.heappush(open_set, (
+                    cost + 1 + np.linalg.norm(np.array([nx, ny]) - np.array(goal)),
+                    cost + 1,
+                    (nx, ny),
+                    path + [(nx, ny)]
+                ))
+    return None  # No path found
+
+# robot_positions = [(1.0, 1.0), (1.5, 1.5), ..., (3.0, 3.5)]  # Example coordinates
+# goal_position = (8.0, 8.0)
+
+# costmap = np.zeros(map_size)
+# costmap = update_costmap(costmap, robot_positions, SAFE_RADIUS, resolution)
+
+# for i, robot_pos in enumerate(robot_positions):
+#     start_grid = world_to_grid(*robot_pos, resolution)
+#     goal_grid = world_to_grid(*goal_position, resolution)
+    
+#     path = astar(costmap.copy(), start_grid, goal_grid)
+#     print(f"Robot {i} path: {path}")
