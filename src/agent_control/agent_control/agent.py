@@ -6,6 +6,7 @@ from rclpy.node import Node
 from std_msgs.msg import Bool
 from geometry_msgs.msg import PoseArray, PoseStamped, Twist
 from sensor_msgs.msg import LaserScan
+from irobot_create_msgs.msg import LightringLeds
 from rclpy.qos import qos_profile_sensor_data
 import argparse
 import yaml
@@ -41,11 +42,18 @@ class Agent(Node):
         self._creat_log_file_names(self.start_time)
         policy = qos_profile_sensor_data
 
+        # logging info
         self._use_config_setup = True
         self.config_file = "turtlebot_global_config.yaml"
         self._offset_x = 0
         self._offset_y = 0
 
+        # LED Info
+        self.led_override = False                   # set to true if you want take control of LED's in your code
+        self.led_light_state = None                 # Current status of LED for logger
+
+        self._robot_status = None                    # Current status of robot
+        self._robot_status_options = ["stopped", "ready", "moving", "at_goal", "complete", "finished", "blocked"]
         self._robot_ready = False
         self._position_started = False
         self._has_neighbors = bool(len(my_neighbors))
@@ -75,6 +83,9 @@ class Agent(Node):
 
         # Create Publisher for movement
         self.cmd_vel_pub_ = self.create_publisher(Twist, f"/{name}/cmd_vel", policy)
+
+        # Create Publisher for LED
+        self.led_pub_ = self.create_publisher(LightringLeds, '/'+self.my_name+'/cmd_lightring', policy)
         
         # Create Subscriber for position
         self.position_sub_ = self.create_subscription(PoseStamped, f"/vrpn_mocap/turtlebot{self.my_number}/pose", self.pose_callback_, policy)
@@ -204,10 +215,13 @@ class Agent(Node):
         Pulling the configuration information from the yaml
         '''
         path_to_file = os.path.abspath(os.path.join(os.getcwd(), "Config", self.config_file))
-        with open(path_to_file, 'r') as f:
-            data = yaml.safe_load(f)
-            self._offset_x = data['shift_x']
-            self._offset_y = data['shift_y']
+        if os.path.exists(path_to_file):
+            with open(path_to_file, 'r') as f:
+                data = yaml.safe_load(f)
+                self._offset_x = data['shift_x']
+                self._offset_y = data['shift_y']
+        else:
+            self.get_logger().warning(f"{self.my_name}: attempted to pull offset from {path_to_file} but it doesn't exist. Please run calibration.")
 
     def quaternion_to_rotation_matrix(self, quaternion):
         '''
@@ -410,6 +424,27 @@ class Agent(Node):
             self.move_robot_(0.0, 1.0)
         """
 
+    @property
+    def robot_status(self):
+        return self._robot_status
+    @robot_status.setter
+    def robot_status(self, value):
+        '''
+        Modes:
+            "stopped"   -   Not Ready
+            "ready"     -   Ready (but not moving)
+            "moving"    -   Moving
+            "at_goal"   -   Desired position reached
+            "complete"  -   End controller complete
+            "finished"  -   All Neighbors Complete
+            "blocked"   -   path obstructed 
+        '''
+        if value in self._robot_status_options:
+            if value != self.robot_status and not self.led_override:
+                self.set_led_mode_(value)
+            
+            self._robot_status = value
+
     @property 
     def robot_ready(self):
         return self._robot_ready
@@ -583,6 +618,9 @@ class Agent(Node):
         cur_value = any(values)
         if not self._path_obstructed and cur_value:
             self._path_obstructed_time = datetime.datetime.now()
+            if self.robot_status != "blocked":
+                self.robot_status = "blocked"
+
         elif self._path_obstructed and not cur_value:
             self._path_obstructed_time = None
 
@@ -852,10 +890,13 @@ class Agent(Node):
                 move_x = 0.0
                 move_z = 0.0
                 self.move_robot_(move_x, move_z)
+                self.robot_status = "at_goal"
             
             if not self.motion_complete:
                 self.end_controller()
             else:
+                if self.robot_status != "complete" and self.robot_status != "finished":
+                    self.robot_status = "complete"
                 self.check_neighbors_finished()
             return
 
@@ -869,6 +910,9 @@ class Agent(Node):
             self.desired_heading = False
 
         if not self.path_obstructed:
+            if self.robot_status != "moving":
+                self.robot_status = "moving"
+
             z = self.scale_movement_(self.diff_angles(angle, self.direction_heading), True)
             x = self.scale_movement_(magnitude)
 
@@ -1247,6 +1291,130 @@ class Agent(Node):
     def direction_heading_vector_(self):
         return np.array([-np.cos(self.direction_heading), -np.sin(self.direction_heading)])
 
+    def set_led_mode_(self, mode):
+        '''
+        Method is used too set the LED ring based on the agents condition.
+        Modes:
+            "stopped"   -   Not Ready                   -   Orange  (255, 100, 0)
+            "ready"     -   Ready (but not moving)      -   yellow  (255, 255, 0)
+            "moving"    -   Moving                      -   blue    (0, 178, 255)
+            "at_goal"   -   Desired position reached    -   blue    (0, 0, 255)
+            "complete"  -   End controller complete     -   purple  (135, 0, 255)
+            "finished"  -   All Neighbors Complete      -   purple  (75, 0, 150)
+            "blocked"   -   path obstructed             -   pink    (255, 0 , 178) 
+        '''
+        red = 0
+        green = 0
+        blue = 0
+
+        match mode:
+            case "stopped":
+                red = 255
+                green = 100
+                blue = 0
+            case "ready":
+                red = 255
+                green = 255
+                blue = 0
+            case "moving":
+                red = 0
+                green = 178
+                blue = 255
+            case "at_goal":
+                red = 0
+                green = 0
+                blue = 255
+            case "complete":
+                red = 135
+                green = 0
+                blue = 255
+            case "finished":
+                red = 75
+                green = 0
+                blue = 150
+            case "blocked":
+                red = 255
+                green = 0
+                blue = 178
+
+        self.set_led_ring_color(red, green, blue)
+
+    def set_led_ring_color(self, red, green, blue):
+        '''
+        Will set all 5 LED in the ring to the same color.
+        :param: red: 0 - 255    # intensity of red
+        :param: green: 0 - 255  # intensity of green
+        :param: blue: 0 - 255   # intensity of blue
+        '''
+        led_color = [red, green, blue]
+        set_each_led_color(led_color,led_color,led_color,led_color,led_color)
+
+
+    def set_each_led_color(self, led1, led2, led3, led4, led5):
+        '''
+        Builds LED message and sets each LED colors.
+        :param: led1: [red, blue, green]    # rgb for led1 [255, 255, 255]
+        :param: led2: [red, blue, green]    # rgb for led2 [255, 255, 255]
+        :param: led3: [red, blue, green]    # rgb for led3 [255, 255, 255]
+        :param: led4: [red, blue, green]    # rgb for led4 [255, 255, 255]
+        :param: led5: [red, blue, green]    # rgb for led5 [255, 255, 255]
+        '''
+        lightring_msg = LightringLeds()
+        lightring_msg.header.stamp = self.get_clock().now().to_msg()
+        lightring_msg.override_system = True
+
+        lightring_msg.leds[0].red = led1[0]
+        lightring_msg.leds[0].green = led1[1]
+        lightring_msg.leds[0].blue = led1[2]
+
+        lightring_msg.leds[1].red = led2[0]
+        lightring_msg.leds[1].green = led2[1]
+        lightring_msg.leds[1].blue = led2[2]
+
+        lightring_msg.leds[2].red = led3[0]
+        lightring_msg.leds[2].green = led3[1]
+        lightring_msg.leds[2].blue = led3[2]
+
+
+        lightring_msg.leds[3].red = led4[0]
+        lightring_msg.leds[3].green = led4[1]
+        lightring_msg.leds[3].blue = led4[2]
+
+        lightring_msg.leds[4].red = led5[0]
+        lightring_msg.leds[4].green = led5[1]
+        lightring_msg.leds[4].blue = led5[2]
+
+        self.led_pub_.publish(lightring_msg)
+
+        self.led_light_state = {
+            "header": {
+                "stamp": self.get_clock().now(),
+                "frame_id": ''
+            },
+            "leds":[{
+                "red": led1[0],
+                "green": led1[1],
+                "blue": led1[2]
+            },{
+                "red": led2[0],
+                "green": led2[1],
+                "blue": led2[2]
+            },{
+                "red": led3[0],
+                "green": led3[1],
+                "blue": led3[2]
+            },{
+                "red": led4[0],
+                "green": led4[1],
+                "blue": led4[2]
+            },{
+                "red": led5[0],
+                "green": led5[1],
+                "blue": led5[2]
+            }],
+            "override_system": True
+        }
+
     def new_controller(self):
         # can be used to set all paraemeters back to original and start a new controller. 
         # mainly used to recover from robot who have "errored"
@@ -1402,8 +1570,11 @@ class Agent(Node):
             # wait for all neighbors to be running
             if self.robot_moving:
                 self.controller()
+            elif self.robot_status != "ready":
+                self.robot_status = "ready"
             return
         
+        self.robot_status  = "stopped"
         self.check_robot_ready_()
         return
 
@@ -1454,24 +1625,27 @@ class Agent(Node):
         This will be called after motion_completed is true and will continue to run until neighbors_complete is True.
         """
 
-        test_angle = self.end_heading
+        if self._has_neighbors
+            test_angle = self.end_heading
 
-        for name, orientation in self.neighbor_orientation.items():
-            neighbor_facing = self.get_angle_quad(orientation)
-            if test_angle == 0 or test_angle == np.pi * 2:
-                test_angle = (test_angle + np.pi) % (np.pi * 2)
-                neighbor_facing = (neighbor_facing + np.pi) % (np.pi * 2)
+            for name, orientation in self.neighbor_orientation.items():
+                neighbor_facing = self.get_angle_quad(orientation)
+                if test_angle == 0 or test_angle == np.pi * 2:
+                    test_angle = (test_angle + np.pi) % (np.pi * 2)
+                    neighbor_facing = (neighbor_facing + np.pi) % (np.pi * 2)
 
-            # if any are not in the tolerance, then we are not all complete
-            if not np.abs(neighbor_facing - test_angle) < self._angle_tolerance: 
-                self.neighbors_complete = False
-                return
-            
-            
-        if not self.neighbors_complete:
-            self.get_logger().info(f"{self.my_name} Sees all neighbors are done.")
- 
+                # if any are not in the tolerance, then we are not all complete
+                if not np.abs(neighbor_facing - test_angle) < self._angle_tolerance: 
+                    self.neighbors_complete = False
+                    return
+                
+                
+            if not self.neighbors_complete:
+                self.get_logger().info(f"{self.my_name} Sees all neighbors are done.")
+
         self.neighbors_complete = True
+        if self.robot_status != "finished":
+            self.robot_status = "finished"
         
 
 def main(args=None):
