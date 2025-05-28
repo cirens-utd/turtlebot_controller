@@ -161,7 +161,7 @@ def main(args=None):
     ## ros2 run agent_control calibration.py -i 1 -s
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--index", default="1", type=int, help="Index of this robot")
-    parser.add_argument("-c", "--calibrate", default=False, action="store_false", help="Set if you do not want to run calibration")
+    parser.add_argument("-c", "--calibrate", default=True, action="store_false", help="Set if you do not want to run calibration")
     parser.add_argument("-s", "--sim", default=False, action="store_true", help="Mode you want to calibrate in")
     parser.add_argument("--ros-args", default=False, action="store_true")
     script_args = parser.parse_args()
