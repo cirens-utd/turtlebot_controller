@@ -4,8 +4,8 @@ import heapq
 
 class Path():
     def __init__(self, my_position, robot_positions,goal_position):
-        self.map_size = (100, 100)  # Grid dimensions (e.g., 100x100 cells)
-        self.resolution = 0.1  # Size of each grid cell (meters)
+        self.map_size = (9, 9)  # Grid dimensions (e.g., 100x100 cells)
+        self.resolution = 0.5  # Size of each grid cell (meters)
         self.costmap = np.zeros(map_size)
         self.robot_positions = robot_positions
         self.goal_position = goal_position
@@ -15,7 +15,8 @@ class Path():
         self.start = my_position
     def world_to_grid(self,x, y, resolution):
         return int(x / resolution), int(y / resolution)
-
+    def grid_to_world(self,x,y):
+        return x * self.resolution, y * self.resolution
     def update_costmap(self, robot_positions, safe_radius, resolution):
         costmap = self.costmap.copy()
         for x, y in self.robot_positions:
@@ -40,6 +41,8 @@ class Path():
         while open_set:
             est_total, cost, current, path = heapq.heappop(open_set)
             if current == goal:
+                for grid_point in path:
+                    grid_point = grid_point*self.resolution
                 return path
             if current in visited:
                 continue
@@ -48,7 +51,7 @@ class Path():
             x, y = current
             for dx, dy in [(-1,0), (1,0), (0,-1), (0,1)]:
                 nx, ny = x + dx, y + dy
-                if 0 <= nx < self.costmap.shape[0] and 0 <= ny < self.costmap.shape[1] and self.costmap[nx, ny] < MAX_COST:
+                if 0 <= nx < self.costmap.shape[0] and 0 <= ny < self.costmap.shape[1] and self.costmap[nx, ny] < self.MAX_COST:
                     heapq.heappush(open_set, (
                         cost + 1 + np.linalg.norm(np.array([nx, ny]) - np.array(goal)),
                         cost + 1,
