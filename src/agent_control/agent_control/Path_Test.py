@@ -39,26 +39,14 @@ class Path_Test(Agent):
                         neighbor_avoid=neighbor_avoid, neighbor_delay=neighbor_delay)
         
         self.end_target = end_target
-        self.path = []
-       
-        if isinstance(target_list ,list):
-            self._formation_list = formation_distance
-            self._formation_idx = 0
-            self._formation_distance = self._formation_list[self._formation_idx]
+        self.path = Path()
+        self.subgoals = []
+        self.subgoal_complete = False
+        self.subgoal_idx = 0
+        self.start = True
+        self.destination_tolerance = destination_tolerance
         self.led_pub = self.create_publisher(LightringLeds, '/'+self.my_name+'/cmd_lightring', qos_profile_sensor_data)
 
-        self.complete_counter = 0
-        self.new_counter = 0
-        self.new_formation = False
-        self.delay_cycles = [150, 150, 150, None]
-        self.next_formation = False
-
-        for number in my_neighbors:
-            if str(number) not in self._formation_distance:
-                print(f"Neighbors: {my_neighbors}")
-                print(f"Formation_distance: {self._formation_distance}")
-                raise NotImplementedError('When Passing formation distance into LF_Formation, all neighbors must have a set distance')
-        
     def controller(self):
         '''
         This function is called every time the robot position is updated. We will put our formation controle logic here.
@@ -73,42 +61,37 @@ class Path_Test(Agent):
         self.move_direction([x,y])      Function to move in a direction
         self.move_to_position([x,y])    Function to move to a position
         '''
+        obstacles = []
+        for name, neighbor in self.neighbor_position.items():
+            obstacles.append(neighbor)
+            
+            
         # self.get_logger().info(f"neighbors_complete:{self.neighbors_complete}")
-        if self.next_formation and self._formation_idx < len(self._formation_list):
+        subgoal_distance = abs(np.linalg.norm(self.subgoals[self.subgoal_idx]-self.position))
+        if subgoal_distance < self.destination_tolerance:
+            self.subgoal_complete = True
+
+        if self.start: 
+            path.update_costmap(obstacles)
+            self.subgoals = path.astar(self.position, self.end_target)
+        if self.subgoal_complete and self.subgoal_idx < len(self.subgoals):
             if True:
+                self.path.update_costmap(obstacles)
                 self.led_state(2)
-                self._formation_idx += 1
-                self._formation_distance = self._formation_list[self._formation_idx]
-                self.get_logger().info(f"formation index: {self._formation_idx}")
-                self.get_logger().info(f"formation_list: {self._formation_list}")
-                self.neighbors_complete = False
-                self.next_formation = False
+                #self.subgoals = path.astar(self.position,self.end_target)
+                self.subgoal_idx +=1
+                self.subgoal_complete = False
         elif self.path_obstructed:
             self.led_state(0)
         else:
             self.led_state(1)
-
+            self.move_direction= self.subgoals[self.subgoal_idx]-self.position
         start = False
         total = [0,0]
         tolerance = 0.1
 
-        for name, neighbor in self.neighbor_position.items():
-            start = True
-            difference = np.array(neighbor) - np.array(self.position)
-            if abs(np.linalg.norm(difference) - self._formation_distance[str(name)])  > tolerance:
-                total += (np.linalg.norm(difference) - self._formation_distance[str(name)]) * difference
-        if start:
-            self.move_direction(total)
-            self.led_state(1)
+        
 
-        if not self.next_formation and type(self.delay_cycles[self._formation_idx]) != type(None):
-            if self.complete_counter > self.delay_cycles[self._formation_idx]:
-                self.next_formation = True
-                self.complete_counter = 0
-            else:
-                self.complete_counter += 1
-
-        self.get_logger().info(f"{self.my_name}: My Index Number is: {self._formation_idx}\n my_counter: {self.complete_counter}\n What: {self.next_formation}")
 
     def led_state(self, state):
         lightring_msg = LightringLeds()
@@ -132,20 +115,7 @@ class Path_Test(Agent):
                     led.blue = 0
         self.led_pub.publish(lightring_msg)
 
-    def really_complete(self):
-        for name, neighbor in self.neighbor_position.items():
-            for name1, neighbor1 in self.neighbor_position.items():
-                distance  = self.all_fd[str(name)][str(name1)]
-                actual_distance = np.linalg.norm(np.array(neighbor) - np.array(neighbor1))
-                if np.abs(actual_distance - distance) > self._destination_tolerance:
-                    self.get_logger().info(f"Distance Desired: {distance}\t What I got: {actual_distance}")
-                    return False
-            distance  = self.all_fd[str(name)][str(self.my_number)]
-            actual_distance = np.linalg.norm(np.array(neighbor) - np.array(self.position))
-            if np.abs(actual_distance - distance) > self._destination_tolerance:
-                self.get_logger().info(f"Distance Desired: {distance}\t What I got: {actual_distance}")
-                return False
-        return True
+
             
     
 def get_yaml(path):
