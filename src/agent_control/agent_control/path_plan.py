@@ -3,7 +3,7 @@ import heapq
 # Parameters
 
 class Path():
-    def __init__(self, my_position, robot_positions,goal_position):
+    def __init__(self, my_position= (0,0), robot_positions= [(0,0)],goal_position = (0,0)):
         self.map_size = (9, 9)  # Grid dimensions (e.g., 100x100 cells)
         self.resolution = 0.5  # Size of each grid cell (meters)
         self.costmap = np.zeros(map_size)
@@ -17,11 +17,11 @@ class Path():
         return int(x / resolution), int(y / resolution)
     def grid_to_world(self,x,y):
         return x * self.resolution, y * self.resolution
-    def update_costmap(self, robot_positions, safe_radius, resolution):
+    def update_costmap(self, robot_positions):
         costmap = self.costmap.copy()
-        for x, y in self.robot_positions:
-            cx, cy = self.world_to_grid(x, y, resolution)
-            radius_cells = int(safe_radius / resolution)
+        for x, y in robot_positions:
+            cx, cy = self.world_to_grid(x, y, self.resolution)
+            radius_cells = int(self.SAFE_RADIUS / self.resolution)
             
             for dx in range(-radius_cells, radius_cells + 1):
                 for dy in range(-radius_cells, radius_cells + 1):
@@ -33,7 +33,8 @@ class Path():
         self.costmap = costmap
        
     def astar(self, start, goal):
-        
+        start = self.world_to_grid(start,self.resolution)
+        goal = self.world_to_grid(goal,self.resolution)
         open_set = []
         heapq.heappush(open_set, (0 + np.linalg.norm(np.array(start) - np.array(goal)), 0, start, [start]))
         visited = set()
