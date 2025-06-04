@@ -28,7 +28,7 @@ class Path():
                     gx, gy = cx + dx, cy + dy
                     if 0 <= gx < costmap.shape[0] and 0 <= gy < costmap.shape[1]:
                         dist = np.hypot(dx, dy) * resolution
-                        if dist <= safe_radius:
+                        if dist <= self.SAFE_RADIUS:
                             costmap[gx, gy] = self.MAX_COST
         self.costmap = costmap
        
