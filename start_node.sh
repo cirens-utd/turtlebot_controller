@@ -21,7 +21,8 @@ other_robots="$@"
 # tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control LF_formation.py -l -i $ROBOT_NUM -f ~/Turtlebot_Controller/src/agent_control/config/agent_setup/nine_node_formation.yaml -n $other_robots &> ./log.txt'"
 
 # formation control command
-tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control LF_multi_formation.py -l -n $other_robots -i $ROBOT_NUM  &> ./log.txt'"
+#tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control LF_multi_formation.py -l -n $other_robots -i $ROBOT_NUM  &> ./log.txt'"
+tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control Path_Test.py -l -n 8 5 9 -i $ROBOT_NUM  &> ./log.txt'"
 
 
 

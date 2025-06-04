@@ -23,7 +23,7 @@ for robot_num in "$@"; do
 
     echo "Performing '$operation' on robot$robot_num at IP $pi_ip..."
 
-    gnome-terminal -- bash -c "./scripts/${operation}.sh $USER $pi_ip $pi_wrk_space || exec bash"
+    gnome-terminal -- bash -c "./scripts/${operation}.sh $USER $pi_ip $pi_wrk_space $robot_num $@ || exec bash"
 
     # # Handle invalid operation input
     # echo "Invalid operation: $operation"
