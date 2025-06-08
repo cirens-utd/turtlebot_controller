@@ -10,3 +10,5 @@
 /Replays/
 *.replay*
 *.*Replay*
+/Replayer/*.mpr
+/Config/

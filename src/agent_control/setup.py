@@ -23,7 +23,8 @@ setup(
             "consensus_node = agent_control.consensus:main",
             "formation_node = agent_control.LF_formation:main",
             "followMe_node = agent_control.followMe:main",
-            "multi_formation_node = agent_control.LF_multi_formation:main"
+            "multi_formation_node = agent_control.LF_multi_formation:main",
+            "calibration_node = agent_control.calibration:main"
         ],
     },
 )
