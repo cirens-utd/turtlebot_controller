@@ -1,9 +1,16 @@
 # Agent Controller Overview
-
 ## Overview
 The goal of this package is to give you an Agent class that handles are the tedious back end information for navigating the turtlebots. For example, the robots can only move foward and backwards and turn on the Z axis. However, most agent controllers will give a desired direction to go in. 
 
 ## Release Updates:
+V0.0.2 - 6/7/25
+- added calibration node to correct center of rotation on the pose to match the robot
+ - Still working on solution to kill node once it completes
+- Add a file selecter to replay viewer
+- Added led control to agent
+- Track attempted goal location
+- Added more status variables to replay file
+
 V0.0.1 - 5/23/25
 - Added monitoring to see if neighbors are completed
 - Added boolean to decide if new controller starts with start position or just start with the current position
@@ -15,6 +22,14 @@ V0.0.1 - 5/23/25
 - FIXED: Angle control more consistant to all angles
  - Found error in setters for desired angle and direction heading
 - Added Replay veiwer
+
+## First Time Setup
+The controller will work straight out of the box with no setup steps needed. However, depending on how the location transpose is being generated, it is very common for the center of rotation of the published pose to not match the center of rotation of the robot. This can be handled by adjusting the tolerances, however, there is a calibration node that can minimize these issues. 
+
+### Calibration
+This calibartion will save the required offsets needed to correct the published pose to match the real robot. This will be saved in the current workspace in a folder called Config. This Config folder needs to be in the directory from which you launch your nodes. In this folder will have a file. It will require the file name to be set with self.config_file, default is "turtlebot_global_config.yaml". If this file is not present, there will be no offset applied.
+
+Additionally, this is only applied after the robot is ready (i.e all the topics have been recieved). So if you want to turn this feature off, you can set self._use_config_setup to False before all topics have been recieved.
 
 ## Starting Controler
 The robot will wait for the required topics to be present before it can start moving. For example, if you are  using lidar detection, the lidar topic needs to be posting. Additionally, all the neighbors you have in your list need to have their positions positing before it will start.
@@ -78,6 +93,13 @@ Additional options:
 - laser_avoid_loop_max (default: 1)     # How many "loops" the robot will do before it errors. This number can be increased to go around more complicated items
 - neighbor_avoid (default: True)        # Will not allow the robots to run into its neighbor. (Laser avoidance normally will kick in first, but sometimes the laser will not pick up the neighbor)
 - neighbor_delay (default: 5)           # Amount of time the robot will wait before it avoids. The higher number robot will wait 2x this
+
+## LED Control
+### Overview
+The controller will control the LED light ring based off the robot status. These default modes are saved in the self._led_enum variable and uses the class LED_STATE. This is how the available modes are set and are saved into self._robot_status_options = LED_STATE.__members__. These two could be changed after initilization if one wants to change the color of these default modes
+
+### LED_STATE
+This is a custom enum to help set the colors for each of the available modes. This can be accessed by LED_STATE.MODE.value.r or LED_STATE['MODE'].value.r. This uses a custome dataclass to allow these to be accessed with *.r, *.g, and *.b. When setting own mode colors, you will need to use this class.
 
 ## Agent Sequance
 ### neighbor_pose_callback
@@ -155,6 +177,12 @@ This can be called to reset all the values back to their default and start a new
     Boolean to know if the file needs to be zipped. By setting this, you will create and distroy the logging timer and zip up the file.
 - logging_paused
     Boolean to pause the logging recording feature as long as it is set to true
+- _use_config_setup
+    Boolean used to offset from calibration node. Will use file self.config_file that is located in the current directory/Config
+- config_file
+    File name of offsets to use on transform
+- led_override
+    Boolean that will prevent the agent controller from changing the LED's due to the state changes
 
 ## Agent Methods
 - get_angle_quad
@@ -210,10 +238,15 @@ This can be called to reset all the values back to their default and start a new
     if you have more advanced logic to prepare for the next controller to be called
 - shutdown
     Adding function to clean up the enviorment. Currently only finishing the log file stuff
+- set_led_ring_color
+    Can change the ring color to a color (r,g,b) - 0-255. This will set each of the 5 LED's to the same color
+- set_each_led_color
+    Can set each of the five LEDs individuatlly (r,g,b) - 0-255. List of 5.
 
 # Logging Information
 Variables that are saved in logger:
 - time: Time sample was pulled
+- robot_status
 - robot_ready
 - position_started
 - neighbors_started
@@ -225,6 +258,7 @@ Variables that are saved in logger:
 - neighbors_complete
 - neighbors_complete
 - movement_restricted
+- led_light_state
 - path_obstructed
 - path_obstructed_laser
 - path_obstructed_neighbor
@@ -232,6 +266,7 @@ Variables that are saved in logger:
 - destination_tolerance
 - angle_tolerance
 - desired_location
+- attempted_desired_location
 - desired_angle
 - my_pose
 - neighbor_poses
@@ -244,6 +279,14 @@ Variables that are saved in logger:
 - -m --loop_max (Default: 1) # number of loops the laser will make before error
 - -b --neighbor_avoid (Default: True) # Avoid neighbors using position
 - -f --formation # Path to yaml for formation control
+
+## Calibration Node:
+This will allow you to run calibration on your robot. If you use -c argument, it will not save the results and only show how good your current setup is.
+
+### Arguments
+- -i: Set index of the robot
+- -c: Turns off the feature to calibrate the robot
+- -s: Turns on sim mode.
 
 # Exmples:
 Current Examples include:
