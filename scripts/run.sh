@@ -4,6 +4,7 @@ USER=$1
 pi_ip=$2
 pi_wrk_space=$3
 robot_num=$4
+echo "$@"
 shift
 shift
 shift
