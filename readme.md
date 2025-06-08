@@ -49,7 +49,7 @@ These operations are saved in the scripts directory and will launch in their own
 - test: Will turn the robots to make sure they all are responding
 
 ### Starting a node
-This will require you to update teh start_node.sh file and move it to the robot. What ever is in that robots start_node.sh file is what will run
+This will require you to update the start_node.sh file and move it to the robot. What ever is in that robots start_node.sh file is what will run
 
 ### Example
 `./remote_launch <operation> <robot_numbers_separated_by_commas>`
