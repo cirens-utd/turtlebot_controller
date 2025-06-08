@@ -31,12 +31,16 @@ class TestMe(Agent):
                         laser_avoid=laser_avoid, laser_distance=laser_distance, laser_delay=laser_delay, laser_walk_around=laser_walk_around, laser_avoid_loop_max=laser_avoid_loop_max,
                         neighbor_avoid=neighbor_avoid, neighbor_delay=neighbor_delay)
 
+        self.robot_ready = True
         self.angles = [0, self.end_heading]
         self.run_index = 0
         self._log_dict_length = 150
-        self.led_override = True
+        self.led_override = False
         self.counter = 0
         self.mode = 0
+        self.select_mode = ["STOPPED", "READY", "MOVING", "AT_GOAL", "COMPLETE", "FINISHED", "BLOCKED"]
+        # self.select_mode = [(0, 178, 255), (0, 255, 100), (89, 178, 255)]
+        self.first_run = True
 
     def controller(self):
         '''
@@ -53,7 +57,10 @@ class TestMe(Agent):
         self.move_to_position([x,y])    Function to move to a position
         '''
 
-        # self.move_to_position([5,0])
+        if self.my_number == 1:
+            self.move_to_position([2,0])
+        elif self.my_number == 2:
+            self.move_to_position([-5,5])
         # self.move_to_angle(self.angles[self.test_index])
         # if self.desired_heading:
         #     self.get_logger().info(f"Finished index: {self.test_index}")
@@ -64,27 +71,19 @@ class TestMe(Agent):
         # self.move_to_angle(np.pi)
         # pdb.set_trace()
 
-        self.get_logger().info(f"Counter is at: {self.counter}")
-        self.get_logger().info(f"Mode is at: {self.mode}")
-        if self.counter == 0:
-            match self.mode:
-                case 0:
-                    self.test_fun([255,0,0],[0,0,0],[0,0,0],[0,0,0],[0,0,0])
-                case 1:
-                    self.test_fun([255,0,0],[255,0,0],[0,0,0],[0,0,0],[0,0,0])
-                case 2:
-                    self.test_fun([255,0,0],[255,0,0],[255,0,0],[0,0,0],[0,0,0])
-                case 3:
-                    self.test_fun([255,0,0],[255,0,0],[255,0,0],[255,0,0],[0,0,0])
-                case 4:
-                    self.test_fun([255,0,0],[255,0,0],[255,0,0],[255,0,0],[255,0,0])
-        self.counter += 1
-        if self.counter >= 11:
-            self.counter = 0
-            self.mode += 1
-            
-            if self.mode > 4:
-                self.mode = 0
+        # self.set_led_mode_(self.select_mode[self.mode])
+        # self.set_led_ring_color(*self.select_mode[self.mode])
+        # self.counter += 1
+        # if self.counter >= 30:
+        #     print(f"LED Color: {self._led_enum[self.select_mode[self.mode]].value}")
+        #     self.robot_status = self.select_mode[self.mode]
+        #     self.counter = 0
+        #     self.mode += 1
+        #     if self.mode >= len(self.select_mode):
+        #         self.mode = 0
+        
+        # self.move_to_position([0,0])
+
 
     # def end_controller(self):
     #     # want to copy the followers angle
@@ -99,36 +98,6 @@ class TestMe(Agent):
     #     desired /= num_neighbors
 
     #     self.move_to_angle(desired)
-
-    def test_fun(self, led1, led2, led3, led4, led5):
-        lightring_msg = LightringLeds()
-        lightring_msg.header.stamp = self.get_clock().now().to_msg()
-        lightring_msg.override_system = True
-
-        lightring_msg.leds[0].red = led1[0]
-        lightring_msg.leds[0].green = led1[1]
-        lightring_msg.leds[0].blue = led1[2]
-
-        lightring_msg.leds[1].red = led2[0]
-        lightring_msg.leds[1].green = led2[1]
-        lightring_msg.leds[1].blue = led2[2]
-
-        lightring_msg.leds[2].red = led3[0]
-        lightring_msg.leds[2].green = led3[1]
-        lightring_msg.leds[2].blue = led3[2]
-
-
-        lightring_msg.leds[3].red = led4[0]
-        lightring_msg.leds[3].green = led4[1]
-        lightring_msg.leds[3].blue = led4[2]
-
-        lightring_msg.leds[4].red = led5[0]
-        lightring_msg.leds[4].green = led5[1]
-        lightring_msg.leds[4].blue = led5[2]
-
-        self.get_logger().info("Publishing LED Topic")
-
-        self.led_pub_.publish(lightring_msg)
 
 def main(args=None):
     ## Start Simulation Script
@@ -153,7 +122,7 @@ def main(args=None):
     try:
         rclpy.init(args=args)
         my_robot = TestMe(int(script_args.index), np.array(script_args.neighbor), sim=script_args.sim, 
-            logging=True, restricted_area=False, laser_avoid=script_args.laser_avoid, neighbor_avoid=script_args.neighbor_avoid, laser_avoid_loop_max=script_args.loop_max)
+            logging=True, restricted_area=True, laser_avoid=script_args.laser_avoid, neighbor_avoid=script_args.neighbor_avoid, laser_avoid_loop_max=script_args.loop_max)
         rclpy.spin(my_robot)
     except Exception as e:
         traceback.print_exc()
