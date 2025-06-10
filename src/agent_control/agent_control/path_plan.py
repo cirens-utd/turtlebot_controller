@@ -40,16 +40,16 @@ class Path():
 
         # Check if start or goal are within map bounds or are obstacles
         if not (0 <= start_grid[0] < self.costmap.shape[0] and 0 <= start_grid[1] < self.costmap.shape[1]):
-            err = f"Start position {start_grid} is out of map bounds {self.map_size}."
+            err = f"Start position {start} is out of map bounds {self.map_size*self.resolution}."
             return err
         if not (0 <= goal_grid[0] < self.costmap.shape[0] and 0 <= goal_grid[1] < self.costmap.shape[1]):
-            err = f"Goal position {goal_grid} is out of map bounds {self.map_size}."
+            err = f"Goal position {goal} is out of map bounds {self.map_size*self.resolution}."
             return err
         if self.costmap[start_grid[0], start_grid[1]] >= self.MAX_COST:
-            err = f"Start position {start_grid} is an obstacle."
+            err = f"Start position {start} is an obstacle."
             return err
         if self.costmap[goal_grid[0], goal_grid[1]] >= self.MAX_COST:
-            err = f"Goal position {goal_grid} is an obstacle."
+            err = f"Goal position {start} is an obstacle."
             return err
 
 
@@ -70,8 +70,8 @@ class Path():
 
             x, y = current
             #for dx, dy in [(-1,0), (1,0), (0,-1), (0,1)]: # 4-directional movement
-           
-            for dx, dy in [(-1,0), (1,0), (0,-1), (0,1), (-1,-1), (-1,1), (1,-1), (1,1)]: #8-directional movement
+            # For 8-directional movement, uncomment the line below and comment the line above:
+            for dx, dy in [(-1,0), (1,0), (0,-1), (0,1), (-1,-1), (-1,1), (1,-1), (1,1)]:
                 nx, ny = x + dx, y + dy
                 if 0 <= nx < self.costmap.shape[0] and 0 <= ny < self.costmap.shape[1] and self.costmap[nx, ny] < self.MAX_COST:
                     new_cost = cost + 1 # Uniform cost for cardinal movements
