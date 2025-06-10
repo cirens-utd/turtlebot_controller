@@ -70,8 +70,8 @@ class Path():
 
             x, y = current
             #for dx, dy in [(-1,0), (1,0), (0,-1), (0,1)]: # 4-directional movement
-            # For 8-directional movement, uncomment the line below and comment the line above:
-            for dx, dy in [(-1,0), (1,0), (0,-1), (0,1), (-1,-1), (-1,1), (1,-1), (1,1)]:
+           
+            for dx, dy in [(-1,0), (1,0), (0,-1), (0,1), (-1,-1), (-1,1), (1,-1), (1,1)]: #8-directional movement
                 nx, ny = x + dx, y + dy
                 if 0 <= nx < self.costmap.shape[0] and 0 <= ny < self.costmap.shape[1] and self.costmap[nx, ny] < self.MAX_COST:
                     new_cost = cost + 1 # Uniform cost for cardinal movements
