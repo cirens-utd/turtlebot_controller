@@ -70,7 +70,7 @@ class Path_Test(Agent):
         # self.get_logger().info(f"neighbors_complete:{self.neighbors_complete}")
         
         if self.start: 
-            self.path.update_costmap(obstacles)
+            self.path.update_costmap(self.position,obstacles)
             self.get_logger().info(f"endtarget: {self.end_target}")
             self.subgoals = self.path.astar(self.position, self.end_target)
             self.get_logger().info(f"subgoals: {self.subgoals}")
@@ -81,7 +81,7 @@ class Path_Test(Agent):
 
         if self.subgoal_complete and self.subgoal_idx < len(self.subgoals):
             if True:
-                self.path.update_costmap(obstacles)
+                self.path.update_costmap(self.position,obstacles)
                 self.led_state(2)
                 self.subgoals = path.astar(self.position,self.end_target)
                 self.subgoal_idx +=1
