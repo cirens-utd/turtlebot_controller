@@ -3,7 +3,7 @@
 import numpy as np
 import rclpy
 from agent_control.agent import Agent
-from path_plan import Path
+from path_plan2 import Path
 import argparse
 import datetime
 import yaml
@@ -46,7 +46,7 @@ class Path_Test(Agent):
         self.start = True
         self.destination_tolerance = destination_tolerance
         self.led_pub = self.create_publisher(LightringLeds, '/'+self.my_name+'/cmd_lightring', qos_profile_sensor_data)
-
+        self.grid_radius = 5
     def controller(self):
         '''
         This function is called every time the robot position is updated. We will put our formation controle logic here.
@@ -63,7 +63,8 @@ class Path_Test(Agent):
         '''
         obstacles = []
         for name, neighbor in self.neighbor_position.items():
-            obstacles.append(neighbor)
+            if np.linalg.norm(self.position-neighbor)<self.grid_radius:
+                obstacles.append(neighbor)
             
             
         # self.get_logger().info(f"neighbors_complete:{self.neighbors_complete}")
@@ -82,7 +83,7 @@ class Path_Test(Agent):
             if True:
                 self.path.update_costmap(obstacles)
                 self.led_state(2)
-                #self.subgoals = path.astar(self.position,self.end_target)
+                self.subgoals = path.astar(self.position,self.end_target)
                 self.subgoal_idx +=1
                 self.subgoal_complete = False
         elif self.path_obstructed:
@@ -93,7 +94,8 @@ class Path_Test(Agent):
         start = False
         total = [0,0]
         tolerance = 0.1
-
+        if self.suboal_idx == len(self.subgoals) and self.subgoal_complete:
+            self.led_state(3)
         
 
 
@@ -117,6 +119,11 @@ class Path_Test(Agent):
                     led.red = 0
                     led.green =255
                     led.blue = 0
+            case 3: 
+                for led in lightring_msg.leds:
+                    led.red = 0
+                    led.green = 255
+                    led.blue = 255
         self.led_pub.publish(lightring_msg)
 
 
