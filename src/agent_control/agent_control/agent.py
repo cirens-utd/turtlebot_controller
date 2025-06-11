@@ -141,21 +141,24 @@ class Agent(Node):
         }
 
         for number in my_neighbors:
-            # Positions
-            try:
-                self.neighbor_position_sub_[number] = self.create_subscription(
-                    PoseStamped, 
-                    f"/vrpn_mocap/turtlebot{number}/pose", 
-                    lambda msg, name=number: self.neighbor_pose_callback_(msg, name), 
-                    policy
-                )
-                self.get_logger().info(f"{self.my_name} Subscribed to neighbor number {number}")
-                self._neighbors_ready[number] = False
-                self.neighbor_poses[str(number)] = deepcopy(pose_dict)
-            except:
-                self.get_logger().warning(f"Could not subscribe to turtlebot{number} Position")
-    
-            self.lidar_sub_ = self.create_subscription(LaserScan, f"/{name}/scan", self.lidar_callback_, 10)
+            if number != my_number:
+                # Positions
+                try:
+                    self.neighbor_position_sub_[number] = self.create_subscription(
+                        PoseStamped, 
+                        f"/vrpn_mocap/turtlebot{number}/pose", 
+                        lambda msg, name=number: self.neighbor_pose_callback_(msg, name), 
+                        policy
+                    )
+                    self.get_logger().info(f"{self.my_name} Subscribed to neighbor number {number}")
+                    self._neighbors_ready[number] = False
+                    self.neighbor_poses[str(number)] = deepcopy(pose_dict)
+                except:
+                    self.get_logger().warning(f"Could not subscribe to turtlebot{number} Position")
+        
+                self.lidar_sub_ = self.create_subscription(LaserScan, f"/{name}/scan", self.lidar_callback_, 10)
+            else:
+                self.get_logger().warning(f"{self.my_name}: Cannot be neighbor to myself.")
 
         self.timer = self.create_timer(0.1, self._controller_loop)
         if self.logging_enable:
