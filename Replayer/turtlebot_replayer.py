@@ -659,8 +659,8 @@ start_animation()
 restart_button.on_clicked(restart)
 
 ## Can invert axis if wish
-#ax.invert_yaxis()
-#ax.invert_xaxis()
+# ax.invert_yaxis()
+ax.invert_xaxis()
 
 ## Save to MP4 (requires ffmpeg)
 if save_mp4:
