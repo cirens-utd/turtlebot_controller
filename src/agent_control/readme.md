@@ -1,8 +1,16 @@
 # Agent Controller Overview
+
 ## Overview
 The goal of this package is to give you an Agent class that handles are the tedious back end information for navigating the turtlebots. For example, the robots can only move foward and backwards and turn on the Z axis. However, most agent controllers will give a desired direction to go in. 
 
 ## Release Updates:
+V0.0.3 
+- Updated Replay viewer axis to match simulation
+- Added logic so the robot cannot be its own neighbor
+- Added option to allow node to be launch in view only mode
+- Added New Agent: Coverage Control
+- Added Logic to warn if slipping in controller timing
+
 V0.0.2 - 6/7/25
 - added calibration node to correct center of rotation on the pose to match the robot
  - Still working on solution to kill node once it completes
@@ -93,6 +101,7 @@ Additional options:
 - laser_avoid_loop_max (default: 1)     # How many "loops" the robot will do before it errors. This number can be increased to go around more complicated items
 - neighbor_avoid (default: True)        # Will not allow the robots to run into its neighbor. (Laser avoidance normally will kick in first, but sometimes the laser will not pick up the neighbor)
 - neighbor_delay (default: 5)           # Amount of time the robot will wait before it avoids. The higher number robot will wait 2x this
+- viewer (default: False)               # Allows node to be launched without using publihsers
 
 ## LED Control
 ### Overview
@@ -169,20 +178,22 @@ This can be called to reset all the values back to their default and start a new
     Returns when a neighbor is blocking the robots path
 - self.laser_avoid_error
     This will return true if the robot reaches the max loops when avoiding an obsticle.
-- restart_start_position
+- self.restart_start_position
     This will flag if you want to return to start position before starting a new controller
-- driving_heading_tolerance
+- self.driving_heading_tolerance
     This controlls how close to a striaght line you need to be before you start moving forward
-- logging_enable
+- self.logging_enable
     Boolean to know if the file needs to be zipped. By setting this, you will create and distroy the logging timer and zip up the file.
-- logging_paused
+- lself.ogging_paused
     Boolean to pause the logging recording feature as long as it is set to true
-- _use_config_setup
+- self._use_config_setup
     Boolean used to offset from calibration node. Will use file self.config_file that is located in the current directory/Config
-- config_file
+- self.config_file
     File name of offsets to use on transform
-- led_override
+- self.led_override
     Boolean that will prevent the agent controller from changing the LED's due to the state changes
+- self._slip_warning
+    Boolean to throw warning if controller loop isn't finished before next iteration starts
 
 ## Agent Methods
 - get_angle_quad
@@ -243,6 +254,9 @@ This can be called to reset all the values back to their default and start a new
 - set_each_led_color
     Can set each of the five LEDs individuatlly (r,g,b) - 0-255. List of 5.
 
+## Controller Thread Slipping
+Added logic to be able to tell if a previous controller thread is already running. If it is, then this iteration will not start. The warning can be disabled by turning self._slip_warning to False
+
 # Logging Information
 Variables that are saved in logger:
 - time: Time sample was pulled
@@ -288,9 +302,14 @@ This will allow you to run calibration on your robot. If you use -c argument, it
 - -c: Turns off the feature to calibrate the robot
 - -s: Turns on sim mode.
 
+# View only Mode
+The goal of this mode is to allow this to run on a leader agent controlled by a person. The goal would be to allow this node to be used as a live read of what the controller wants to do and be able to give the person controlling it access to all the variables in the controller.
+
+Still need to create an example of this.
+
 # Exmples:
 Current Examples include:
-consensus, LF_Formation, followMe
+consensus, LF_Formation, followMe, coverage
 
 ## Consensus
 ### Args
@@ -331,7 +350,19 @@ Args:
 No launch file yet. 
 ### TODO
 This uses a 3 node formation control and will be used to see how a leader node effects the formation
-
+## Coverage
+### Args
+- -i --index (Default: 1) # Index of this robot
+- -s --sim (Default: False) # Running in simmulation mode
+- -l --laser_avoid (Default: True) # Avoid obsticles using laser
+- -m --loop_max (Default: 1) # number of loops the laser will make before error
+- -b --neighbor_avoid (Default: True) # Avoid neighbors using position
+- -p --perimeter # Points of region you want to cover e.g. x1 y1 x2 y2 ...
+### Required Packages:
+This current version uses shapely. Need to make sure this works on the robots
+ 
+### Notes:
+I have concerns that this may take longer then 0.1 seconds to calculate. This is the reason a slippage warning was added. Also, there are cases where the Voroni calculations fail (ex, when robots are in a straight line) and This still needs to be worked
 
 # Special Notes
 This is a cpp package that also includes python. This has an added step of adding the python packages in the CMakeLists.txt file. Also, the nodes will be called by the python script name and not the name seutp in the setup.py file

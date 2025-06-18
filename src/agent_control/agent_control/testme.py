@@ -85,26 +85,25 @@ class TestMe(Agent):
         # self.move_to_position([0,0])
 
 
-    # def end_controller(self):
-    #     # want to copy the followers angle
-    #     # use self.neighbor_orientation[name]
+    def end_controller(self):
+        # want to copy the followers angle
+        # use self.neighbor_orientation[name]
 
-    #     desired = self.direction_facing
-    #     num_neighbors = 1
-    #     for name, neighbor in self.neighbor_orientation.items():
-    #         num_neighbors += 1
-    #         desired += neighbor
+        desired = self.direction_heading
+        num_neighbors = 1
+        for name, neighbor in self.neighbor_orientation.items():
+            num_neighbors += 1
+            desired += self.get_angle_quad(neighbor)
 
-    #     desired /= num_neighbors
+        desired /= num_neighbors
 
-    #     self.move_to_angle(desired)
+        self.move_to_angle(desired)
 
 def main(args=None):
     ## Start Simulation Script
     ## ros2 launch turtlebot_base launch_sim.launch.py 
     ## ros2 launch turtlebot_base launch_robots.launch.py yaml_load:=False robot_number:=3
     ## ros2 run agent_control testme.py -i 1 -s
-    ## Note: Need to edit config/agent_setup/agent_setup.yaml
     '''
     You formation yaml should have robot numbers in it and the formation distances.
     You pass in which node is this one through -i and all the others will be neighbors
@@ -122,7 +121,7 @@ def main(args=None):
     try:
         rclpy.init(args=args)
         my_robot = TestMe(int(script_args.index), np.array(script_args.neighbor), sim=script_args.sim, 
-            logging=True, restricted_area=True, laser_avoid=script_args.laser_avoid, neighbor_avoid=script_args.neighbor_avoid, laser_avoid_loop_max=script_args.loop_max)
+            logging=False, restricted_area=True, laser_avoid=script_args.laser_avoid, neighbor_avoid=script_args.neighbor_avoid, laser_avoid_loop_max=script_args.loop_max)
         rclpy.spin(my_robot)
     except Exception as e:
         traceback.print_exc()

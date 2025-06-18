@@ -24,7 +24,8 @@ setup(
             "formation_node = agent_control.LF_formation:main",
             "followMe_node = agent_control.followMe:main",
             "multi_formation_node = agent_control.LF_multi_formation:main",
-            "calibration_node = agent_control.calibration:main"
+            "calibration_node = agent_control.calibration:main",
+            "coverage_node = agent_control.coverage:main"
         ],
     },
 )

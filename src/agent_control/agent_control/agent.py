@@ -47,12 +47,13 @@ class Agent(Node):
         destination_tolerance=0.01, angle_tolerance=0.1, at_goal_historisis = 1,
         restricted_area = False, restricted_x_min = -2.9, restricted_x_max = 2.9, restricted_y_min = -5, restricted_y_max = 4,
         laser_avoid=True, laser_distance=0.5, laser_delay=5, laser_walk_around=2, laser_avoid_loop_max = 1,
-        neighbor_avoid=True, neighbor_delay=5):
+        neighbor_avoid=True, neighbor_delay=5, viewer=False):
         # start with this agents number and the numbers for its neighbors
         name = f"robot{my_number}"
         self.start_time = datetime.datetime.now().strftime("%Y-%m-%d.%H%M%S")
         super().__init__(name)
 
+        self._only_viewer = viewer
         self.my_name = name
         self.my_number = my_number
         self._diameter = 0.4
@@ -236,6 +237,10 @@ class Agent(Node):
         self._path_obstructed = False
         self._path_obstructed_laser = False
         self._path_obstructed_neighbor = False
+
+        # Variables for detecting Thread slipping
+        self._controller_running = False
+        self._slip_warning = True
 
     def setup_robot_(self):
         '''
@@ -1019,10 +1024,11 @@ class Agent(Node):
         :param z: The desired value to put into angluar Z
         :return: None
         """
-        cmd = Twist()
-        cmd.linear.x = x 
-        cmd.angular.z = z 
-        self.cmd_vel_pub_.publish(cmd)
+        if not self._only_viewer:
+            cmd = Twist()
+            cmd.linear.x = x 
+            cmd.angular.z = z 
+            self.cmd_vel_pub_.publish(cmd)
 
     def move_around_laser_(self, desired_location):
         """
@@ -1382,7 +1388,8 @@ class Agent(Node):
         lightring_msg.leds[4].green = led5[1]
         lightring_msg.leds[4].blue = led5[2]
 
-        self.led_pub_.publish(lightring_msg)
+        if not self._only_viewer:
+            self.led_pub_.publish(lightring_msg)
 
         self.led_light_state = {
             "header": {
@@ -1447,6 +1454,7 @@ class Agent(Node):
         self._desired_heading = False
         self._neighbors_complete = False
 
+        self._controller_running = False
 
         if self.restart_start_position:
             self.robot_status = "STOPPED"
@@ -1579,7 +1587,12 @@ class Agent(Node):
 
             # wait for all neighbors to be running
             if self.robot_moving:
-                self.controller()
+                if not self._controller_running:
+                    self._controller_running = True
+                    self.controller()
+                    self._controller_running = False
+                elif self._slip_warning:
+                    self.get_logger().warning(f"{self.my_name}: Controller loop attempted to start before previous iteration complete")
             elif self.robot_status != "READY":
                 self.robot_status = "READY"
             return
