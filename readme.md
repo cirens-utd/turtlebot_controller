@@ -55,3 +55,24 @@ This will require you to update the start_node.sh file and move it to the robot.
 `./remote_launch <operation> <robot_numbers_separated_by_commas>`
 
 `<operation>` includes `copy`, `sync`, `build`, `run` and `stop`. To run consensus or formation control, uncomment the corresponding command in `start_node.sh`; make sure to comment the other command. Following that, execute the `copy`, `build` and `run` operations for the desired robots. For formation control, make sure that the `.yaml` file used in `start_node.sh` has the correct robot numbers and the correct formation matrix. If the code does not work on some robot, `ssh` into the robot, `cd ~/Turtlebot_Controller` and check the log.txt file to see why it failed
+
+# Adding New Modules to Robots
+Robots do not have internet access and did not have pip installed
+
+## Starting Point
+All needed files have been added to _python_modules.
+
+## Adding Pip
+This can be automated by using the pip script from the remote launch. This can be done by ssh into the robot and going to the directory the files are saved into. From here, you can run 
+- python3 get-pip.py --no-index --find-links=.
+
+### Required Files
+You will need the get-pip.py file in this directory
+
+## Adding Modules
+This can be automated using teh download script in the remote launch. This can be done by ssh into the robot and going to the directory with the files are saved into. From here you can run
+- python3 -m pip install --no-index --find-lnks=./ <package-name>
+
+### Required Files
+You will need the *.whl file. To obtain this you will run
+- python3 -m pip download --platform manylinux2014_aarch64 --python-version 310 --only-binary=:all:
