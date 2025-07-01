@@ -23,8 +23,13 @@ other_robots="$@"
 # formation control command
 # tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control LF_multi_formation.py -l -n $other_robots -i $ROBOT_NUM  &> ./log.txt'"
 
+# This errored out for [shapely.errors.GEOSException: TopologyException: side location conflict at -0.6>
+#tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control coverage.py -n $other_robots -i $ROBOT_NUM -p -3.8 0.19 -0.12 3.36 2.74 -2.6 -2.36 -5.12 2.69 2.0 -0.18 -5.0 &> ./log.txt'"
+tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control coverage.py -r -l -n $other_robots -i $ROBOT_NUM -p -3.8 0.19 -0.12 3.36 2.74 -2.6 -0.18 -5.0 &> ./log.txt'"
+
+
 # testme 
-tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control testme.py -i $ROBOT_NUM -l &> ./log.txt'"
+#tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control testme.py -i $ROBOT_NUM -l &> ./log.txt'"
 # Calibration 
 # tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control calibration.py -i $ROBOT_NUM  &> ./log.txt'"
 
