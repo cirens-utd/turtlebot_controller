@@ -5,6 +5,7 @@
 
 # Ignore the .DS_Store files
 .DS_Store
+*.pyc
 ._*
 *.swp
 /Replays/
