@@ -96,6 +96,7 @@ class Path_Test(Agent):
             self.subgoals = path.astar(self.position,self.end_target)
             self.subgoal_idx =0
             self.led_state(1)
+            self.ps = PS.PATH_CLEAR
             self.move_direction= self.subgoals[self.subgoal_idx]-self.position
         else:
             self.led_state(1)
