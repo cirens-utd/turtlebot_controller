@@ -17,6 +17,9 @@ class Led_state(Enum):
     READY = 0
     MOVING = 1
     COMPLETE = 2
+class PS(Enum):
+    PATH_OBSTRUCTED = 0
+    PATH_CLEAR = 1
     
 class Path_Test(Agent):
     def __init__(self, my_number, my_neighbors=[], end_target=[], *args, 
@@ -47,6 +50,7 @@ class Path_Test(Agent):
         self.destination_tolerance = destination_tolerance
         self.led_pub = self.create_publisher(LightringLeds, '/'+self.my_name+'/cmd_lightring', qos_profile_sensor_data)
         self.grid_radius = 5
+        self.ps = PS.PATH_CLEAR
     def controller(self):
         '''
         This function is called every time the robot position is updated. We will put our formation controle logic here.
@@ -65,7 +69,10 @@ class Path_Test(Agent):
         for name, neighbor in self.neighbor_position.items():
             if np.linalg.norm(self.position-neighbor)<self.grid_radius:
                 obstacles.append(neighbor)
-            
+        for subgoal in self.subgoals:
+            for obstacle in obstacles:
+                if subgoal == obstacle:
+                    self.ps = PS.PATH_OBSTRUCTED
             
         # self.get_logger().info(f"neighbors_complete:{self.neighbors_complete}")
         
@@ -80,20 +87,22 @@ class Path_Test(Agent):
             self.subgoal_complete = True
 
         if self.subgoal_complete and self.subgoal_idx < len(self.subgoals):
-            if True:
-                self.path.update_costmap(self.position,obstacles)
-                self.led_state(2)
-                self.subgoals = path.astar(self.position,self.end_target)
-                self.subgoal_idx +=1
-                self.subgoal_complete = False
-        elif self.path_obstructed:
+            self.led_state(2)
+            self.subgoal_idx +=1
+            self.subgoal_complete = False
+        elif self.ps == PS.PATH_OBSTRUCTED:
             self.led_state(0)
+            self.path.update_costmap(obstacles)
+            self.subgoals = path.astar(self.position,self.end_target)
+            self.subgoal_idx =0
+            self.led_state(1)
+            self.move_direction= self.subgoals[self.subgoal_idx]-self.position
         else:
             self.led_state(1)
             self.move_direction= self.subgoals[self.subgoal_idx]-self.position
         start = False
-        total = [0,0]
-        tolerance = 0.1
+        
+        
         if self.suboal_idx == len(self.subgoals) and self.subgoal_complete:
             self.led_state(3)
         
@@ -163,9 +172,9 @@ def main(args=None):
     ## will end up being the same no matter the yaml file. We probably want to adjust this in the future. 
     yaml_data = []
 
-    yaml_data = get_yaml(f"/home/ubuntu/Turtlebot_Controller/src/agent_control/config/goals/agent_goal(7).yaml")
-    goal = yaml_data["goal"]
-    A = np.array(yaml_data["Adjacency_Matrix"])
+    yaml_data = get_yaml(f"/home/ubuntu/Turtlebot_Controller/src/agent_control/config/goals/agent_goals.yaml")
+    goal = yaml_data[f"agent_goal{script_args.index}"]
+    
     #neighbor = yaml_data["Adjacency_Matrix"][script_args.index]    
     neighbor = script_args.neighbor
 
