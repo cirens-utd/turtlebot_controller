@@ -134,6 +134,7 @@ def main(args=None):
 
     '''
     New modules needed:
+    - scipy
     - shapely
     '''
 
@@ -152,7 +153,7 @@ def main(args=None):
     if script_args.perimeter:
         points = [(script_args.perimeter[i], script_args.perimeter[i+1]) for i in range(0, len(script_args.perimeter), 2)]
     else:
-        points = [(-2.9, -5),(-2.9, 4),(2.9, 4), (2.9, -5)]
+        points = [(-3.8, 0.19), (-0.12, 3.36), (2.69, 2.0), (2.74, -2.6), (-0.18, -5.0), (-2.36, -5.12)]
 
     try:
         rclpy.init(args=args)
