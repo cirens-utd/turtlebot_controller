@@ -20,6 +20,9 @@ class Consensus(Agent):
                         laser_avoid=laser_avoid, laser_distance=laser_distance, laser_delay=laser_delay, laser_walk_around=laser_walk_around, laser_avoid_loop_max=laser_avoid_loop_max,
                         neighbor_avoid=neighbor_avoid, neighbor_delay=neighbor_delay)
 
+        self.stopping_distance = (self._diameter + 0.1) / np.sin(np.pi / len(self._neighbors_ready))
+        self.complete = False
+
     def controller(self):
         '''
         This function is called every time the robot position is updated. We will put our concensus logic here.
@@ -33,19 +36,34 @@ class Consensus(Agent):
         self.move_direction([x,y])      Function to move in a direction
         self.move_to_position([x,y])    Function to move to a position
         '''
+        '''
+        Stopping condition: How do we know when to stop?
+        Max diameter away = d / sin(pi/n)
+        d = robot diameter (self._diameter)
+        n = number of robots (len(self._neighbors_ready))
+        '''
 
         total = 0
         not_too_close = 0.5
+        distances = np.array([])
 
         for name, neighbor in self.neighbor_position.items():
             difference = np.array(neighbor) - np.array(self.position)
+            distances.append(difference)
             if np.linalg.norm(difference) > not_too_close:
                 weight = 1
             else:
                 weight = 0
             total += weight * difference
 
-        self.move_direction(total)
+
+        if self._path_obstructed_neighbor and distances <= self.stopping_distance:
+            self.complete = True
+            
+        if self.complete:
+            self.move_to_position(self.position)
+        else:
+            self.move_direction(total)
 
 
 def main(args=None):
