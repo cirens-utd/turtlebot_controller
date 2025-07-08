@@ -5,6 +5,7 @@ import rclpy
 from agent_control.agent import Agent
 import argparse
 import datetime
+import traceback
 
 import pdb
 
@@ -20,8 +21,11 @@ class Consensus(Agent):
                         laser_avoid=laser_avoid, laser_distance=laser_distance, laser_delay=laser_delay, laser_walk_around=laser_walk_around, laser_avoid_loop_max=laser_avoid_loop_max,
                         neighbor_avoid=neighbor_avoid, neighbor_delay=neighbor_delay)
 
-        self.stopping_distance = (self._diameter + 0.1) / np.sin(np.pi / len(self._neighbors_ready))
+
+        #self._neighbor_tolerance
+        self.stopping_distance = (self._diameter + self._neighbor_tolerance + 0.1) / np.sin(np.pi / len(self._neighbors_ready))
         self.complete = False
+        self.get_logger().info(f"Running most recent changes")
 
     def controller(self):
         '''
@@ -49,7 +53,7 @@ class Consensus(Agent):
 
         for name, neighbor in self.neighbor_position.items():
             difference = np.array(neighbor) - np.array(self.position)
-            distances.append(difference)
+            distances = np.append(distances, np.linalg.norm(difference))
             if np.linalg.norm(difference) > not_too_close:
                 weight = 1
             else:
@@ -57,13 +61,18 @@ class Consensus(Agent):
             total += weight * difference
 
 
-        if self._path_obstructed_neighbor and distances <= self.stopping_distance:
-            self.complete = True
+        if self.complete or self._path_obstructed_neighbor or self._path_obstructed_laser:
+            standings = distances <= self.stopping_distance
+            if standings.all():
+                if not self.complete:
+                    self.get_logger().info(f"Distances = {distances}")
+                    self.get_logger().info(f"stopping = {self.stopping_distance}")
+                self.complete = True
+                total = 0 * total
+            else:
+                self.complete = False
             
-        if self.complete:
-            self.move_to_position(self.position)
-        else:
-            self.move_direction(total)
+        self.move_direction(total)
 
 
 def main(args=None):

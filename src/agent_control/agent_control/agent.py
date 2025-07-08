@@ -899,6 +899,9 @@ class Agent(Node):
         :param desired_location: a position vector [x, y] you want to go to
         :return: None
         """
+        # Manually over write goal location if setting position to current position
+        if (desired_location == self.position).all():
+            self._desired_location = self.position
 
         # 3*pi/2: Will move in an arch even when almost facing straight backward
         heading_tolerance = self.driving_heading_tolerance      # how close can we be facing our destination before we start driving
