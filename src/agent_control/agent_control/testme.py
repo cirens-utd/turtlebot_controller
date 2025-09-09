@@ -83,6 +83,18 @@ class TestMe(Agent):
         #         self.mode = 0
         
         self.move_to_position([3, 2])
+        # if "pose" in self.pose:
+        #     orientation = self.pose['pose']['orientation']
+        #     x = orientation['x']
+        #     y = orientation['y']
+        #     z = orientation['z']
+        #     w = orientation['w']
+        #     angle = np.remainder((np.arctan2(2 * (w * z + x * y),1 - 2 * (y * y + z * z)) + np.pi) , 2 * np.pi)
+        #     self.get_logger().info(f"Variables: {x}, {y}, {z}, {w}, {x*x + y*y + z*z + w*w}")
+        #     self.get_logger().info(f"Angle: {angle}")
+
+        # self.get_logger().info(f"My Heading is: {self.direction_heading}")
+        
 
 
     def end_controller(self):
@@ -115,13 +127,14 @@ def main(args=None):
     parser.add_argument("-l", "--laser_avoid", default=True, action="store_false", help="Avoid using laser")
     parser.add_argument("-m", "--loop_max", default=1, type=int, help="Laser Loop Max Number")
     parser.add_argument("-b", "--neighbor_avoid", default=True, action="store_false", help="Avoid Using neighbor position")
+    parser.add_argument("-r", "--record", default=False, action="store_true", help="Enable Logging")
     parser.add_argument("--ros-args", default=False, action="store_true")
     script_args = parser.parse_args()
 
     try:
         rclpy.init(args=args)
         my_robot = TestMe(int(script_args.index), np.array(script_args.neighbor), sim=script_args.sim, 
-            logging=False, restricted_area=True, laser_avoid=script_args.laser_avoid, neighbor_avoid=script_args.neighbor_avoid, laser_avoid_loop_max=script_args.loop_max)
+            logging=script_args.record, restricted_area=True, laser_avoid=script_args.laser_avoid, neighbor_avoid=script_args.neighbor_avoid, laser_avoid_loop_max=script_args.loop_max)
         rclpy.spin(my_robot)
     except Exception as e:
         traceback.print_exc()

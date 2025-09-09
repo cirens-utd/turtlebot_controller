@@ -25,6 +25,7 @@ find_package(rclpy REQUIRED)
 #find_package(ament_cmake_python REQUIRED)
 ament_python_install_package(${PROJECT_NAME})
 install(PROGRAMS
+  agent_control/start_point.py 
   agent_control/consensus.py 
   agent_control/LF_formation.py 
   agent_control/followMe_triangle.py

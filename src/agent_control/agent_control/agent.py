@@ -1585,8 +1585,6 @@ class Agent(Node):
         # self.get_logger().info(f"Direction Facing: {self.direction_heading}")
 
         if self.robot_ready:
-            if not self.desired_heading:
-                self.move_to_angle(self.start_heading)
 
             # wait for all neighbors to be running
             if self.robot_moving:
@@ -1598,6 +1596,8 @@ class Agent(Node):
                     self.get_logger().warning(f"{self.my_name}: Controller loop attempted to start before previous iteration complete")
             elif self.robot_status != "READY":
                 self.robot_status = "READY"
+                if not self.desired_heading:
+                    self.move_to_angle(self.start_heading)
             return
         
         self.robot_status  = "stopped"
