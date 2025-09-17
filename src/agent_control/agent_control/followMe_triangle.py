@@ -71,10 +71,17 @@ class FollowMe(Agent):
         # use self.neighbor_orientation[name]
 
         desired = self.neighbor_orientation[self._leader]
-        # num_neighbors = 1
+
+        # Need to try this method
+        '''
+        Simplified Kuramoto Coupled Oscillator Model
+
+        Phi,i = - SUM(sin(Phi,i - phi,j))
+        '''
+        # match_heading = 0
         # for name, neighbor in self.neighbor_orientation.items():
-        #     num_neighbors += 1
-        #     desired += neighbor
+        #     match_heading += np.sin(self.direction_heading - neighbor)
+        # I think this would require a move by set angle function. Aka, move 25 Radians and not to a set position like below.?
 
         # desired /= num_neighbors
         self.move_to_angle(desired)
