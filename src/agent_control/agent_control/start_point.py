@@ -49,9 +49,10 @@ class StartPoint(Agent):
         
         self.move_to_position(self.starting_point)
 
-        # When finished
-        # self.shutdown()
-        # rclpy.shutdown()
+        if self.motion_complete:
+            self.robot_status = "FINISHED"
+            self.shutdown()
+            rclpy.shutdown()
 
 def main(args=None):
     '''
@@ -71,7 +72,11 @@ def main(args=None):
     script_args = parser.parse_args()
 
     start_point = None
-    for idx, item in enumerate(script_args.neighbor):
+    for n_idx, item in enumerate(script_args.neighbor):
+        idx = n_idx
+        while len(script_args.points) >= idx:
+            idx -= len(script_args.points)
+
         if script_args.index == item:
             x, y = script_args.points[idx*2], script_args.points[idx*2+1]
             start_point = (x, y)

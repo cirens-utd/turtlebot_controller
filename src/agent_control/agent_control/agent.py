@@ -1013,6 +1013,7 @@ class Agent(Node):
                 # If not using neighbors, enable robot to move
                 if not self._has_neighbors and not self.robot_moving:
                     self.robot_moving = True
+                    self.get_logger().info(f"{self.my_name} Doesn't have any neighbors.")
         else:
             move_z = krot_fine * z 
             if self.desired_heading:
@@ -1596,7 +1597,7 @@ class Agent(Node):
                     self.get_logger().warning(f"{self.my_name}: Controller loop attempted to start before previous iteration complete")
             elif self.robot_status != "READY":
                 self.robot_status = "READY"
-                if not self.desired_heading:
+            elif not self.desired_heading:
                     self.move_to_angle(self.start_heading)
             return
         
