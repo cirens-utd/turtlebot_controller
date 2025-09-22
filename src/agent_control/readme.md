@@ -100,6 +100,7 @@ Additional options:
 - laswer_walk_around (default: 2)       # Choose which way to walk around (0: Left, 1: Right, 2: which ever way is shorter)
 - laser_avoid_loop_max (default: 1)     # How many "loops" the robot will do before it errors. This number can be increased to go around more complicated items
 - neighbor_avoid (default: True)        # Will not allow the robots to run into its neighbor. (Laser avoidance normally will kick in first, but sometimes the laser will not pick up the neighbor)
+- neighbor_walk_around (default: True)  # Flag to set active avoidance. If False, robot will just wait.
 - neighbor_delay (default: 5)           # Amount of time the robot will wait before it avoids. The higher number robot will wait 2x this
 - viewer (default: False)               # Allows node to be launched without using publihsers
 

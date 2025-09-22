@@ -12,7 +12,7 @@ from irobot_create_msgs.msg import LightringLeds
 import pdb
 
 class StartPoint(Agent):
-    def __init__(self, my_number, my_neighbors=[], start_point=[], *args, 
+    def __init__(self, my_number, my_neighbors=[], start_point=[], wait=False, *args, 
         sim=False, sync_move=False, viewer=False,
         logging=False, restricted_area = False, restricted_x_min = -2.9, restricted_x_max = 2.9, restricted_y_min = -5, restricted_y_max = 4,
         destination_tolerance=0.01, angle_tolerance=0.1,
@@ -29,6 +29,7 @@ class StartPoint(Agent):
         self.starting_point = start_point
         # set to true so we don't need to wait on neigbors to move
         self.robot_moving = True
+        self.neighbor_walk_around = not wait
 
     def controller(self):
         '''
@@ -63,6 +64,7 @@ def main(args=None):
     parser.add_argument("-i", "--index", default="1", type=int, help="Index of this robot")
     parser.add_argument("-s", "--sim", default=False, action="store_true", help="Set Simmulation mode")
     parser.add_argument("-n", "--neighbor", default=[], nargs='+', type=int, help="Array of neighbors")
+    parser.add_argument("-w", "--wait", default=False, action="store_true", help="Set to make robot just wait for neighbors to move")
     parser.add_argument("-l", "--laser_avoid", default=True, action="store_false", help="Avoid using laser")
     parser.add_argument("-m", "--loop_max", default=1, type=int, help="Laser Loop Max Number")
     parser.add_argument("-b", "--neighbor_avoid", default=True, action="store_false", help="Avoid Using neighbor position")
@@ -90,7 +92,7 @@ def main(args=None):
 
     try:
         rclpy.init(args=args)
-        my_robot = StartPoint(int(script_args.index), np.array(script_args.neighbor), np.array(start_point), sim=script_args.sim, 
+        my_robot = StartPoint(int(script_args.index), np.array(script_args.neighbor), np.array(start_point), script_args.wait, sim=script_args.sim, 
             logging=script_args.record, restricted_area=False, laser_avoid=script_args.laser_avoid, neighbor_avoid=script_args.neighbor_avoid, laser_avoid_loop_max=script_args.loop_max)
         rclpy.spin(my_robot)
     except Exception as e:

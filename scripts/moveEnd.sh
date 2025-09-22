@@ -29,6 +29,6 @@ ssh ${USER}@${pi_ip} << EOF
 
     source install/setup.bash 
     
-    ros2 run agent_control start_point.py -n $other_robots -i $robot_num -l -p -2 3.4
+    ros2 run agent_control start_point.py -n $other_robots -i $robot_num -l -w -p -2 3.4
     
 EOF

@@ -207,6 +207,7 @@ class Agent(Node):
 
         #Neighbor Avoid Vars
         self.neighbor_avoid = neighbor_avoid    # Boolean to know we want to avoid our neighbors
+        self.neighbor_walk_around = True        # Boolean to let us walk around the neighbor. Set to False if you just want to sit and wait
         self._neighbor_tolerance = 0.5          # How close to neighbors do we get
         self._neighbor_tolerance_active = self._neighbor_tolerance  # active value used in movement. Adjusted depending on step of movement
         self._neighbor_collision_vector = None  # Vector to robot that will collide
@@ -979,7 +980,9 @@ class Agent(Node):
         elif self.laser_avoid and self.path_obstructed_laser:
             self.move_around_laser_(desired_location)
         elif self.neighbor_avoid and self.path_obstructed_neighbor:
-            self.move_around_neighbor_(desired_location)
+            if self.neighbor_walk_around:
+                self.move_around_neighbor_(desired_location)
+            else: self.move_robot_(0.0, 0.0)
         else:
             self.move_robot_(0.0, 0.0)
             self.get_logger().info(f"{self.my_name} is obstructed but no detour method selected.")
