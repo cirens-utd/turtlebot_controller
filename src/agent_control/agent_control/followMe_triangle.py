@@ -70,7 +70,7 @@ class FollowMe(Agent):
         # want to copy the followers angle
         # use self.neighbor_orientation[name]
 
-        desired = self.neighbor_orientation[self._leader]
+        desired = self.neighbor_orientation[str(self._leader)]
 
         # Need to try this method
         '''
@@ -89,18 +89,24 @@ class FollowMe(Agent):
 
 def build_formation_distance(neighbor_array, my_number):
     fd = {}
-    set_index = my_number
+    set_index = -1
     neighbor = []
+
+    # distances for 5 nodes
+    distances = [[0.00, 1.81, 2.91, 2.98, 1.76],[1.81, 0.00, 2.07, 2.96, 2.95],[2.91, 2.07, 0.00, 1.36, 2.75],[2.98, 2.96, 1.36, 0.00, 1.99],[1.76, 2.95, 2.75, 1.99, 0.00]]
 
     for index, number in enumerate(neighbor_array):
         neighbor.append(number)
+        if number == my_number:
+            set_index = index
     
     if set_index != -1:
         for index, number in enumerate(neighbor_array):
-            fd[str(number)] = 2
+            fd[str(number)] = distances[set_index][index]
         
         return fd, neighbor
-
+    
+    raise ValueError(f"My Index Value was not passed into the as one of the Neighbors")
 
 def main(args=None):
     ## Start Simulation Script
