@@ -74,8 +74,12 @@ def main(args=None):
     start_point = None
     for n_idx, item in enumerate(script_args.neighbor):
         idx = n_idx
-        while len(script_args.points) >= idx:
+        catchMe = 0
+        while idx >= len(script_args.points):
             idx -= len(script_args.points)
+            catchMe += 1
+            if catchMe == 1000:
+                raise ValueError(f"Bro, why are you in this while loop for so long?")
 
         if script_args.index == item:
             x, y = script_args.points[idx*2], script_args.points[idx*2+1]
