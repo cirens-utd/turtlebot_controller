@@ -1478,7 +1478,7 @@ class Agent(Node):
         '''
         Creating Needed files for logging
         '''
-        self._replay_file = f"{self.my_name}_{time_now}"
+        self._replay_file = f"{time_now}_{self.my_name}_{type(self).__name__}"
         self._uncompress_file = f"{self._replay_file}.replay"
         self._compress_file = f"{self._replay_file}.turtleReplay"
 
@@ -1503,6 +1503,7 @@ class Agent(Node):
 
                 self._replay_dict.append({
                     "time": datetime.datetime.now().strftime("%Y-%m-%d.%H%M%S"),
+                    "mainClass": type(self).__name__,
 
                     # Robot Conditions
                     "robot_status": self.robot_status,

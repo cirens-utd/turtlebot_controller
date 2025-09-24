@@ -261,6 +261,7 @@ Added logic to be able to tell if a previous controller thread is already runnin
 # Logging Information
 Variables that are saved in logger:
 - time: Time sample was pulled
+- mainClass: Name of parent class
 - robot_status
 - robot_ready
 - position_started
