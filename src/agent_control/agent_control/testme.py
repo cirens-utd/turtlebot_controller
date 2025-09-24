@@ -13,7 +13,7 @@ import pdb
 
 class TestMe(Agent):
     def __init__(self, my_number, my_neighbors=[], *args, 
-        sim=False, sync_move=False,
+        sim=False, sync_move=False, viewer=False,
         logging=False, restricted_area = False, restricted_x_min = -2.9, restricted_x_max = 2.9, restricted_y_min = -5, restricted_y_max = 4,
         destination_tolerance=0.01, angle_tolerance=0.1,
         laser_avoid=True, laser_distance=0.5, laser_delay=5, laser_walk_around=2, laser_avoid_loop_max=1,
@@ -25,20 +25,20 @@ class TestMe(Agent):
             ...
         }
         '''
-        super().__init__(my_number, my_neighbors, sync_move=sync_move, sim=sim,
+        super().__init__(my_number, my_neighbors, sync_move=sync_move, sim=sim, viewer=viewer,
                         destination_tolerance=destination_tolerance, logging=logging, angle_tolerance=angle_tolerance,
                         restricted_area=restricted_area, restricted_x_min=restricted_x_min, restricted_x_max=restricted_x_max, restricted_y_min=restricted_y_min, restricted_y_max=restricted_y_max,
                         laser_avoid=laser_avoid, laser_distance=laser_distance, laser_delay=laser_delay, laser_walk_around=laser_walk_around, laser_avoid_loop_max=laser_avoid_loop_max,
                         neighbor_avoid=neighbor_avoid, neighbor_delay=neighbor_delay)
 
-        self.robot_ready = True
+        # self.robot_ready = True
         self.angles = [0, self.end_heading]
         self.run_index = 0
         self._log_dict_length = 150
         self.led_override = False
         self.counter = 0
         self.mode = 0
-        self.select_mode = ["STOPPED", "READY", "MOVING", "AT_GOAL", "COMPLETE", "FINISHED", "BLOCKED"]
+        self.select_mode = ["SHUTDOWN", "STOPPED", "READY", "MOVING", "AT_GOAL", "COMPLETE", "FINISHED", "BLOCKED"]
         # self.select_mode = [(0, 178, 255), (0, 255, 100), (89, 178, 255)]
         self.first_run = True
 
@@ -57,10 +57,10 @@ class TestMe(Agent):
         self.move_to_position([x,y])    Function to move to a position
         '''
 
-        if self.my_number == 1:
-            self.move_to_position([2,0])
-        elif self.my_number == 2:
-            self.move_to_position([-5,5])
+        # if self.my_number == 1:
+        #     self.move_to_position([2,0])
+        # elif self.my_number == 2:
+        #     self.move_to_position([-5,5])
         # self.move_to_angle(self.angles[self.test_index])
         # if self.desired_heading:
         #     self.get_logger().info(f"Finished index: {self.test_index}")
@@ -72,7 +72,7 @@ class TestMe(Agent):
         # pdb.set_trace()
 
         # self.set_led_mode_(self.select_mode[self.mode])
-        # self.set_led_ring_color(*self.select_mode[self.mode])
+        # # self.set_led_ring_color(*self.select_mode[self.mode])
         # self.counter += 1
         # if self.counter >= 30:
         #     print(f"LED Color: {self._led_enum[self.select_mode[self.mode]].value}")
@@ -82,29 +82,40 @@ class TestMe(Agent):
         #     if self.mode >= len(self.select_mode):
         #         self.mode = 0
         
-        # self.move_to_position([0,0])
+        self.move_to_position([3, 2])
+        # if "pose" in self.pose:
+        #     orientation = self.pose['pose']['orientation']
+        #     x = orientation['x']
+        #     y = orientation['y']
+        #     z = orientation['z']
+        #     w = orientation['w']
+        #     angle = np.remainder((np.arctan2(2 * (w * z + x * y),1 - 2 * (y * y + z * z)) + np.pi) , 2 * np.pi)
+        #     self.get_logger().info(f"Variables: {x}, {y}, {z}, {w}, {x*x + y*y + z*z + w*w}")
+        #     self.get_logger().info(f"Angle: {angle}")
+
+        # self.get_logger().info(f"My Heading is: {self.direction_heading}")
+        
 
 
-    # def end_controller(self):
-    #     # want to copy the followers angle
-    #     # use self.neighbor_orientation[name]
+    def end_controller(self):
+        # want to copy the followers angle
+        # use self.neighbor_orientation[name]
 
-    #     desired = self.direction_facing
-    #     num_neighbors = 1
-    #     for name, neighbor in self.neighbor_orientation.items():
-    #         num_neighbors += 1
-    #         desired += neighbor
+        desired = self.direction_heading
+        num_neighbors = 1
+        for name, neighbor in self.neighbor_orientation.items():
+            num_neighbors += 1
+            desired += self.get_angle_quad(neighbor)
 
-    #     desired /= num_neighbors
+        desired /= num_neighbors
 
-    #     self.move_to_angle(desired)
+        self.move_to_angle(desired)
 
 def main(args=None):
     ## Start Simulation Script
     ## ros2 launch turtlebot_base launch_sim.launch.py 
-    ## ros2 launch turtlebot_base launch_robots.launch.py yaml_load:=False robot_number:=3
+    ## ros2 launch turtlebot_base launch_robots.launch.py yaml_load:=False robot_number:=1
     ## ros2 run agent_control testme.py -i 1 -s
-    ## Note: Need to edit config/agent_setup/agent_setup.yaml
     '''
     You formation yaml should have robot numbers in it and the formation distances.
     You pass in which node is this one through -i and all the others will be neighbors
@@ -116,13 +127,14 @@ def main(args=None):
     parser.add_argument("-l", "--laser_avoid", default=True, action="store_false", help="Avoid using laser")
     parser.add_argument("-m", "--loop_max", default=1, type=int, help="Laser Loop Max Number")
     parser.add_argument("-b", "--neighbor_avoid", default=True, action="store_false", help="Avoid Using neighbor position")
+    parser.add_argument("-r", "--record", default=False, action="store_true", help="Enable Logging")
     parser.add_argument("--ros-args", default=False, action="store_true")
     script_args = parser.parse_args()
 
     try:
         rclpy.init(args=args)
         my_robot = TestMe(int(script_args.index), np.array(script_args.neighbor), sim=script_args.sim, 
-            logging=True, restricted_area=True, laser_avoid=script_args.laser_avoid, neighbor_avoid=script_args.neighbor_avoid, laser_avoid_loop_max=script_args.loop_max)
+            logging=script_args.record, restricted_area=True, laser_avoid=script_args.laser_avoid, neighbor_avoid=script_args.neighbor_avoid, laser_avoid_loop_max=script_args.loop_max)
         rclpy.spin(my_robot)
     except Exception as e:
         traceback.print_exc()

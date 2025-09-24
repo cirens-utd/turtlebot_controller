@@ -47,12 +47,13 @@ class Agent(Node):
         destination_tolerance=0.01, angle_tolerance=0.1, at_goal_historisis = 1,
         restricted_area = False, restricted_x_min = -2.9, restricted_x_max = 2.9, restricted_y_min = -5, restricted_y_max = 4,
         laser_avoid=True, laser_distance=0.5, laser_delay=5, laser_walk_around=2, laser_avoid_loop_max = 1,
-        neighbor_avoid=True, neighbor_delay=5):
+        neighbor_avoid=True, neighbor_delay=5, viewer=False):
         # start with this agents number and the numbers for its neighbors
         name = f"robot{my_number}"
         self.start_time = datetime.datetime.now().strftime("%Y-%m-%d.%H%M%S")
         super().__init__(name)
 
+        self._only_viewer = viewer
         self.my_name = name
         self.my_number = my_number
         self._diameter = 0.4
@@ -206,6 +207,7 @@ class Agent(Node):
 
         #Neighbor Avoid Vars
         self.neighbor_avoid = neighbor_avoid    # Boolean to know we want to avoid our neighbors
+        self.neighbor_walk_around = True        # Boolean to let us walk around the neighbor. Set to False if you just want to sit and wait
         self._neighbor_tolerance = 0.5          # How close to neighbors do we get
         self._neighbor_tolerance_active = self._neighbor_tolerance  # active value used in movement. Adjusted depending on step of movement
         self._neighbor_collision_vector = None  # Vector to robot that will collide
@@ -236,6 +238,10 @@ class Agent(Node):
         self._path_obstructed = False
         self._path_obstructed_laser = False
         self._path_obstructed_neighbor = False
+
+        # Variables for detecting Thread slipping
+        self._controller_running = False
+        self._slip_warning = True
 
     def setup_robot_(self):
         '''
@@ -894,6 +900,9 @@ class Agent(Node):
         :param desired_location: a position vector [x, y] you want to go to
         :return: None
         """
+        # Manually over write goal location if setting position to current position
+        if (desired_location == self.position).all():
+            self._desired_location = self.position
 
         # 3*pi/2: Will move in an arch even when almost facing straight backward
         heading_tolerance = self.driving_heading_tolerance      # how close can we be facing our destination before we start driving
@@ -971,7 +980,9 @@ class Agent(Node):
         elif self.laser_avoid and self.path_obstructed_laser:
             self.move_around_laser_(desired_location)
         elif self.neighbor_avoid and self.path_obstructed_neighbor:
-            self.move_around_neighbor_(desired_location)
+            if self.neighbor_walk_around:
+                self.move_around_neighbor_(desired_location)
+            else: self.move_robot_(0.0, 0.0)
         else:
             self.move_robot_(0.0, 0.0)
             self.get_logger().info(f"{self.my_name} is obstructed but no detour method selected.")
@@ -1005,6 +1016,7 @@ class Agent(Node):
                 # If not using neighbors, enable robot to move
                 if not self._has_neighbors and not self.robot_moving:
                     self.robot_moving = True
+                    self.get_logger().info(f"{self.my_name} Doesn't have any neighbors.")
         else:
             move_z = krot_fine * z 
             if self.desired_heading:
@@ -1019,10 +1031,11 @@ class Agent(Node):
         :param z: The desired value to put into angluar Z
         :return: None
         """
-        cmd = Twist()
-        cmd.linear.x = x 
-        cmd.angular.z = z 
-        self.cmd_vel_pub_.publish(cmd)
+        if not self._only_viewer:
+            cmd = Twist()
+            cmd.linear.x = x 
+            cmd.angular.z = z 
+            self.cmd_vel_pub_.publish(cmd)
 
     def move_around_laser_(self, desired_location):
         """
@@ -1382,7 +1395,8 @@ class Agent(Node):
         lightring_msg.leds[4].green = led5[1]
         lightring_msg.leds[4].blue = led5[2]
 
-        self.led_pub_.publish(lightring_msg)
+        if not self._only_viewer:
+            self.led_pub_.publish(lightring_msg)
 
         self.led_light_state = {
             "header": {
@@ -1447,6 +1461,7 @@ class Agent(Node):
         self._desired_heading = False
         self._neighbors_complete = False
 
+        self._controller_running = False
 
         if self.restart_start_position:
             self.robot_status = "STOPPED"
@@ -1574,14 +1589,19 @@ class Agent(Node):
         # self.get_logger().info(f"Direction Facing: {self.direction_heading}")
 
         if self.robot_ready:
-            if not self.desired_heading:
-                self.move_to_angle(self.start_heading)
 
             # wait for all neighbors to be running
             if self.robot_moving:
-                self.controller()
+                if not self._controller_running:
+                    self._controller_running = True
+                    self.controller()
+                    self._controller_running = False
+                elif self._slip_warning:
+                    self.get_logger().warning(f"{self.my_name}: Controller loop attempted to start before previous iteration complete")
             elif self.robot_status != "READY":
                 self.robot_status = "READY"
+            elif not self.desired_heading:
+                    self.move_to_angle(self.start_heading)
             return
         
         self.robot_status  = "stopped"
