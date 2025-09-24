@@ -50,7 +50,7 @@ class Agent(Node):
         neighbor_avoid=True, neighbor_delay=5, viewer=False):
         # start with this agents number and the numbers for its neighbors
         name = f"robot{my_number}"
-        self.start_time = datetime.datetime.now().strftime("%Y-%m-%d.%H%M%S")
+        self.start_time = datetime.datetime.now().strftime("%Y-%m-%d-%H%M%S")
         super().__init__(name)
 
         self._only_viewer = viewer
