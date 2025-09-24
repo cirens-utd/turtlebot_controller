@@ -70,22 +70,27 @@ class FollowMe(Agent):
         # want to copy the followers angle
         # use self.neighbor_orientation[name]
 
-        desired = self.neighbor_orientation[str(self._leader)]
+        if self.my_number != self._leader:
 
-        # Need to try this method
-        '''
-        Simplified Kuramoto Coupled Oscillator Model
+            desired = self.get_angle_quad(self.neighbor_orientation[self._leader])
 
-        Phi,i = - SUM(sin(Phi,i - phi,j))
-        '''
-        # match_heading = 0
-        # for name, neighbor in self.neighbor_orientation.items():
-        #     match_heading += np.sin(self.direction_heading - neighbor)
-        # I think this would require a move by set angle function. Aka, move 25 Radians and not to a set position like below.?
+            # Need to try this method
+            '''
+            Simplified Kuramoto Coupled Oscillator Model
 
-        # desired /= num_neighbors
-        self.move_to_angle(desired)
+            Phi,i = - SUM(sin(Phi,i - phi,j))
+            '''
+            # match_heading = 0
+            # for name, neighbor in self.neighbor_orientation.items():
+            #     match_heading += np.sin(self.direction_heading - neighbor)
+            # I think this would require a move by set angle function. Aka, move 25 Radians and not to a set position like below.?
 
+            # desired /= num_neighbors
+            self.move_to_angle(desired)
+        else:
+            self.robot_status = "FINISHED"
+            self.shutdown()
+            rclpy.shutdown()
 
 def build_formation_distance(neighbor_array, my_number):
     fd = {}
