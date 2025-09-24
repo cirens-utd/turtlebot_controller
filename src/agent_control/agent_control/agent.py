@@ -1605,7 +1605,7 @@ class Agent(Node):
                     self.move_to_angle(self.start_heading)
             return
         
-        self.robot_status  = "stopped"
+        self.robot_status = "STOPPED"
         self.check_robot_ready_()
         return
 
