@@ -1503,6 +1503,7 @@ class Agent(Node):
 
                 self._replay_dict.append({
                     "time": datetime.datetime.now().strftime("%Y-%m-%d.%H%M%S"),
+                    "my_name": self.my_name,
                     "mainClass": type(self).__name__,
 
                     # Robot Conditions
