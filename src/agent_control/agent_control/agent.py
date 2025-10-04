@@ -1500,6 +1500,8 @@ class Agent(Node):
                 attempted_location = self._attempted_desired_location
                 if type(self.desired_location) != type(None): 
                     desired_location = desired_location.tolist()
+                if type(attempted_location) != type(None):
+                    attempted_location = attempted_location.tolist()
 
                 self._replay_dict.append({
                     "time": datetime.datetime.now().strftime("%Y-%m-%d.%H%M%S"),
@@ -1552,6 +1554,7 @@ class Agent(Node):
                 file.write(json.dumps(self._replay_dict) + "\n")
         except Exception as e:
             self.get_logger().error(f"{self.my_name}: Error during saving logging: {e}")
+            self.get_logger().info(f"Data: {self._replay_dict}")
             os.remove(self._uncompress_file)
                 
 
