@@ -6,12 +6,13 @@ from agent_control.agent import Agent
 import argparse
 import datetime
 import yaml
+import traceback
 
 import pdb
 
 class LF_Formation(Agent):
     def __init__(self, my_number, my_neighbors=[], formation_distance=[], *args, 
-        sim=False, sync_move=False,
+        sim=False, sync_move=False,logging=False,
         restricted_area = False, restricted_x_min = -2.9, restricted_x_max = 2.9, restricted_y_min = -5, restricted_y_max = 4,
         destination_tolerance=0.01,
         laser_avoid=True, laser_distance=0.5, laser_delay=5, laser_walk_around=2, laser_avoid_loop_max=1,
@@ -24,7 +25,7 @@ class LF_Formation(Agent):
         }
         '''
         super().__init__(my_number, my_neighbors, sync_move=sync_move, sim=sim,
-                        destination_tolerance=destination_tolerance,
+                        destination_tolerance=destination_tolerance, logging=logging,
                         restricted_area=restricted_area, restricted_x_min=restricted_x_min, restricted_x_max=restricted_x_max, restricted_y_min=restricted_y_min, restricted_y_max=restricted_y_max,
                         laser_avoid=laser_avoid, laser_distance=laser_distance, laser_delay=laser_delay, laser_walk_around=laser_walk_around, laser_avoid_loop_max=laser_avoid_loop_max,
                         neighbor_avoid=neighbor_avoid, neighbor_delay=neighbor_delay)
@@ -104,6 +105,7 @@ def main(args=None):
     parser.add_argument("-n", "--neighbor", default=[], nargs='+', type=int, help="Array of neighbors")
     parser.add_argument("-m", "--loop_max", default=1, type=int, help="Laser Loop Max Number")
     parser.add_argument("-b", "--neighbor_avoid", default=True, action="store_false", help="Avoid Using neighbor position")
+    parser.add_argument("-r", "--record", default=False, action="store_true", help="Enable Logging")
     parser.add_argument("--ros-args", default=False, action="store_true")
     script_args = parser.parse_args()
 
@@ -112,13 +114,13 @@ def main(args=None):
 
     try:
         rclpy.init(args=args)
-        my_robot = LF_Formation(int(script_args.index), np.array(neighbor), fd, sim=script_args.sim, 
+        my_robot = LF_Formation(int(script_args.index), np.array(neighbor), fd, sim=script_args.sim, logging=script_args.record,
             restricted_area=True, laser_avoid=script_args.laser_avoid, neighbor_avoid=script_args.neighbor_avoid, laser_avoid_loop_max=script_args.loop_max)
         rclpy.spin(my_robot)
     except Exception as e:
         traceback.print_exc()
     finally:
-        my_robot.shutdown
+        my_robot.shutdown()
         rclpy.shutdown()
 
 if __name__ == '__main__':

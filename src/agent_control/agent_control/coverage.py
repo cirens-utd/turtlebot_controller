@@ -20,7 +20,7 @@ class Coverage(Agent):
         laser_avoid=True, laser_distance=0.5, laser_delay=5, laser_walk_around=2, laser_avoid_loop_max=1,
         neighbor_avoid=True, neighbor_delay=5, viewer=False):
         super().__init__(my_number, my_neighbors, sim=sim, sync_move=sync_move, 
-                        destination_tolerance=destination_tolerance,
+                        destination_tolerance=destination_tolerance, logging=logging,
                         restricted_area=restricted_area, restricted_x_min=restricted_x_min, restricted_x_max=restricted_x_max, restricted_y_min=restricted_y_min, restricted_y_max=restricted_y_max,
                         laser_avoid=laser_avoid, laser_distance=laser_distance, laser_delay=laser_delay, laser_walk_around=laser_walk_around, laser_avoid_loop_max=laser_avoid_loop_max,
                         neighbor_avoid=neighbor_avoid, neighbor_delay=neighbor_delay, viewer=viewer)
