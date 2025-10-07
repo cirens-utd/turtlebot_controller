@@ -1522,7 +1522,7 @@ class Agent(Node):
                     "movement_restricted": self._robot_restricted_movement,
 
                     # LED Info
-                    "led_light_state": self.led_light_state,
+                    "led_light_state": deepcopy(self.led_light_state),
 
                     # Avodidance Conditions
                     "path_obstructed": self.path_obstructed,
@@ -1538,8 +1538,8 @@ class Agent(Node):
                     "desired_angle": self.desired_angle,
             
                     # Tracking positions
-                    "my_pose": self.pose,
-                    "neighbor_poses": self.neighbor_poses
+                    "my_pose": deepcopy(self.pose),
+                    "neighbor_poses": deepcopy(self.neighbor_poses)
                 })
         except MemoryError:
             self.get_logger().warning(f"Log replay overflowed!")
