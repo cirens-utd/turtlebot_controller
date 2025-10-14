@@ -52,14 +52,13 @@ class Consensus(Agent):
         distances = np.array([])
 
         for name, neighbor in self.neighbor_position.items():
-            difference = np.array(neighbor) - np.array(self.position)
+            difference = (np.array(neighbor) - np.array(self.position))/2
             distances = np.append(distances, np.linalg.norm(difference))
             if np.linalg.norm(difference) > not_too_close:
                 weight = 1
             else:
                 weight = 0
             total += weight * difference
-
 
         if self.complete or self._path_obstructed_neighbor or self._path_obstructed_laser:
             standings = distances <= self.stopping_distance

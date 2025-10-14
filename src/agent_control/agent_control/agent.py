@@ -1154,6 +1154,8 @@ class Agent(Node):
         '''
         if type(tolerance) == type(None):
             tolerance = self._neighbor_tolerance_active
+            if self.path_obstructed_neighbor:
+                tolerance += 0.1
 
         if type(desired_pos) != type(None) and type(neighbors) != type(None):
             diameter = self._diameter
@@ -1185,7 +1187,7 @@ class Agent(Node):
                 
                 # If the projection is less than zero, it means the neighbor is behind us
                 # If the projection is larger than the magnitude of the direction, the neighbor is past the desired position
-                if projection_length < 0 or projection_length > direction_magnitude:
+                if projection_length < 0 or (projection_length > direction_magnitude and projection_length > tolerance):
                     continue 
                 
                 # Find the closest point on the path to the neighbor 
