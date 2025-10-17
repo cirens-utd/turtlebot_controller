@@ -5,7 +5,8 @@ pi_ip=$2
 pi_wrk_space=$3
 
 echo "Copying python files to $pi_ip..."
-scp -r ./_python_modules ${USER}@${pi_ip}:${pi_wrk_space}
+rsync -avz --delete ./_python_modules ${USER}@${pi_ip}:${pi_wrk_space}
+# scp -r ./_python_modules ${USER}@${pi_ip}:${pi_wrk_space}
 
 
 echo "Building Python packages at $pi_ip..."
@@ -16,5 +17,6 @@ ssh ${USER}@${pi_ip} << EOF
 
     cd $pi_wrk_space/_python_modules
 
-    python3 -m pip install --no-index --find-links=./ scipy shapely
+    # python3 -m pip install --no-index --find-links=./ scipy shapely
+    pip3 install --no-index --find-links=. *.whl
 EOF

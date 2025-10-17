@@ -67,12 +67,23 @@ This can be automated by using the pip script from the remote launch. This can b
 - python3 get-pip.py --no-index --find-links=.
 
 ### Required Files
-You will need the get-pip.py file in this directory
+You will need the get-pip.py file in this directory.
+(This can be ran by running ./remote_launch.sh pip X X X)
 
 ## Adding Modules
 This can be automated using teh download script in the remote launch. This can be done by ssh into the robot and going to the directory with the files are saved into. From here you can run
 - python3 -m pip install --no-index --find-lnks=./ <package-name>
+- This can be ran by ./remote_launch.sh download X X X
+- Modify the download.sh script in the scripts directory to add your package
 
 ### Required Files
 You will need the *.whl file. To obtain this you will run
-- python3 -m pip download --platform manylinux2014_aarch64 --python-version 310 --only-binary=:all:
+- python3 -m pip download --platform manylinux2014_aarch64 --python-version 310 --only-binary=:all: *module*
+
+### If the *.whl files don't exist
+You can create a folder (ideally download_modulename) and just do a pip3 download *module*. Then move this over to the py and run 
+- pip3 download --platform manylinux2014_aarch64 --no-deps moduleName
+- * may need to get dependenancies similar to above
+ - This can be found with pip3 show module
+ - also need build dependencies (normally setuptools, wheel, and cmake)
+- pip3 install --no-index --find-links=. --no-build-isolation module.tar.gz
