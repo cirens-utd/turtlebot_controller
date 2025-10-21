@@ -4,19 +4,34 @@ import cv2
 import numpy as np
 import depthai as dai
 from pupil_apriltags import Detector
+from scipy.spatial.transform import Rotation as R
 import pdb
 
 ### python3 -m pip install --extra-index-url https://artifacts.luxonis.com/artifactory/luxonis-python-snapshot-local/ depthai
 ### python3 -m pip install pupil-apriltags, opencv-python
 ### Tags: https://github.com/AprilRobotics/apriltag-imgs/tree/master
 '''
+Doesn't Work...
 git clone https://github.com/AprilRobotics/apriltag.git
 cd apriltag/image
 
 # Example: Generate tag36h11 family (IDs 0–9)
 ./tag36h11_print.py 0 9
+
+Install Depthai:
+https://github.com/luxonis/depthai.git
+
+python3 install_requirements.py
+python3 depthai_demo.py
 '''
 
+'''
+robot1:
+RBG - camera_params=([1486.56, 1489.024, 953.16, 560.76])
+Left = camera_params=([4348.13, 3086.80, 164.31, 265.95])
+Right = camera_params=([1487.80, 1340.60, 67.40, 447.64])
+
+'''
 
 # Create pipeline
 pipeline = dai.Pipeline()
@@ -107,24 +122,27 @@ with dai.Device(pipeline) as device:
             tags = at_detector.detect(
                 inLeft.getCvFrame(),
                 estimate_tag_pose=True,
-                camera_params=([0.1, 0.1, 0.1, 0.1]),
+                camera_params=([4348.13, 3086.80, 164.31, 265.95]),
                 tag_size=0.05,
             )
             debug_image = draw_tags(previewFrame.getCvFrame(), tags)
-            # cv2.imshow("left", debug_image)
+            cv2.imshow("left", debug_image)
             if tags:
-                pass
+                # x = right, y = down, z =  away from camera
+                x, y, z = tags[0].pose_t.flatten()
+                quat = R.from_matrix(tags[0].pose_R).as_quat() # [x, y, z, w]
+                print(f"Left Pose: {tags[0].pose_t.flatten()}")
         if inRight is not None:
             tags = at_detector.detect(
                 inRight.getCvFrame(),
-                estimate_tag_pose=False,
-                camera_params=None,
-                tag_size=None,
+                estimate_tag_pose=True,
+                camera_params=([1487.80, 1340.60, 67.40, 447.64]),
+                tag_size=0.05,
             )
             debug_image = draw_tags(previewFrame.getCvFrame(), tags)
-            # cv2.imshow("right", debug_image)
+            cv2.imshow("right", debug_image)
             if tags:
-                pdb.set_trace()
+                # pdb.set_trace()
                 '''
                 Tags:
                 [
@@ -146,6 +164,10 @@ with dai.Device(pipeline) as device:
                 pose_err = None
                 ]
                 '''
+                # x = right, y = down, z =  away from camera
+                x, y, z = tags[0].pose_t.flatten()
+                quat = R.from_matrix(tags[0].pose_R).as_quat() # [x, y, z, w]
+                print(f"Right Pose: {tags[0].pose_t.flatten()}")
 
         # Get BGR frame from NV12 encoded video frame to show with opencv
         #cv2.imshow("video", videoFrame.getCvFrame())

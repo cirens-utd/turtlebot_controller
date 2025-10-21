@@ -56,7 +56,7 @@ with dai.Device(pipeline) as device:
     while True:
         inFrame = video.get()
         frame = inFrame.getCvFrame()
-        cv2.imshow("Calib", frame)
+        #cv2.imshow("Calib", frame)
 
         key = cv2.waitKey(1)
         if key == ord("c"):
