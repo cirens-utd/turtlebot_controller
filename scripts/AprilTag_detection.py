@@ -110,6 +110,7 @@ with dai.Device(pipeline) as device:
     qLeft = device.getOutputQueue(name="left", maxSize=4, blocking=False)
     qRight = device.getOutputQueue(name="right", maxSize=4, blocking=False)
     preview = device.getOutputQueue('preview')
+    count = 0
     while True:
         inLeft = qLeft.tryGet()
         inRight = qRight.tryGet()
@@ -123,15 +124,23 @@ with dai.Device(pipeline) as device:
                 inLeft.getCvFrame(),
                 estimate_tag_pose=True,
                 camera_params=([4348.13, 3086.80, 164.31, 265.95]),
-                tag_size=0.05,
+                tag_size=0.1651,
             )
             debug_image = draw_tags(previewFrame.getCvFrame(), tags)
-            cv2.imshow("left", debug_image)
+            # cv2.imshow("left", debug_image)
             if tags:
                 # x = right, y = down, z =  away from camera
                 x, y, z = tags[0].pose_t.flatten()
                 quat = R.from_matrix(tags[0].pose_R).as_quat() # [x, y, z, w]
-                print(f"Left Pose: {tags[0].pose_t.flatten()}")
+                angle = np.remainder((np.arctan2(2 * (quat[3] * quat[2] + quat[0] * quat[1]),1 - 2 * (quat[1] * quat[1] + quat[2] * quat[2])) + np.pi) , 2 * np.pi)
+                if count == 0:
+                    print(f"Pose: {tags[0].pose_t.flatten()}")
+                    print(f"Angle: {angle}")
+                elif count == 60:
+                    count = 0
+                else:
+                    count += 1
+                # print(f"Left Pose: {tags[0].pose_t.flatten()}")
         if inRight is not None:
             tags = at_detector.detect(
                 inRight.getCvFrame(),
@@ -140,7 +149,7 @@ with dai.Device(pipeline) as device:
                 tag_size=0.05,
             )
             debug_image = draw_tags(previewFrame.getCvFrame(), tags)
-            cv2.imshow("right", debug_image)
+            # cv2.imshow("right", debug_image)
             if tags:
                 # pdb.set_trace()
                 '''
@@ -167,7 +176,7 @@ with dai.Device(pipeline) as device:
                 # x = right, y = down, z =  away from camera
                 x, y, z = tags[0].pose_t.flatten()
                 quat = R.from_matrix(tags[0].pose_R).as_quat() # [x, y, z, w]
-                print(f"Right Pose: {tags[0].pose_t.flatten()}")
+                # print(f"Right Pose: {tags[0].pose_t.flatten()}")
 
         # Get BGR frame from NV12 encoded video frame to show with opencv
         #cv2.imshow("video", videoFrame.getCvFrame())
@@ -176,3 +185,9 @@ with dai.Device(pipeline) as device:
         # cv2.imshow("right", inRight.getCvFrame())
         if cv2.waitKey(1) == ord('q'):
             break
+
+
+
+'''
+[ Right is postive , Down is Postive, Positive Forward]
+'''
