@@ -18,7 +18,7 @@ other_robots="$@"
 
 ## Concesus
 # tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control consensus.py -i $ROBOT_NUM -n $other_robots -l &> ./log.txt'"
-tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control consensus.py -i $ROBOT_NUM -n $other_robots -l -r&> ./log.txt'"
+# tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control consensus.py -i $ROBOT_NUM -n $other_robots -l -r&> ./log.txt'"
 
 ## FollowMe
 # tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control followMe_triangle.py -l -i $ROBOT_NUM -n $other_robots &> ./log.txt'"
@@ -32,7 +32,7 @@ tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && b
 
 ## Coverage
 # tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control coverage.py -n $other_robots -i $ROBOT_NUM -l -p -3.8 0.19 -0.72 3.36 2.69 2.0 2.74 -2.6 -0.18 -5.0 -2.48 -5.21 &> ./log.txt'"
-# tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control coverage.py -n $other_robots -i $ROBOT_NUM -l -r -p -3.8 0.19 -0.72 3.36 2.69 2.0 2.74 -2.6 -0.18 -5.0 -2.48 -5.21 &> ./log.txt'"
+tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control coverage.py -n $other_robots -i $ROBOT_NUM -l -r -p -3.8 0.19 -0.72 3.36 2.69 2.0 2.74 -2.6 -0.18 -5.0 -2.48 -5.21 &> ./log.txt'"
 
 
 

@@ -32,6 +32,7 @@ install(PROGRAMS
   agent_control/LF_multi_formation.py
   agent_control/calibration.py
   agent_control/coverage.py
+  agent_control/aprilTagDetection.py
   agent_control/testme.py
   DESTINATION lib/${PROJECT_NAME}
 )
