@@ -45,6 +45,7 @@ class LED_STATE(Enum):
 class Agent(Node):
     def __init__(self, my_number, my_neighbors=[], *args, sim=False, sync_move=False, logging=False,
         destination_tolerance=0.01, angle_tolerance=0.1, at_goal_historisis = 1,
+        use_mocap=True,
         restricted_area = False, restricted_x_min = -2.9, restricted_x_max = 2.9, restricted_y_min = -5, restricted_y_max = 4,
         laser_avoid=True, laser_distance=0.5, laser_delay=5, laser_walk_around=2, laser_avoid_loop_max = 1,
         neighbor_avoid=True, neighbor_delay=5, viewer=False):
@@ -64,6 +65,8 @@ class Agent(Node):
         self._log_dict_length = 9000                    # this is about 15 min
         self._creat_log_file_names(self.start_time)
         policy = qos_profile_sensor_data
+
+        self._use_mocap = use_mocap
 
         # logging info
         self._use_config_setup = True
@@ -110,10 +113,7 @@ class Agent(Node):
 
         # Create Publisher for LED
         self.led_pub_ = self.create_publisher(LightringLeds, '/'+self.my_name+'/cmd_lightring', policy)
-        
-        # Create Subscriber for position
-        self.position_sub_ = self.create_subscription(PoseStamped, f"/vrpn_mocap/turtlebot{self.my_number}/pose", self.pose_callback_, policy)
-        
+
         # Creating Subscribers for neighbors
         self.neighbor_position_sub_ = {}
         self.neighbor_ready_sub_ = {}
@@ -140,26 +140,40 @@ class Agent(Node):
                 }
             }
         }
-
-        for number in my_neighbors:
-            if number != my_number:
-                # Positions
-                try:
-                    self.neighbor_position_sub_[number] = self.create_subscription(
-                        PoseStamped, 
-                        f"/vrpn_mocap/turtlebot{number}/pose", 
-                        lambda msg, name=number: self.neighbor_pose_callback_(msg, name), 
-                        policy
-                    )
-                    self.get_logger().info(f"{self.my_name} Subscribed to neighbor number {number}")
-                    self._neighbors_ready[number] = False
-                    self.neighbor_poses[str(number)] = deepcopy(pose_dict)
-                except:
-                    self.get_logger().warning(f"Could not subscribe to turtlebot{number} Position")
         
-                self.lidar_sub_ = self.create_subscription(LaserScan, f"/{name}/scan", self.lidar_callback_, 10)
-            else:
-                self.get_logger().warning(f"{self.my_name}: Cannot be neighbor to myself.")
+        if use_mocap:
+            # Create Subscriber for position
+            self.position_sub_ = self.create_subscription(PoseStamped, f"/vrpn_mocap/turtlebot{self.my_number}/pose", self.pose_callback_, policy)
+        
+            # Setting up neighbors Subscriptions
+            for number in my_neighbors:
+                if number != my_number:
+                    # Positions
+                    try:
+                        self.neighbor_position_sub_[number] = self.create_subscription(
+                            PoseStamped, 
+                            f"/vrpn_mocap/turtlebot{number}/pose", 
+                            lambda msg, name=number: self.neighbor_pose_callback_(msg, name), 
+                            policy
+                        )
+                        self.get_logger().info(f"{self.my_name} Subscribed to neighbor number {number}")
+                        self._neighbors_ready[number] = False
+                        self.neighbor_poses[str(number)] = deepcopy(pose_dict)
+                    except:
+                        self.get_logger().warning(f"Could not subscribe to turtlebot{number} Position")
+            
+                else:
+                    self.get_logger().warning(f"{self.my_name}: Cannot be neighbor to myself.")
+        else:
+            # Setting flags so robot can start without mocab
+            self._position_started = True
+            self.get_logger().info(f"{self.my_name}: (Not using Mocab) Setting Position_started")
+
+            self._neighbors_started = True
+            self.get_logger().info(f"{self.my_name}: (Not using Mocab) Setting neighbor_started")
+
+        # Lidar Topics
+        self.lidar_sub_ = self.create_subscription(LaserScan, f"/{self.my_name}/scan", self.lidar_callback_, 10)
 
         self.timer = self.create_timer(0.1, self._controller_loop)
         if self.logging_enable:
@@ -1017,6 +1031,9 @@ class Agent(Node):
                 if not self._has_neighbors and not self.robot_moving:
                     self.robot_moving = True
                     self.get_logger().info(f"{self.my_name} Doesn't have any neighbors.")
+                if not self._use_mocap:
+                    self.robot_moving = True
+                    self.get_logger().info(f"{self.my_name} (Not Using Mocab) Setting Robot_Moving")
         else:
             move_z = krot_fine * z 
             if self.desired_heading:
