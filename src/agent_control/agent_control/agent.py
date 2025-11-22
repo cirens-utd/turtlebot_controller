@@ -45,7 +45,7 @@ class LED_STATE(Enum):
 class Agent(Node):
     def __init__(self, my_number, my_neighbors=[], *args, sim=False, sync_move=False, logging=False,
         destination_tolerance=0.01, angle_tolerance=0.1, at_goal_historisis = 1,
-        use_mocap=True,
+        use_mocap=True, use_camera = False,
         restricted_area = False, restricted_x_min = -2.9, restricted_x_max = 2.9, restricted_y_min = -5, restricted_y_max = 4,
         laser_avoid=True, laser_distance=0.5, laser_delay=5, laser_walk_around=2, laser_avoid_loop_max = 1,
         neighbor_avoid=True, neighbor_delay=5, viewer=False):
@@ -102,6 +102,10 @@ class Agent(Node):
         self._restricted_x_max = restricted_x_max
         self._restricted_y_min = restricted_y_min
         self._restricted_y_max = restricted_y_max
+
+        # Camera Info
+        self._camera_setup = not use_camera
+        self._camera_started = not use_camera
 
         self.get_logger().info(f"{self.my_name} has been started.")
 
@@ -183,6 +187,7 @@ class Agent(Node):
         self.pose = None
         self._position = None
         self._direction_heading = 0
+        self._quaternion = None
 
         # track where my neighbors are
         
@@ -294,7 +299,7 @@ class Agent(Node):
 
 
     def check_robot_ready_(self):
-        checks = np.array([self._position_started, self._neighbors_started, self._lidar_started])
+        checks = np.array([self._position_started, self._neighbors_started, self._lidar_started, self._camera_setup])
         if checks.all():
             self.get_logger().info(f"{self.my_name} Now ready to move.")
             self.robot_ready = True
@@ -309,65 +314,68 @@ class Agent(Node):
             self._position_started = True
             self.get_logger().info(f"{self.my_name}: Position Topic Recieved")
 
-        self.pose = {
-            "header": {
-                "stamp": {
-                    "sec": pose.header.stamp.sec,
-                    "nanosec": pose.header.stamp.nanosec
-                },
-                "frame_id": pose.header.frame_id
-            },
-            "pose": {
-                "position": {
-                    "x": pose.pose.position.x,
-                    "y": pose.pose.position.y,
-                    "z": pose.pose.position.z
-                },
-                "orientation": {
-                    "x": pose.pose.orientation.x,
-                    "y": pose.pose.orientation.y,
-                    "z": pose.pose.orientation.z,
-                    "w": pose.pose.orientation.w
-                }
-            }
-        }
-        orientation = pose.pose.orientation
-        x,y = pose.pose.position.x, pose.pose.position.y
-        self.position = self.correct_position_(x,y, orientation)
-        self.direction_heading = self.get_angle_quad(orientation)
+        self.update_position_(pose.header, pose.pose)
+        # self.pose = {
+        #     "header": {
+        #         "stamp": {
+        #             "sec": pose.header.stamp.sec,
+        #             "nanosec": pose.header.stamp.nanosec
+        #         },
+        #         "frame_id": pose.header.frame_id
+        #     },
+        #     "pose": {
+        #         "position": {
+        #             "x": pose.pose.position.x,
+        #             "y": pose.pose.position.y,
+        #             "z": pose.pose.position.z
+        #         },
+        #         "orientation": {
+        #             "x": pose.pose.orientation.x,
+        #             "y": pose.pose.orientation.y,
+        #             "z": pose.pose.orientation.z,
+        #             "w": pose.pose.orientation.w
+        #         }
+        #     }
+        # }
+        # orientation = pose.pose.orientation
+        # x,y = pose.pose.position.x, pose.pose.position.y
+        # self.position = self.correct_position_(x,y, orientation)
+        # self.direction_heading = self.get_angle_quad(orientation)
 
         if self.neighbor_avoid:
             self.path_obstructed_neighbor = self.is_neighbor_in_direction_(self.position, self.desired_location, self.neighbor_position)
 
     def neighbor_pose_callback_(self, pose: PoseStamped, name):
+        self.update_neighbor_position_(name, pose.header, pose.pose)
+
         orientation = pose.pose.orientation
-        x,y = pose.pose.position.x, pose.pose.position.y
         neighbor_facing = self.get_angle_quad(orientation)
 
-        self.neighbor_poses[str(name)] = {
-            "header": {
-                "stamp": {
-                    "sec": pose.header.stamp.sec,
-                    "nanosec": pose.header.stamp.nanosec
-                },
-                "frame_id": pose.header.frame_id
-            },
-            "pose": {
-                "position": {
-                    "x": pose.pose.position.x,
-                    "y": pose.pose.position.y,
-                    "z": pose.pose.position.z
-                },
-                "orientation": {
-                    "x": pose.pose.orientation.x,
-                    "y": pose.pose.orientation.y,
-                    "z": pose.pose.orientation.z,
-                    "w": pose.pose.orientation.w
-                }
-            }
-        }
-        self.neighbor_position[name] = [x,y]
-        self.neighbor_orientation[name] = orientation
+        # x,y = pose.pose.position.x, pose.pose.position.y
+        # self.neighbor_poses[str(name)] = {
+        #     "header": {
+        #         "stamp": {
+        #             "sec": pose.header.stamp.sec,
+        #             "nanosec": pose.header.stamp.nanosec
+        #         },
+        #         "frame_id": pose.header.frame_id
+        #     },
+        #     "pose": {
+        #         "position": {
+        #             "x": pose.pose.position.x,
+        #             "y": pose.pose.position.y,
+        #             "z": pose.pose.position.z
+        #         },
+        #         "orientation": {
+        #             "x": pose.pose.orientation.x,
+        #             "y": pose.pose.orientation.y,
+        #             "z": pose.pose.orientation.z,
+        #             "w": pose.pose.orientation.w
+        #         }
+        #     }
+        # }
+        # self.neighbor_position[name] = [x,y]
+        # self.neighbor_orientation[name] = orientation
 
         # check if all have been found
         if not self._neighbors_started and len(self.neighbor_position) == len(self.neighbor_position_sub_):
@@ -578,6 +586,14 @@ class Agent(Node):
         self._position = np.array(value) 
 
     @property
+    def quaternion(self):
+        return self._quaternion
+    @quaternion.setter
+    def quaternion(self, value):
+        # value = [x, y, z, w]
+        self._quaternion = np.array(value)
+
+    @property
     def desired_location(self):
         return self._desired_location
     @desired_location.setter
@@ -696,6 +712,67 @@ class Agent(Node):
                 
         self._logging_enable = bool(value) 
 
+    def update_position_(self, header, pose, offset=True):
+        '''
+        Function is used when odometry of robot is being updated. Will also updated needed variables for logging
+        '''
+        self.pose = {
+            "header": {
+                "stamp": {
+                    "sec": header.stamp.sec,
+                    "nanosec": header.stamp.nanosec
+                },
+                "frame_id": header.frame_id
+            },
+            "pose": {
+                "position": {
+                    "x": pose.position.x,
+                    "y": pose.position.y,
+                    "z": pose.position.z
+                },
+                "orientation": {
+                    "x": pose.orientation.x,
+                    "y": pose.orientation.y,
+                    "z": pose.orientation.z,
+                    "w": pose.orientation.w
+                }
+            }
+        }
+        orientation = pose.orientation
+        x,y = pose.position.x, pose.position.y
+        if offset:
+            self.position = self.correct_position_(x,y, orientation)
+        else:
+            self.position =[x,y]
+        self.direction_heading = self.get_angle_quad(orientation)
+        self.quaternion = [orientation.x, orientation.y, orientation.z, orientation.w]
+
+    def update_neighbor_position_(self, name, header, pose):
+
+        self.neighbor_poses[str(name)] = {
+            "header": {
+                "stamp": {
+                    "sec": header.stamp.sec,
+                    "nanosec": header.stamp.nanosec
+                },
+                "frame_id": header.frame_id
+            },
+            "pose": {
+                "position": {
+                    "x": pose.position.x,
+                    "y": pose.position.y,
+                    "z": pose.position.z
+                },
+                "orientation": {
+                    "x": pose.orientation.x,
+                    "y": pose.orientation.y,
+                    "z": pose.orientation.z,
+                    "w": pose.orientation.w
+                }
+            }
+        }
+        self.neighbor_position[name] = [pose.position.x,pose.position.y]
+        self.neighbor_orientation[name] = pose.orientation
 
     def record_laser_direction_heading_(self, direction):
         '''
@@ -1533,6 +1610,8 @@ class Agent(Node):
                     "position_started": self._position_started, 
                     "neighbors_started": self._neighbors_started, 
                     "lidar_started": self._lidar_started,
+                    "camera_started": self._camera_started,
+                    "camera_setup": self._camera_setup,
                     "robot_moving": self.robot_moving,
                     "desired_heading": self.desired_heading,
                     "destination_reached": self.destination_reached,

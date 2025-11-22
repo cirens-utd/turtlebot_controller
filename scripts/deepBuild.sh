@@ -25,6 +25,7 @@ ssh ${USER}@${pi_ip} << EOF
     done
     
     echo "Building..."
+    rm -rf install/ build/ log/
     colcon build
     chmod +x start_node.sh start_mocap.sh test_node.sh
 EOF

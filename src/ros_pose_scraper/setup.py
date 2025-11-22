@@ -17,7 +17,6 @@ setup(
     maintainer_email='stufmuff@todo.todo',
     description='TODO: Package description',
     license='TODO: License declaration',
-    tests_require=['pytest'],
     entry_points={
         'console_scripts': [
             "name_array_node = ros_pose_scraper.named_array:main"
