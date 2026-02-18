@@ -27,10 +27,10 @@ class AprilTagDetectorNode(Agent):
 
     def __init__(self, my_number, my_neighbors=[], *args, sim=False, sync_move=False,
         destination_tolerance=0.01,logging=False,
-        use_mocap=True, use_camera=False, 
+        use_mocap=False, use_camera=True, 
         restricted_area = False, restricted_x_min = -2.9, restricted_x_max = 2.9, restricted_y_min = -5, restricted_y_max = 4,
         laser_avoid=True, laser_distance=0.5, laser_delay=5, laser_walk_around=2, laser_avoid_loop_max=1,
-        neighbor_avoid=False, neighbor_delay=5):
+        neighbor_avoid=False, neighbor_delay=5, reset_odom=False):
         super().__init__(my_number, my_neighbors, sim=sim, sync_move=sync_move, 
                         destination_tolerance=destination_tolerance, logging=logging, use_mocap=use_mocap, use_camera=use_camera,
                         restricted_area=restricted_area, restricted_x_min=restricted_x_min, restricted_x_max=restricted_x_max, restricted_y_min=restricted_y_min, restricted_y_max=restricted_y_max,
@@ -64,13 +64,14 @@ class AprilTagDetectorNode(Agent):
         ## req.z = 0.0
         ## req.theta = 0.0
         '''
-        # # Reseting the Pose
-        # self.reset_pose_client = self.create_client(ResetPose, f"/{self.my_name}/reset_pose")
-        # self.reset_pose_client.wait_for_service()
-        # # Make Request
-        # req = ResetPose.Request()
-        # future = self.reset_pose_client.call_async(req)
-        # future.add_done_callback(self.pose_reset_done)
+        # Reseting the Pose
+        if reset_odom:
+            self.reset_pose_client = self.create_client(ResetPose, f"/{self.my_name}/reset_pose")
+            self.reset_pose_client.wait_for_service()
+            # Make Request
+            req = ResetPose.Request()
+            future = self.reset_pose_client.call_async(req)
+            future.add_done_callback(self.pose_reset_done)
 
         ## Starting and Stopping Camera
         self.start_camera_client = self.create_client(Trigger, f"/{self.my_name}/oakd/start_camera")
@@ -125,8 +126,13 @@ class AprilTagDetectorNode(Agent):
         self.count = 0
         self.get_logger().info(f"{self.my_name} AprilTag Detector Node initialized and subscribed to {image_topic}")
         self.display_image = False
-        self._test_angles = [0, np.pi/2, np.pi, 3*np.pi/2]
-        self._test_index = 0
+        # self._circle_angles = [0, np.pi/4, np.pi/2, 3*np.pi/4, np.pi, 5*np.pi/4, 3*np.pi/2, 7*np.pi/4]
+        self._circle_angles = np.linspace(0, 2*np.pi, 16)
+        self._circle_index = 0
+        self._circle_counter = 0
+        self._circle_counter_max = 10
+        self._finding_neighbor_vision = False
+        self._test = False
         self._test_counter = 0
 
     def odom_callback(self, msg: Odometry):
@@ -230,6 +236,8 @@ class AprilTagDetectorNode(Agent):
         # k: [fx, 0, cx, 0, fy, cy, 0, 0, 1]
         if self._camera_started and not self._camera_setup:
             self.fx, self.cx, self.fy, self.cy = msg.k[0], msg.k[2], msg.k[4], msg.k[5]
+            self._camera_distortion = np.array(msg.d, dtype=np.float32)
+            self._camera_k = np.array(msg.k, dtype=np.float32).reshape(3, 3)
             self._camera_setup = True
             self.get_logger().info(f"{self.my_name} Camera Info Recieved and parameters setup")
 
@@ -238,7 +246,7 @@ class AprilTagDetectorNode(Agent):
             try:
                 # Convert ROS Image message to OpenCV image
                 cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
-            except CvBridgeError as e:
+            except Exception as e:
                 self.get_logger().error(f'CvBridge Error: {e}')
                 return
 
@@ -246,19 +254,20 @@ class AprilTagDetectorNode(Agent):
             gray_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
 
             # camera_params = [1486.56, 1489.024, 953.16, 560.76] # Example RGB params
-            # camera_params = [
-            #     self.fx,    # fx
-            #     self.fy,    # fy
-            #     self.cx,    # cx
-            #     self.cy     # cy
-            # ]
-            tag_size = 0.1651 # Meters
+            camera_params = [
+                self.fx,    # fx
+                self.fy,    # fy
+                self.cx,    # cx
+                self.cy     # cy
+            ]
+            tag_size = 0.200 # Meters
+            x_ratio = 1.36655
 
             tags = self.at_detector.detect(
                 gray_image,
                 estimate_tag_pose=True,
                 camera_params=camera_params,
-                tag_size=tag_size,
+                tag_size=tag_size
             )
 
             if self.display_image:
@@ -271,8 +280,12 @@ class AprilTagDetectorNode(Agent):
             # loop through the tags
             for tag in tags:
                 tx, ty, tz = tag.pose_t.flatten()              # [ Right is postive , Down is Postive, Positive Forward]
-                x, y, z = tz, -tx, -ty
-                quat = R.from_matrix(tags[0].pose_R).as_quat() # [x, y, z, w]
+                x, y, z = tz*x_ratio, -tx, -ty                   # On Robot 3, the z needed offset 58.9% to be accurate. Left and right was good
+                # Check determinant
+                r_tag = tag.pose_R
+                if np.linalg.det(r_tag) < 0:
+                    r_tag = -r_tag  # Flip axes to make it right-handed
+                quat = R.from_matrix(r_tag).as_quat() # [x, y, z, w]
 
                 # finding tag position
                 camera_offset = np.array([0,0,0])
@@ -313,10 +326,10 @@ class AprilTagDetectorNode(Agent):
                         "w": quat[3]
                     }
                 })
-
-                if self.desired_heading:
-                    self.update_neighbor_position_(tag.tag_id, msg.header, pose)
-                    self.update_neighbor_position_("00", msg.header, pose1)
+            
+                self.update_neighbor_position_(tag.tag_id, msg.header, pose)
+                # self.update_neighbor_position_("00", msg.header, pose1)
+                # self.get_logger().info(f"Tag Detected: {tag.tag_id}")
         
     def example_follow_tag(self, tags=None):
         move_x = 0.0
@@ -393,27 +406,107 @@ class AprilTagDetectorNode(Agent):
                         cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 255), 2, cv2.LINE_AA)
         return image
 
+    def find_neighbors_vision(self):
+        if not self._finding_neighbor_vision:
+            self._finding_neighbor_vision = True
+
+        if not self.desired_heading:
+            if self._circle_index >= len(self._circle_angles):
+                if self._circle_counter == 0:
+                    self._finding_neighbor_vision = False
+                    self._circle_index = 0
+                    return False
+            else:
+                self.move_to_angle(self._circle_angles[self._circle_index])
+        else:
+            if self._circle_counter > self._circle_counter_max:
+                self.desired_heading = False
+                self._circle_index += 1
+                self._circle_counter = 0
+            else:
+                self._circle_counter += 1
+            
+        return True
+
     def controller(self):
 
+        # # #  2 tiles away is about: 1.1402568817138672
+        # # # Max Read about 11 Squares: 6.14m
+        # if len(self.neighbor_poses):
+        #     if self._test_counter > 10 and self._test_counter < 100:
+        #         self.get_logger().info(f"{self.neighbor_poses}")
+        #         self.get_logger().info(f"{self._laser_scan[int(len(self._laser_scan)/2)]}")
+        #         self._test_counter = 0
+        #     else:
+        #         self._test_counter += 1
+
+        '''
+        2 tile away = ~ 1.14
+        166x168 Tag 
+            => Tag Size = 0.1651 x_ratio = 1.6978
+        90 Degree Rotated = x: 1.212
+        Correct Rotation = x: 1.15
+            => Tag Size = 0.168 x_ratio = 1.6978
+        90 Degree = x:1.18
+        Correct Rotation = X:1.18
+
+        200x168 Tag
+            => Tag Size = 0.168 x_ratio = 1.6978
+        X:1.165
+            => Tag Size = 0.200 x_ratio = 1.6978
+            Range => 11 Tiles (7.181)
+        X:1.395
+
+        82x82.5 Tag
+            => Tag Size = 0.082 x_ratio = 1.6978
+            Range => 5.5 Tiles (2.98)
+        X:1.149
+
+        40x40 Tag
+            => Tag Size = 0.0.04 x_ratio = 1.6978
+            Range => 2.5 Tiles (1.35)
+        X:1.146
+        
+
+        * self._laser_scan[int(len(self._laser_scan)/2 at 2 tiles is 5.264 (turtlebot3) AprilTag distance: 1.103
+        * self._laser_scan[int(len(self._laser_scan)/2 at 2 tiles is 5.768 (turtlebot1) AprilTag distance: 1.12
+
+
+        '''
+
+
+
         # 'x': -0.644445846281644, 'y': 0.11759494681753993, 'z': 0.033320860385021155
-        # self.move_to_position([-1.10, 0.0])
+        # self.move_to_position([1.14, 0.0])
+        # self.move_to_position([1.6664, 0.5419])
         # self.move_to_position([0.0,0.0])
-        if not self.desired_heading:
-            if self._test_index >= len(self._test_angles):
-                if self._test_counter == 0:
-                    self.get_logger().info(f"{self.neighbor_poses}")
-                    self._test_counter += 1
-            else:
-                self.move_to_angle(self._test_angles[self._test_index])
+
+        if not self._test:
+            if not self.find_neighbors_vision():
+                self._test = True
         else:
-            if self._test_counter > 10:
-                self.desired_heading = False
-                self._test_index += 1
-                self._test_counter = 0
-            else:
-                self._test_counter += 1
+            total = 0
+            not_too_close = 1
+            distances = np.array([])
+
+            for name, neighbor in self.neighbor_position.items():
+                difference = (np.array(neighbor) - np.array(self.position))/2
+                distances = np.append(distances, np.linalg.norm(difference))
+                if np.linalg.norm(difference) > not_too_close:
+                    weight = 1
+                else:
+                    weight = 0
+                total += weight * difference
             
+
+            self.move_direction(total)
+
+            if self.destination_reached:
+                self._test = False
+                self.get_logger().info(f"Completed Movement. Checking Neighbors")
+
         return
+                
     
     def end_controller(self):
         return
@@ -432,11 +525,13 @@ def main(args=None):
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--index", default="1", type=int, help="Index of this robot")
     parser.add_argument("-n", "--neighbor", default=[], nargs='+', type=int, help="Array of neighbors")
+    parser.add_argument("-l", "--laser_avoid", default=True, action="store_false", help="Avoid using laser")
+    parser.add_argument("-r", "--record", default=False, action="store_true", help="Enable Logging")
 
     script_args = parser.parse_args()
     
     rclpy.init(args=args)
-    apriltag_detector_node = AprilTagDetectorNode(int(script_args.index), script_args.neighbor)
+    apriltag_detector_node = AprilTagDetectorNode(int(script_args.index), script_args.neighbor, logging=script_args.record, laser_avoid=script_args.laser_avoid, reset_odom=True)
     try:
         rclpy.spin(apriltag_detector_node)
     except KeyboardInterrupt:

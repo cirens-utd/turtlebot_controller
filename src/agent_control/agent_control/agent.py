@@ -1105,12 +1105,13 @@ class Agent(Node):
                 self.desired_heading = True
 
                 # If not using neighbors, enable robot to move
-                if not self._has_neighbors and not self.robot_moving:
-                    self.robot_moving = True
-                    self.get_logger().info(f"{self.my_name} Doesn't have any neighbors.")
-                if not self._use_mocap:
-                    self.robot_moving = True
-                    self.get_logger().info(f"{self.my_name} (Not Using Mocab) Setting Robot_Moving")
+                if not self.robot_moving:
+                    if not self._has_neighbors:
+                        self.robot_moving = True
+                        self.get_logger().info(f"{self.my_name} Doesn't have any neighbors.")
+                    if not self._use_mocap:
+                        self.robot_moving = True
+                        self.get_logger().info(f"{self.my_name} (Not Using Mocab) Setting Robot_Moving")
         else:
             move_z = krot_fine * z 
             if self.desired_heading:

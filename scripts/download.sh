@@ -17,6 +17,10 @@ ssh ${USER}@${pi_ip} << EOF
 
     cd $pi_wrk_space/_python_modules
 
-    # python3 -m pip install --no-index --find-links=./ scipy shapely
-    pip3 install --no-index --find-links=. *.whl
+    # This will go find all the .whl files and install them. It will also search inside other directores in this folder
+    find . -name "*.whl" -type f -exec pip3 install --no-index --find-links=. {} \;
+
+    # This will go find all the .tar.gz files and install them. It will also search inside other directores in this folder
+    find . -name "*.tar.gz" -type f -exec pip3 install --no-index --find-links=. --no-build-isolation {} \;
+
 EOF

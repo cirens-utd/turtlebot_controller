@@ -32,9 +32,11 @@ other_robots="$@"
 
 ## Coverage
 # tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control coverage.py -n $other_robots -i $ROBOT_NUM -l -p -3.8 0.19 -0.72 3.36 2.69 2.0 2.74 -2.6 -0.18 -5.0 -2.48 -5.21 &> ./log.txt'"
-tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control coverage.py -n $other_robots -i $ROBOT_NUM -l -r -p -3.8 0.19 -0.72 3.36 2.69 2.0 2.74 -2.6 -0.18 -5.0 -2.48 -5.21 &> ./log.txt'"
+# tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control coverage.py -n $other_robots -i $ROBOT_NUM -l -r -p -3.8 0.19 -0.72 3.36 2.69 2.0 2.74 -2.6 -0.18 -5.0 -2.48 -5.21 &> ./log.txt'"
 
 
+# Vision Concesus
+tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control aprilTagDetection.py -i $ROBOT_NUM -l -r&> ./log.txt'"
 
 # testme 
 # tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control testme.py -i $ROBOT_NUM -l &> ./log.txt'"
