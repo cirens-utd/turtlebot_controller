@@ -37,7 +37,7 @@ class AprilTagDetectorNode(Agent):
                         laser_avoid=laser_avoid, laser_distance=laser_distance, laser_delay=laser_delay, laser_walk_around=laser_walk_around, laser_avoid_loop_max=laser_avoid_loop_max,
                         neighbor_avoid=neighbor_avoid, neighbor_delay=neighbor_delay)
 
-        self.robot_moving = True # don't want to turn to a start position
+        # self._min_angle = 0.1
 
         odom_topic = f"/{self.my_name}/odom"
         image_topic = f"/{self.my_name}/oakd/rgb/preview/image_raw"
@@ -312,20 +312,6 @@ class AprilTagDetectorNode(Agent):
                         "w": neighbor_quat_wf[3]
                     }
                 })
-
-                pose1 = DotMap({
-                    "position": {
-                    "x": tx,
-                    "y": ty,
-                    "z": tz
-                    },
-                    "orientation": {
-                        "x": quat[0],
-                        "y": quat[1],
-                        "z": quat[2],
-                        "w": quat[3]
-                    }
-                })
             
                 self.update_neighbor_position_(tag.tag_id, msg.header, pose)
                 # self.update_neighbor_position_("00", msg.header, pose1)
@@ -538,7 +524,7 @@ def main(args=None):
         pass
 
     # Destroy the node explicitly
-    apriltag_detector_node.destroy_node()
+    apriltag_detector_node.shutdown()
     rclpy.shutdown()
     cv2.destroyAllWindows()
 

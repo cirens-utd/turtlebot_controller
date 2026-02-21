@@ -5,7 +5,7 @@ import rclpy
 from rclpy.node import Node
 from std_msgs.msg import Bool
 from geometry_msgs.msg import PoseArray, PoseStamped, Twist
-from sensor_msgs.msg import LaserScan
+from sensor_msgs.msg import LaserScan, BatteryState
 from irobot_create_msgs.msg import LightringLeds
 from rclpy.qos import qos_profile_sensor_data
 from enum import Enum 
@@ -77,6 +77,7 @@ class Agent(Node):
         # LED Info
         self.led_override = False                   # set to true if you want take control of LED's in your code
         self.led_light_state = None                 # Current status of LED for logger
+        self.led_persistent = True                  # Sets LED every cycle
 
         self._robot_status = None                    # Current status of robot
         self._led_enum = LED_STATE
@@ -181,8 +182,31 @@ class Agent(Node):
 
         self.timer = self.create_timer(0.1, self._controller_loop)
         if self.logging_enable:
+            self.get_logger().info(f"{self.my_name}: Logging Enabled")
             self.log_timer = self.create_timer(0.1, self._log_recording)
         
+        # Battery Status
+        self._wait_for_battery = True
+        self._battery_received = False
+        self.battery_sub_ = self.create_subscription(BatteryState, f"/{self.my_name}/battery_state", self.battery_callback_, 10)
+        self._battery_dict = {
+            "voltage": None,
+            "temperature": None,
+            "current": None,
+            "charge": None,
+            "capacity": None,
+            "design_capacity": None,
+            "percentage": None,
+            "power_supply_status": None,
+            "power_supply_health": None,
+            "power_supply_technology": None,
+            "present": None,
+            "cell_voltage": [],
+            "cell_temperature": [],
+            "location": '',
+            "serial_number": ''
+        }
+
         # track my location
         self.pose = None
         self._position = None
@@ -241,6 +265,8 @@ class Agent(Node):
         # status for the agent
         self._max_speed = 2.0 # 0.5             # max speed you can command the robot to move
         self._max_angle = 2.0                   # max speed you can command the robot to turn
+        self._min_speed = 0.5
+        self._min_angle = 0.1
         self._desired_location = None
         self._attempted_desired_location = None
         self._desired_angle = None
@@ -479,6 +505,48 @@ class Agent(Node):
             self.move_robot_(0.0, 1.0)
         """
 
+    def battery_callback_(self, msg: BatteryState):
+        '''
+        Saving status of battery:
+        battery_info : {
+            voltage: 14,
+            temperature: 32,
+            current: 0.5,
+            charge: 0.75,
+            capacity: 1.9,
+            design_capacity: 1.9,
+            percentage: 0.38,
+            power_supply_status: 0,
+            power_supply_health: 0,
+            power_supply_technology: 0,
+            present: true,
+            cell_voltage: [],
+            cell_temperature: [],
+            location: '',
+            serial_number: ''
+        }
+        '''
+
+        self._battery_dict['voltage'] = np.round(msg.voltage,3)
+        self._battery_dict['temperature'] = np.round(msg.temperature,3)
+        self._battery_dict['current'] = np.round(msg.current,3)
+        self._battery_dict['charge'] = np.round(msg.charge,3)
+        self._battery_dict['capacity'] = np.round(msg.capacity,3)
+        self._battery_dict['percentage'] = np.round(msg.percentage,3)
+        self._battery_dict['power_supply_status'] = msg.power_supply_status
+        self._battery_dict['power_supply_health'] = msg.power_supply_health
+        self._battery_dict['power_supply_technology'] = msg.power_supply_technology
+        self._battery_dict['cell_voltage'] = msg.cell_voltage.tolist()
+        self._battery_dict['cell_temperature'] = msg.cell_temperature.tolist()
+
+        if not self._battery_received:
+            self._battery_dict['design_capacity'] = np.round(msg.design_capacity,3)
+            self._battery_dict['present'] = msg.present
+            self._battery_dict['location'] = msg.location
+            self._battery_dict['serial_number'] = msg.serial_number
+            self.get_logger().info(f"{self.my_name}: Battery level at {np.round(msg.percentage,3)*100}%")
+            self._battery_received = True
+
     @property
     def robot_status(self):
         return self._robot_status
@@ -702,6 +770,7 @@ class Agent(Node):
                 self.log_timer.cancel()
                 self.destroy_timer(self.log_timer)
                 del self.log_timer
+                self.get_logger().info(f"{self.my_name}: Logging Disabled")
 
         # turn on logging
         if value and not self._logging_enable:
@@ -709,6 +778,7 @@ class Agent(Node):
                 self._replay_dict = []
                 self._creat_log_file_names(datetime.datetime.now().strftime("%Y-%m-%d.%H%M%S"))
                 self.log_timer = self.create_timer(0.1, self._log_recording)
+                self.get_logger().info(f"{self.my_name}: Logging Enabled")
                 
         self._logging_enable = bool(value) 
 
@@ -965,13 +1035,13 @@ class Agent(Node):
         if angle:
             new_value = max(-1 * self._max_angle, min(value, self._max_angle))
             if np.abs(new_value) > self._angle_tolerance and np.abs(new_value) < 0.5:
-                new_value = 0.5 * (new_value / np.abs(new_value))
+                new_value = self._min_angle * (new_value / np.abs(new_value))
             elif np.abs(new_value) <= self._angle_tolerance:
                 new_value = 0.0
         else:
             new_value = max(-1 * self._max_speed, min(value, self._max_speed))
             if np.abs(new_value) > self._destination_tolerance and np.abs(new_value) < 0.5:
-                new_value = 0.5 * (new_value / np.abs(new_value))
+                new_value = self._max_speed * (new_value / np.abs(new_value))
             elif np.abs(new_value) <= self._destination_tolerance:
                 new_value = 0.0
 
@@ -1613,6 +1683,7 @@ class Agent(Node):
                     "lidar_started": self._lidar_started,
                     "camera_started": self._camera_started,
                     "camera_setup": self._camera_setup,
+                    "battery_received": self._battery_received,
                     "robot_moving": self.robot_moving,
                     "desired_heading": self.desired_heading,
                     "destination_reached": self.destination_reached,
@@ -1622,6 +1693,9 @@ class Agent(Node):
 
                     # LED Info
                     "led_light_state": deepcopy(self.led_light_state),
+
+                    # Battery Info
+                    "battery_dict": deepcopy(self._battery_dict),
 
                     # Avodidance Conditions
                     "path_obstructed": self.path_obstructed,
@@ -1706,6 +1780,9 @@ class Agent(Node):
                 self.robot_status = "READY"
             elif not self.desired_heading:
                     self.move_to_angle(self.start_heading)
+            
+            if self.led_persistent:
+                self.set_led_mode_(self._robot_status )
             return
         
         self.robot_status = "STOPPED"
