@@ -1,6 +1,9 @@
 import numpy as np
 import random
+from shapely import Polygon,Point,MultiPoint,LineString
 
+from itertools import combinations
+from shapely.ops import unary_union
 
 
 
@@ -9,18 +12,18 @@ class TukeyContour:
     Calculates the Tukey depth contour (median region) for a set of 2D points.
 
     """
-    def __init__(self, input_points: np.ndarray, verbose: bool = False):
+    def __init__(self, input_points: np.ndarray,imprecision: float = 0.0, verbose: bool = False):
         self.primal_points = np.asarray(input_points)
         self.verbose = verbose
         self.median_contour = []
-
+        self.imp = imprecision
         if self.primal_points.shape[0] < 3:
             # Not enough points to form a contour
             return
 
-       
-        self._calculate_contour()
-
+        if self.imp <0.1:
+            self._calculate_contour()
+        
     def _cross_product(self, p1, p2, p3):
         """Calculates the 2D cross product to determine orientation."""
         return (p2[0] - p1[0]) * (p3[1] - p1[1]) - (p2[1] - p1[1]) * (p3[0] - p1[0])
@@ -115,4 +118,62 @@ class TukeyContour:
 
         self.median_contour = np.array(final_contour_points)
 
+    def CPIH_Safepoint(self,n,Bx,Xi):
+        k = int(np.floor(2/3*n)+1)
+        n = np.arange(n)
+        combk = list(combinations(n,k))
+        safeX = []
+        safeY =[]
+        first= True
+        CPIH= Polygon()
+        #testing
+    
+        for C in combk:
+            if Xi in C:
+                comb3 = list(combinations(C,3))
+                dp1 =[]
+                Chull = Polygon()
+                for i in range(len(comb3)):
+                    comb2 = list(combinations(comb3[i][:],2))
+                    b1 = int(comb3[i][0])
+                    b2 = int(comb3[i][1])
+                    b3 = int(comb3[i][2])
+                    dp1 = np.vstack((Bx[b1,:,:],Bx[b2,:,:],Bx[b3,:,:]))
+                    verts = self._monotone_chain_convex_hull(dp1)
+                    dp1 = Polygon(verts)
+                    dp2 = Polygon()
+                    for j in range(len(comb2)):
+                        a1 = comb2[j][0]
+                        a2 = comb2[j][1]
+                        temp= np.vstack((Bx[a1,:,:],Bx[a2,:,:]))
+                        verts2 = self._monotone_chain_convex_hull(temp)
+                        temp =  Polygon(temp)
+                        dp2 = unary_union([dp2,temp])
+                    diff = dp1.difference(dp2)
+                    Chull= unary_union([Chull,diff])
 
+
+                if (first and not Chull.is_empty):
+                    CPIH = Polygon(Chull.convex_hull)
+
+                else:
+                    #NEW 
+                    if not Chull.is_empty:
+                        Chull = Polygon(Chull.convex_hull)
+                    #ENDNEW
+                    CPIH = CPIH.intersection(Chull)
+                    if not CPIH.geom_type == 'Polygon' and not CPIH.is_empty:
+
+                        for member in CPIH.geoms:
+                            if member.geom_type == 'Polygon':
+                                CPIH = member
+
+
+                    if CPIH.is_empty:
+                        return [0,0]
+                        break
+                first = False
+        safeX,safeY = np.array(CPIH.exterior.xy)
+            #safeX.append(x);
+            #safeY.append(y);
+        return [safeX,safeY]
