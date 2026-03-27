@@ -14,35 +14,36 @@ fi
 
 ROBOT_NUM=$1
 shift
-other_robots="$@"
+# other_robots="$@"
+other_robots="[$(echo "$@" | sed 's/ /,/g')]"
 
 ## Concesus
-# tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control consensus.py -i $ROBOT_NUM -n $other_robots -l &> ./log.txt'"
-# tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control consensus.py -i $ROBOT_NUM -n $other_robots -l -r&> ./log.txt'"
+# tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control consensus.py --ros-args -p robot.id:=$ROBOT_NUM -p robot.neighbors:=$other_robots &> ./log.txt'"
+# tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control consensus.py --ros-args -p robot.id:=$ROBOT_NUM -p robot.neighbors:=$other_robots -p logging.enabled:=true&> ./log.txt'"
 
 ## FollowMe
-# tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control followMe_triangle.py -l -i $ROBOT_NUM -n $other_robots &> ./log.txt'"
+# tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control followMe_triangle.py --ros-args -p robot.id:=$ROBOT_NUM -p robot.neighbors:=$other_robots &> ./log.txt'"
 
 ## LF_Furmation
-# tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control LF_formation.py -l -i $ROBOT_NUM -f ~/Turtlebot_Controller/src/agent_control/config/5_agent_formation/pentagon_setup.yaml -n $other_robots &> ./log.txt'"
-# tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control LF_formation.py -l -r -i $ROBOT_NUM -f ~/Turtlebot_Controller/src/agent_control/config/5_agent_formation/pentagon_setup.yaml -n $other_robots&> ./log.txt'"
+# tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control LF_formation.py -f ~/Turtlebot_Controller/src/agent_control/config/5_agent_formation/pentagon_setup.yaml --ros-args -p robot.id:=$ROBOT_NUM -p robot.neighbors:=$other_robots &> ./log.txt'"
+# tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control LF_formation.py -f ~/Turtlebot_Controller/src/agent_control/config/5_agent_formation/pentagon_setup.yaml --ros-args -p robot.id:=$ROBOT_NUM -p robot.neighbors:=$other_robots -p logging.enabled:=true&> ./log.txt'"
 
 ## formation control command
-# tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control LF_multi_formation.py -l -n $other_robots -i $ROBOT_NUM  &> ./log.txt'"
+# tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control LF_multi_formation.py --ros-args -p robot.id:=$ROBOT_NUM -p robot.neighbors:=$other_robots &> ./log.txt'"
 
 ## Coverage
-# tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control coverage.py -n $other_robots -i $ROBOT_NUM -l -p -3.8 0.19 -0.72 3.36 2.69 2.0 2.74 -2.6 -0.18 -5.0 -2.48 -5.21 &> ./log.txt'"
-# tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control coverage.py -n $other_robots -i $ROBOT_NUM -l -r -p -3.8 0.19 -0.72 3.36 2.69 2.0 2.74 -2.6 -0.18 -5.0 -2.48 -5.21 &> ./log.txt'"
+# tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control coverage.py -b -3.8 0.19 -0.72 3.36 2.69 2.0 2.74 -2.6 -0.18 -5.0 -2.48 -5.21 --ros-args -p robot.id:=$ROBOT_NUM -p robot.neighbors:=$other_robots&> ./log.txt'"
+# tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control coverage.py -b -3.8 0.19 -0.72 3.36 2.69 2.0 2.74 -2.6 -0.18 -5.0 -2.48 -5.21 --ros-args -p robot.id:=$ROBOT_NUM -p robot.neighbors:=$other_robots -p logging.enabled:=true&> ./log.txt'"
 
 
 # Vision Concesus
-tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control aprilTagDetection.py -i $ROBOT_NUM -l -r&> ./log.txt'"
+tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control aprilTagDetection.py --ros-args -p robot.id:=$ROBOT_NUM -p logging.enabled:=true &> ./log.txt'"
 
 # testme 
-# tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control testme.py -i $ROBOT_NUM -l &> ./log.txt'"
+# tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control testme.py --ros-args -p robot.id:=$ROBOT_NUM &> ./log.txt'"
 # Calibration 
-# tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control calibration.py -i $ROBOT_NUM  &> ./log.txt'"
+# tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control calibration.py --ros-args -p robot.id:=$ROBOT_NUM &> ./log.txt'"
 
 
 ## Old Node not used
-# tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control LF_formation.py -l -i $ROBOT_NUM -f ~/Turtlebot_Controller/src/agent_control/config/agent_setup/agent_setup.yaml &> ./log.txt'"
+# tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control LF_formation.py -f ~/Turtlebot_Controller/src/agent_control/config/agent_setup/agent_setup.yaml --ros-args -p robot.id:=$ROBOT_NUM &> ./log.txt'"
