@@ -5,7 +5,7 @@ pi_ip=$2
 pi_wrk_space=$3
 
 echo "Copying python files to $pi_ip..."
-scp -r ./_python_modules ${USER}@${pi_ip}:${pi_wrk_space}
+scp -r ./_python_modules ${USER}@${pi_ip}:${pi_wrk_space}/_python_modules
 
 
 echo "Building Python packages at $pi_ip..."

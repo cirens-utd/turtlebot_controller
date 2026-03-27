@@ -5,7 +5,7 @@ pi_ip=$2
 pi_wrk_space=$3
 
 echo "Copying python files to $pi_ip..."
-rsync -avz --delete ./_python_modules ${USER}@${pi_ip}:${pi_wrk_space}
+rsync -avz --delete ./_python_modules ${USER}@${pi_ip}:${pi_wrk_space}/_python_modules
 # scp -r ./_python_modules ${USER}@${pi_ip}:${pi_wrk_space}
 
 
