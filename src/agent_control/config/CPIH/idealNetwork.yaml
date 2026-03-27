@@ -1,0 +1,18 @@
+/**:
+  ros__parameters:
+    robot:
+      neighborhood_mode: "global"   # "local" or "global" -> Local only has my neighborhood. Global has all neighborhoods
+      neighborhood_local: []
+      neighborhood_global: [
+        0, 1, 1, 1, 1, 0, 1, 0, 0,
+        0, 0, 1, 1, 1, 1, 0, 1, 0,
+        1, 0, 0, 1, 1, 1, 0, 0, 1,
+        1, 1, 0, 0, 1, 1, 1, 0, 0,
+        1, 1, 1, 0, 0, 1, 0, 1, 0,
+        1, 1, 1, 1, 0, 0, 0, 0, 1,
+        0, 1, 1, 1, 1, 0, 1, 0, 0,
+        0, 0, 1, 1, 1, 1, 0, 1, 0,
+        1, 0, 0, 1, 1, 1, 0, 0, 1
+        ]
+      neighborhood_size: 9
+      neighborhood_default: 0     # if outside the span, 1 means they are a neighbor and 0 means they are not

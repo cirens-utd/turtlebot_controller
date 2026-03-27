@@ -10,13 +10,7 @@ import yaml
 import pdb
 
 class FollowMe(Agent):
-    def __init__(self, my_number, my_neighbors=[], formation_distance=[], *args, 
-        sim=False, sync_move=False,
-        at_goal_historisis=0.15,
-        restricted_area = False, restricted_x_min = -2.9, restricted_x_max = 2.9, restricted_y_min = -5, restricted_y_max = 4,
-        destination_tolerance=0.01,
-        laser_avoid=True, laser_distance=0.5, laser_delay=5, laser_walk_around=2, laser_avoid_loop_max=1,
-        neighbor_avoid=True, neighbor_delay=5):
+    def __init__(self, node_name):
         '''
         formation_distance should be in the following formate
         formation_distance = {
@@ -24,15 +18,13 @@ class FollowMe(Agent):
             ...
         }
         '''
-        super().__init__(my_number, my_neighbors, sync_move=sync_move, sim=sim,
-                        destination_tolerance=destination_tolerance,
-                        restricted_area=restricted_area, restricted_x_min=restricted_x_min, restricted_x_max=restricted_x_max, restricted_y_min=restricted_y_min, restricted_y_max=restricted_y_max,
-                        laser_avoid=laser_avoid, laser_distance=laser_distance, laser_delay=laser_delay, laser_walk_around=laser_walk_around, laser_avoid_loop_max=laser_avoid_loop_max,
-                        neighbor_avoid=neighbor_avoid, neighbor_delay=neighbor_delay)
+        super().__init__(node_name)
+
+        formation_distance,_ = self.build_formation_distance(self._my_neighbors, self.my_number)
         self._formation_distance = formation_distance
         self._leader = None
 
-        for number in my_neighbors:
+        for number in self._my_neighbors:
             if type(self._leader) == type(None) or number > self._leader:
                 self._leader = number
                 
@@ -92,26 +84,26 @@ class FollowMe(Agent):
             self.shutdown()
             rclpy.shutdown()
 
-def build_formation_distance(neighbor_array, my_number):
-    fd = {}
-    set_index = -1
-    neighbor = []
+    def build_formation_distance(self, neighbor_array, my_number):
+        fd = {}
+        set_index = -1
+        neighbor = []
 
-    # distances for 5 nodes
-    distances = [[0.00, 1.81, 2.91, 2.98, 1.76],[1.81, 0.00, 2.07, 2.96, 2.95],[2.91, 2.07, 0.00, 1.36, 2.75],[2.98, 2.96, 1.36, 0.00, 1.99],[1.76, 2.95, 2.75, 1.99, 0.00]]
+        # distances for 5 nodes
+        distances = [[0.00, 1.81, 2.91, 2.98, 1.76],[1.81, 0.00, 2.07, 2.96, 2.95],[2.91, 2.07, 0.00, 1.36, 2.75],[2.98, 2.96, 1.36, 0.00, 1.99],[1.76, 2.95, 2.75, 1.99, 0.00]]
 
-    for index, number in enumerate(neighbor_array):
-        neighbor.append(number)
-        if number == my_number:
-            set_index = index
-    
-    if set_index != -1:
         for index, number in enumerate(neighbor_array):
-            fd[str(number)] = distances[set_index][index]
+            neighbor.append(number)
+            if number == my_number:
+                set_index = index
         
-        return fd, neighbor
-    
-    raise ValueError(f"My Index Value was not passed into the as one of the Neighbors")
+        if set_index != -1:
+            for index, number in enumerate(neighbor_array):
+                fd[str(number)] = distances[set_index][index]
+            
+            return fd, neighbor
+        
+        raise ValueError(f"My Index Value was not passed into the as one of the Neighbors")
 
 def main(args=None):
     ## Start Simulation Script
@@ -123,22 +115,12 @@ def main(args=None):
     You formation yaml should have robot numbers in it and the formation distances.
     You pass in which node is this one through -i and all the others will be neighbors
     '''
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-i", "--index", default="1", type=int, help="Index of this robot")
-    parser.add_argument("-s", "--sim", default=False, action="store_true", help="Set Simmulation mode")
-    parser.add_argument("-n", "--neighbor", default=[], nargs='+', type=int, help="Array of neighbors")
-    parser.add_argument("-l", "--laser_avoid", default=True, action="store_false", help="Avoid using laser")
-    parser.add_argument("-m", "--loop_max", default=1, type=int, help="Laser Loop Max Number")
-    parser.add_argument("-b", "--neighbor_avoid", default=True, action="store_false", help="Avoid Using neighbor position")
-    parser.add_argument("--ros-args", default=False, action="store_true")
-    script_args = parser.parse_args()
 
-    fd,_ = build_formation_distance(np.array(script_args.neighbor), script_args.index)
+    # --ros-args -p robot.id:=1 -p robot.neighbors:="[1,2,3]" -p mode.sim:=true -p laser.avoid:=true -p laser.avoid_loop_max:=2nt, help="Index of this robot")
 
     try:
         rclpy.init(args=args)
-        my_robot = FollowMe(int(script_args.index), np.array(script_args.neighbor), fd, sim=script_args.sim, 
-            restricted_area=True, laser_avoid=script_args.laser_avoid, neighbor_avoid=script_args.neighbor_avoid, laser_avoid_loop_max=script_args.loop_max)
+        my_robot = FollowMe("FollowMe")
         rclpy.spin(my_robot)
     except Exception as e:
         traceback.print_exc()

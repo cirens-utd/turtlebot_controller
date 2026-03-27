@@ -11,16 +11,8 @@ import os
 import pdb
 
 class Calibration(Agent):
-    def __init__(self, my_number, run_setup=True, *args, sim=False, sync_move=False,
-        destination_tolerance=0.01, 
-        restricted_area = False, restricted_x_min = -2.9, restricted_x_max = 2.9, restricted_y_min = -5, restricted_y_max = 4,
-        laser_avoid=True, laser_distance=0.5, laser_delay=5, laser_walk_around=2,
-        neighbor_avoid=True, neighbor_delay=5):
-        super().__init__(my_number, [], sim=sim, sync_move=sync_move, 
-                        destination_tolerance=destination_tolerance, logging=False,
-                        restricted_area=restricted_area, restricted_x_min=restricted_x_min, restricted_x_max=restricted_x_max, restricted_y_min=restricted_y_min, restricted_y_max=restricted_y_max,
-                        laser_avoid=laser_avoid, laser_distance=laser_distance, laser_delay=laser_delay, laser_walk_around=laser_walk_around,
-                        neighbor_avoid=neighbor_avoid, neighbor_delay=neighbor_delay)
+    def __init__(self, node_name, run_setup=True):
+        super().__init__(node_name)
 
         self._use_config_setup = not run_setup
 
@@ -158,20 +150,15 @@ def main(args=None):
     ## Start Simulation Script
     ## ros2 launch turtlebot_base launch_sim.launch.py 
     ## ros2 launch turtlebot_base launch_robots.launch.py yaml_load:=False robot_number:=1
-    ## ros2 run agent_control calibration.py -i 1 -s
+    ## ros2 run agent_control calibration.py -c --ros-args -p mode.sim:=true -p laser.avoid:=false -p neighbor.avoid:=false
     parser = argparse.ArgumentParser()
-    parser.add_argument("-i", "--index", default="1", type=int, help="Index of this robot")
     parser.add_argument("-c", "--calibrate", default=True, action="store_false", help="Set if you do not want to run calibration")
-    parser.add_argument("-s", "--sim", default=False, action="store_true", help="Mode you want to calibrate in")
-    parser.add_argument("--ros-args", default=False, action="store_true")
-    script_args = parser.parse_args()
+    script_args, ros_args = parser.parse_known_args()
 
-    rclpy.init(args=args)
+    rclpy.init(args=ros_args)
     my_robot = Calibration(
-        int(script_args.index), 
-        script_args.calibrate,
-        sim=script_args.sim,
-        laser_avoid=False, neighbor_avoid=False)
+        "Calibration",
+        script_args.calibrate)
     rclpy.spin(my_robot)
     rclpy.shutdown()
 

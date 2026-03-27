@@ -12,18 +12,9 @@ import traceback
 import pdb
 
 class Coverage(Agent):
-    def __init__(self, my_number, my_neighbors=[], *args, 
-        logging=False,
-        perimeter=[(-3.8, 0.19), (-0.12, 3.36), (2.69, 2.0), (2.74, -2.6), (-0.18, -5.0), (-2.36, -5.12)],
-        sim=False, sync_move=False, destination_tolerance=0.01,
-        restricted_area = False, restricted_x_min = -2.9, restricted_x_max = 2.9, restricted_y_min = -5, restricted_y_max = 4,
-        laser_avoid=True, laser_distance=0.5, laser_delay=5, laser_walk_around=2, laser_avoid_loop_max=1,
-        neighbor_avoid=True, neighbor_delay=5, viewer=False):
-        super().__init__(my_number, my_neighbors, sim=sim, sync_move=sync_move, 
-                        destination_tolerance=destination_tolerance, logging=logging,
-                        restricted_area=restricted_area, restricted_x_min=restricted_x_min, restricted_x_max=restricted_x_max, restricted_y_min=restricted_y_min, restricted_y_max=restricted_y_max,
-                        laser_avoid=laser_avoid, laser_distance=laser_distance, laser_delay=laser_delay, laser_walk_around=laser_walk_around, laser_avoid_loop_max=laser_avoid_loop_max,
-                        neighbor_avoid=neighbor_avoid, neighbor_delay=neighbor_delay, viewer=viewer)
+    def __init__(self, node_name,
+        perimeter=[(-3.8, 0.19), (-0.12, 3.36), (2.69, 2.0), (2.74, -2.6), (-0.18, -5.0), (-2.36, -5.12)]):
+        super().__init__(node_name)
 
         self.get_logger().info(f"My Parameter is {perimeter}")
         self.boundary = Polygon(perimeter) # Points for your boundary [(0,0), (0,1), (1,1), (1,0)]
@@ -138,28 +129,20 @@ def main(args=None):
     - shapely
     '''
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-i", "--index", default="1", type=int, help="Index of this robot")
-    parser.add_argument("-n", "--neighbor", default=[], nargs='+', type=int, help="Array of neighbors")
-    parser.add_argument("-s", "--sim", default=False, action="store_true", help="Set Simmulation mode")
-    parser.add_argument("-l", "--laser_avoid", default=True, action="store_false", help="Avoid using laser")
-    parser.add_argument("-m", "--loop_max", default=1, type=int, help="Laser Loop Max Number")
-    parser.add_argument("-b", "--neighbor_avoid", default=True, action="store_false", help="Avoid Using neighbor position")
-    parser.add_argument("-p", "--perimeter", nargs='+', type=float, help="List of coordinates defining the ploygon (e.g. x1 y1 x2 y2 ...)")
-    parser.add_argument("-r", "--record", default=False, action="store_true", help="Enable Logging")
-    parser.add_argument("--ros-args", default=False, action="store_true")
-    script_args = parser.parse_args()
+    # -p 0 0 0 2 2 2 2 0 --ros-args -p robot.id:=1 -p robot.neighbors:="[1,2,3]" -p mode.sim:=true -p laser.avoid:=true -p laser.avoid_loop_max:=2
 
-    if script_args.perimeter:
-        points = [(script_args.perimeter[i], script_args.perimeter[i+1]) for i in range(0, len(script_args.perimeter), 2)]
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-b", "--boarder", nargs='+', type=float, help="List of coordinates defining the ploygon (e.g. x1 y1 x2 y2 ...)")
+    script_args, ros_args = parser.parse_known_args()
+
+    if script_args.boarder:
+        points = [(script_args.boarder[i], script_args.boarder[i+1]) for i in range(0, len(script_args.boarder), 2)]
     else:
         points = [(-3.8, 0.19), (-0.12, 3.36), (2.69, 2.0), (2.74, -2.6), (-0.18, -5.0), (-2.36, -5.12)]
 
     try:
-        rclpy.init(args=args)
-        my_robot = Coverage(int(script_args.index), np.array(script_args.neighbor), perimeter=points,
-            sim=script_args.sim, logging=script_args.record,
-            restricted_area=True, laser_avoid=script_args.laser_avoid, neighbor_avoid=script_args.neighbor_avoid, laser_avoid_loop_max=script_args.loop_max)
+        rclpy.init(args=ros_args)
+        my_robot = Coverage("Coverage", perimeter=points)
         rclpy.spin(my_robot)
     except Exception as e:
         traceback.print_exc()

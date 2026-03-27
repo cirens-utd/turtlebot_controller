@@ -19,12 +19,7 @@ class Led_state(Enum):
     COMPLETE = 2
     
 class LF_multi_formation(Agent):
-    def __init__(self, my_number, my_neighbors=[], formation_distance=[], all_formation=[], *args, 
-        sim=False, sync_move=False, logging=False, angle_tolerance=0.1,
-        restricted_area = False, restricted_x_min = -2.9, restricted_x_max = 2.9, restricted_y_min = -5, restricted_y_max = 4,
-        destination_tolerance=0.01,at_goal_historisis = 0.01,
-        laser_avoid=True, laser_distance=0.5, laser_delay=5, laser_walk_around=2, laser_avoid_loop_max=1,
-        neighbor_avoid=True, neighbor_delay=5):
+    def __init__(self, node_name, yaml_data={}):
         '''
         formation_distance should be in the following formate
         formation_distance = {
@@ -32,14 +27,24 @@ class LF_multi_formation(Agent):
             ...
         }
         '''
-        super().__init__(my_number, my_neighbors, sync_move=sync_move, sim=sim,
-                        destination_tolerance=destination_tolerance, logging=logging, angle_tolerance=angle_tolerance, at_goal_historisis=at_goal_historisis,
-                        restricted_area=restricted_area, restricted_x_min=restricted_x_min, restricted_x_max=restricted_x_max, restricted_y_min=restricted_y_min, restricted_y_max=restricted_y_max,
-                        laser_avoid=laser_avoid, laser_distance=laser_distance, laser_delay=laser_delay, laser_walk_around=laser_walk_around, laser_avoid_loop_max=laser_avoid_loop_max,
-                        neighbor_avoid=neighbor_avoid, neighbor_delay=neighbor_delay)
+        super().__init__(node_name)
+
+        if len(yaml_data)>1:
+            fd_list = []
+            neighbor_list = []
+            for data in yaml_data:
+                formation_distance,neighbor,all_fd = self.build_formation_distance(data, self.my_number, self._my_neighbors)
+                fd_list.append(formation_distance)
+        else:
+            ##This should remain the same as the original code if there is only one yaml file
+            formation_distance, neighbor = self.build_formation_distance(yaml_data[0], self.my_number, self._my_neighbors)
+            fd_list = formation_distance
         
+        self._my_neighbors = neighbor
+        self._rebuild_neighborhood()
+
         self.formation_distance = formation_distance
-        self.all_fd = all_formation
+        self.all_fd = fd_list
 
         #Added for multiple formations
         if isinstance(formation_distance,list):
@@ -54,9 +59,9 @@ class LF_multi_formation(Agent):
         self.delay_cycles = [150, 150, 150, None]
         self.next_formation = False
 
-        for number in my_neighbors:
+        for number in self._my_neighbors:
             if str(number) not in self._formation_distance:
-                print(f"Neighbors: {my_neighbors}")
+                print(f"Neighbors: {self._my_neighbors}")
                 print(f"Formation_distance: {self._formation_distance}")
                 raise NotImplementedError('When Passing formation distance into LF_Formation, all neighbors must have a set distance')
         
@@ -147,34 +152,33 @@ class LF_multi_formation(Agent):
                 self.get_logger().info(f"Distance Desired: {distance}\t What I got: {actual_distance}")
                 return False
         return True
+
+    def build_formation_distance(self, data, my_number, input_neighbors):
+        fd = {}
+        set_index = -1
+        neighbor = []
+        all_fd = {}
+
+
+        for index, number in enumerate(input_neighbors):
+            if number == my_number:
+                set_index = index
+            else:
+                neighbor.append(number)
+                all_fd[str(number)] = {}
+                for idx, num in enumerate(input_neighbors):
+                    all_fd[str(number)][str(num)] = data['formation_distances'][index][idx]
+        
+        if set_index != -1:
+            for index, number in enumerate(input_neighbors):
+                fd[str(number)] = data['formation_distances'][set_index][index]
             
+            return fd, neighbor, all_fd
+        raise NotImplementedError("Attempted to start LF_Formation Node but the number given in neighbor argument didn't match the size of the formation matrix.")   
     
 def get_yaml(path):
     with open(path, 'r') as f:
         return yaml.safe_load(f)
-
-def build_formation_distance(data, my_number, input_neighbors):
-    fd = {}
-    set_index = -1
-    neighbor = []
-    all_fd = {}
-
-
-    for index, number in enumerate(input_neighbors):
-        if number == my_number:
-            set_index = index
-        else:
-            neighbor.append(number)
-            all_fd[str(number)] = {}
-            for idx, num in enumerate(input_neighbors):
-                all_fd[str(number)][str(num)] = data['formation_distances'][index][idx]
-    
-    if set_index != -1:
-        for index, number in enumerate(input_neighbors):
-            fd[str(number)] = data['formation_distances'][set_index][index]
-        
-        return fd, neighbor, all_fd
-    raise NotImplementedError("Attempted to start LF_Formation Node but the number given in neighbor argument didn't match the size of the formation matrix.")
 
 
 def main(args=None):
@@ -188,16 +192,6 @@ def main(args=None):
     You pass in which node is this one through -i and all the others will be neighbors
     This requires that all the robots in teh system are passed in neighbor, including our index
     '''
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-i", "--index", default="1", type=int, help="Index of this robot")
-    parser.add_argument("-f", "--formation", type = str, default = "/home/ubuntu/Turtlebot_Controller/src/agent_control/config/CiRENS_formation/",help = "/path/to/agent_setup.yaml")
-    parser.add_argument("-s", "--sim", default=False, action="store_true", help="Set Simmulation mode")
-    parser.add_argument("-l", "--laser_avoid", default=True, action="store_false", help="Avoid using laser")
-    parser.add_argument("-n", "--neighbor", default=[], nargs='+', type=int, help="Array of neighbors")
-    parser.add_argument("-m", "--loop_max", default=1, type=int, help="Laser Loop Max Number")
-    parser.add_argument("-b", "--neighbor_avoid", default=True, action="store_false", help="Avoid Using neighbor position")
-    parser.add_argument("--ros-args", default=False, action="store_true")
-    script_args = parser.parse_args()
     
     ## Changed yaml load to take in a directory name and then load all yaml files from that directory 
     ## Another way would have  been to just put multiple formations in the same yaml, but this may make things easier if we
@@ -210,8 +204,8 @@ def main(args=None):
     # 4 is smiley
     list = ['1', '3', '2', '4']
     for num in list:
-        # yaml_data.append(get_yaml(f"/home/cirens/turtlebot_codes/turtlebot_controller/src/agent_control/config/shapes/agent_setup({num}).yaml"))
-        yaml_data.append(get_yaml(f"/home/ubuntu/Turtlebot_Controller/src/agent_control/config/shapes/agent_setup({num}).yaml"))
+        # yaml_data.append(get_yaml(f"/home/ubuntu/Turtlebot_Controller/src/agent_control/config/shapes/agent_setup({num}).yaml"))
+        yaml_data.append(get_yaml(f"src/agent_control/config/shapes/agent_setup({num}).yaml"))
     # for file in os.listdir(script_args.formation):
     #     if file.endswith(".yaml") or file.endswith(".yml"):
     #         try:
@@ -220,21 +214,10 @@ def main(args=None):
     #         except yaml.YAMLError as exc:
     #             print(exc)
     #             break
-    if len(yaml_data)>1:
-        fd_list = []
-        neighbor_list = []
-        for data in yaml_data:
-            fd,neighbor,all_fd = build_formation_distance(data, script_args.index, script_args.neighbor)
-            fd_list.append(fd)
-    else:
-         ##This should remain the same as the original code if there is only one yaml file
-        fd, neighbor = build_formation_distance(yaml_data[0], script_args.index, script_args.neighbor)
-        fd_list = fd
 
     try:
         rclpy.init(args=args)
-        my_robot = LF_multi_formation(int(script_args.index), np.array(neighbor), fd_list, all_fd, sim=script_args.sim, logging=True,
-            restricted_area=True, laser_avoid=script_args.laser_avoid, neighbor_avoid=script_args.neighbor_avoid, laser_avoid_loop_max=script_args.loop_max)
+        my_robot = LF_multi_formation("LF_Multi_Formation", yaml_data)
         rclpy.spin(my_robot)
     except Exception as e:
         traceback.print_exc()

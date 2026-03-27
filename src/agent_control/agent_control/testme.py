@@ -12,24 +12,8 @@ from irobot_create_msgs.msg import LightringLeds
 import pdb
 
 class TestMe(Agent):
-    def __init__(self, my_number, my_neighbors=[], *args, 
-        sim=False, sync_move=False, viewer=False,
-        logging=False, restricted_area = False, restricted_x_min = -2.9, restricted_x_max = 2.9, restricted_y_min = -5, restricted_y_max = 4,
-        destination_tolerance=0.01, angle_tolerance=0.1,
-        laser_avoid=True, laser_distance=0.5, laser_delay=5, laser_walk_around=2, laser_avoid_loop_max=1,
-        neighbor_avoid=True, neighbor_delay=5):
-        '''
-        formation_distance should be in the following formate
-        formation_distance = {
-            "neighbor#": 2.0,
-            ...
-        }
-        '''
-        super().__init__(my_number, my_neighbors, sync_move=sync_move, sim=sim, viewer=viewer,
-                        destination_tolerance=destination_tolerance, logging=logging, angle_tolerance=angle_tolerance,
-                        restricted_area=restricted_area, restricted_x_min=restricted_x_min, restricted_x_max=restricted_x_max, restricted_y_min=restricted_y_min, restricted_y_max=restricted_y_max,
-                        laser_avoid=laser_avoid, laser_distance=laser_distance, laser_delay=laser_delay, laser_walk_around=laser_walk_around, laser_avoid_loop_max=laser_avoid_loop_max,
-                        neighbor_avoid=neighbor_avoid, neighbor_delay=neighbor_delay)
+    def __init__(self, node_name):
+        super().__init__(node_name)
 
         # self.robot_ready = True
         self.angles = [0, self.end_heading]
@@ -120,21 +104,10 @@ def main(args=None):
     You formation yaml should have robot numbers in it and the formation distances.
     You pass in which node is this one through -i and all the others will be neighbors
     '''
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-i", "--index", default="1", type=int, help="Index of this robot")
-    parser.add_argument("-s", "--sim", default=False, action="store_true", help="Set Simmulation mode")
-    parser.add_argument("-n", "--neighbor", default=[], nargs='+', type=int, help="Array of neighbors")
-    parser.add_argument("-l", "--laser_avoid", default=True, action="store_false", help="Avoid using laser")
-    parser.add_argument("-m", "--loop_max", default=1, type=int, help="Laser Loop Max Number")
-    parser.add_argument("-b", "--neighbor_avoid", default=True, action="store_false", help="Avoid Using neighbor position")
-    parser.add_argument("-r", "--record", default=False, action="store_true", help="Enable Logging")
-    parser.add_argument("--ros-args", default=False, action="store_true")
-    script_args = parser.parse_args()
 
     try:
         rclpy.init(args=args)
-        my_robot = TestMe(int(script_args.index), np.array(script_args.neighbor), sim=script_args.sim, 
-            logging=script_args.record, restricted_area=True, laser_avoid=script_args.laser_avoid, neighbor_avoid=script_args.neighbor_avoid, laser_avoid_loop_max=script_args.loop_max)
+        my_robot = TestMe("TestMe")
         rclpy.spin(my_robot)
     except Exception as e:
         traceback.print_exc()

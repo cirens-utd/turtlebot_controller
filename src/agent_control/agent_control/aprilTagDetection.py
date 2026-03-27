@@ -25,17 +25,8 @@ import pdb
 
 class AprilTagDetectorNode(Agent):
 
-    def __init__(self, my_number, my_neighbors=[], *args, sim=False, sync_move=False,
-        destination_tolerance=0.01,logging=False,
-        use_mocap=False, use_camera=True, 
-        restricted_area = False, restricted_x_min = -2.9, restricted_x_max = 2.9, restricted_y_min = -5, restricted_y_max = 4,
-        laser_avoid=True, laser_distance=0.5, laser_delay=5, laser_walk_around=2, laser_avoid_loop_max=1,
-        neighbor_avoid=False, neighbor_delay=5, reset_odom=False):
-        super().__init__(my_number, my_neighbors, sim=sim, sync_move=sync_move, 
-                        destination_tolerance=destination_tolerance, logging=logging, use_mocap=use_mocap, use_camera=use_camera,
-                        restricted_area=restricted_area, restricted_x_min=restricted_x_min, restricted_x_max=restricted_x_max, restricted_y_min=restricted_y_min, restricted_y_max=restricted_y_max,
-                        laser_avoid=laser_avoid, laser_distance=laser_distance, laser_delay=laser_delay, laser_walk_around=laser_walk_around, laser_avoid_loop_max=laser_avoid_loop_max,
-                        neighbor_avoid=neighbor_avoid, neighbor_delay=neighbor_delay)
+    def __init__(self, node_name, reset_odom=False):
+        super().__init__(node_name)
 
         # self._min_angle = 0.1
 
@@ -507,17 +498,10 @@ def main(args=None):
     # Notes SCIPY needs < 1.25.0
     # pip install numpy==1.24.4
 
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-i", "--index", default="1", type=int, help="Index of this robot")
-    parser.add_argument("-n", "--neighbor", default=[], nargs='+', type=int, help="Array of neighbors")
-    parser.add_argument("-l", "--laser_avoid", default=True, action="store_false", help="Avoid using laser")
-    parser.add_argument("-r", "--record", default=False, action="store_true", help="Enable Logging")
-
-    script_args = parser.parse_args()
+    # --ros-args -p robot.id:=1 -p robot.neighbors:="[1,2,3]" -p laser.avoid:=false -p logging.enabled:=false
     
     rclpy.init(args=args)
-    apriltag_detector_node = AprilTagDetectorNode(int(script_args.index), script_args.neighbor, logging=script_args.record, laser_avoid=script_args.laser_avoid, reset_odom=True)
+    apriltag_detector_node = AprilTagDetectorNode("AprilTagDetector")
     try:
         rclpy.spin(apriltag_detector_node)
     except KeyboardInterrupt:

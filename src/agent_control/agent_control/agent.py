@@ -43,70 +43,53 @@ class LED_STATE(Enum):
     BLOCKED = RGB(255, 0 , 178) # PINK
 
 class Agent(Node):
-    def __init__(self, my_number, my_neighbors=[], *args, sim=False, sync_move=False, logging=False,
-        destination_tolerance=0.01, angle_tolerance=0.1, at_goal_historisis = 1,
-        use_mocap=True, use_camera = False,
-        restricted_area = False, restricted_x_min = -2.9, restricted_x_max = 2.9, restricted_y_min = -5, restricted_y_max = 4,
-        laser_avoid=True, laser_distance=0.5, laser_delay=5, laser_walk_around=2, laser_avoid_loop_max = 1,
-        neighbor_avoid=True, neighbor_delay=5, viewer=False):
+    def __init__(self, node_name):
         # start with this agents number and the numbers for its neighbors
-        name = f"robot{my_number}"
         self.start_time = datetime.datetime.now().strftime("%Y-%m-%d-%H%M%S")
-        super().__init__(name)
+        super().__init__(node_name)
 
-        self._only_viewer = viewer
-        self.my_name = name
-        self.my_number = my_number
-        self._diameter = 0.4
-        self._sim = sim
-        self._logging_enable = logging
-        self.logging_pasued = False
-        self._replay_dict = []
-        self._log_dict_length = 9000                    # this is about 15 min
+        # Setting up handlers
+        self._param_special_handlers = {
+            "robot.neighbors": self._handle_neighbors,
+            "robot.neighborhood_mode": self._handle_neighborhood,
+            "robot.neighborhood_global": self._handle_neighborhood,
+            "robot.neighborhood_local": self._handle_neighborhood,
+            "robot.neighborhood_size": self._handle_neighborhood,
+            "robot.neighborhood_default": self._handle_neighborhood,
+            "motion.destination_tolerance": self._handle_destination_tolerance,
+            "motion.at_goal_historisis": self._hanlde_goal_tolerance
+        }
+        self.declare_agent_parameters()
+        self.assign_parameters()
+        self.add_on_set_parameters_callback(self.parameter_callback)
+
+        self.my_name = f"robot{self.my_number}"
+        self._replay_dict = []                  # this is about 15 min
         self._creat_log_file_names(self.start_time)
         policy = qos_profile_sensor_data
 
-        self._use_mocap = use_mocap
-
-        # logging info
-        self._use_config_setup = True
-        self.config_file = "turtlebot_global_config.yaml"
-        self._offset_x = 0
-        self._offset_y = 0
-
         # LED Info
-        self.led_override = False                   # set to true if you want take control of LED's in your code
         self.led_light_state = None                 # Current status of LED for logger
-        self.led_persistent = True                  # Sets LED every cycle
 
         self._robot_status = None                    # Current status of robot
         self._led_enum = LED_STATE
         self._robot_status_options = LED_STATE.__members__
         self._robot_ready = False
         self._position_started = False
-        self._has_neighbors = bool(len(my_neighbors))
+        self._has_neighbors = bool(len(self._my_neighbors))
         self._neighbors_started = not self._has_neighbors
-        self._lidar_started = not laser_avoid
+        self._lidar_started = not self.laser_avoid
         self._neighbors_ready = {}
         self.neighbor_poses = {}
 
-        self.start_heading = 0    # Direction robot turns to start from 0 - 2pi
-        self.end_heading = np.pi  # Direction robot turns to end from 0 - 2pi
-        self.driving_heading_tolerance = np.pi/4
         self._robot_moving = False
         self._desired_heading = False
-        self.restart_start_position = True
 
-        self._restricted_area = restricted_area         # Boolean to restrict robot movement
         self._robot_restricted_movement = False
-        self._restricted_x_min = restricted_x_min
-        self._restricted_x_max = restricted_x_max
-        self._restricted_y_min = restricted_y_min
-        self._restricted_y_max = restricted_y_max
-
+        
         # Camera Info
-        self._camera_setup = not use_camera
-        self._camera_started = not use_camera
+        self._camera_setup = not self._use_camera
+        self._camera_started = not self._use_camera
 
         self.get_logger().info(f"{self.my_name} has been started.")
 
@@ -114,7 +97,7 @@ class Agent(Node):
             policy = 10
 
         # Create Publisher for movement
-        self.cmd_vel_pub_ = self.create_publisher(Twist, f"/{name}/cmd_vel", policy)
+        self.cmd_vel_pub_ = self.create_publisher(Twist, f"/{self.my_name}/cmd_vel", policy)
 
         # Create Publisher for LED
         self.led_pub_ = self.create_publisher(LightringLeds, '/'+self.my_name+'/cmd_lightring', policy)
@@ -143,16 +126,17 @@ class Agent(Node):
                     "z": empty_poseStamped.pose.orientation.z,
                     "w": empty_poseStamped.pose.orientation.w
                 }
-            }
+            },
+            "in_neighborhood": True
         }
         
-        if use_mocap:
+        if self._use_mocap:
             # Create Subscriber for position
             self.position_sub_ = self.create_subscription(PoseStamped, f"/vrpn_mocap/turtlebot{self.my_number}/pose", self.pose_callback_, policy)
         
             # Setting up neighbors Subscriptions
-            for number in my_neighbors:
-                if number != my_number:
+            for number in self._my_neighbors:
+                if number != self.my_number:
                     # Positions
                     try:
                         self.neighbor_position_sub_[number] = self.create_subscription(
@@ -169,6 +153,7 @@ class Agent(Node):
             
                 else:
                     self.get_logger().warning(f"{self.my_name}: Cannot be neighbor to myself.")
+        
         else:
             # Setting flags so robot can start without mocab
             self._position_started = True
@@ -180,13 +165,12 @@ class Agent(Node):
         # Lidar Topics
         self.lidar_sub_ = self.create_subscription(LaserScan, f"/{self.my_name}/scan", self.lidar_callback_, 10)
 
-        self.timer = self.create_timer(0.1, self._controller_loop)
+        self.timer = self.create_timer(self._control_loop_period, self._controller_loop)
         if self.logging_enable:
             self.get_logger().info(f"{self.my_name}: Logging Enabled")
-            self.log_timer = self.create_timer(0.1, self._log_recording)
+            self.log_timer = self.create_timer(self._log_loop_period, self._log_recording)
         
         # Battery Status
-        self._wait_for_battery = True
         self._battery_received = False
         self.battery_sub_ = self.create_subscription(BatteryState, f"/{self.my_name}/battery_state", self.battery_callback_, 10)
         self._battery_dict = {
@@ -214,26 +198,17 @@ class Agent(Node):
         self._quaternion = None
 
         # track where my neighbors are
-        
         self.neighbor_position = {}
         self.neighbor_orientation = {}
+        self._rebuild_neighborhood()
 
         # Laser Avoidance Vars
-        self.laser_avoid = laser_avoid          # Boolean to use laser to avoid obstructions
-        self.laser_distance = laser_distance    # Minimum distance you can get to an object
         self._laser_range_setup = False         # Boolean to setup laser indexs 
-        self.rf_radian = -np.pi/3               # This is used to setup the radian position for laser colision
-        self.lf_radian = np.pi/3                 # This is used to setup the radian position for laser colision
-        self.r_radian = -np.pi/2                # This is used to setup the radian position for laser colision
-        self.l_radian = np.pi/2                 # This is used to setup the radian position for laser colision
-        self.f_radian = 0                       # This is used to setup the radian position for laser colision
         self._laser_obstructed_forward = False  # Boolean to know we are clear in front of us
         self._laser_obstructed_right = False    # Boolean to know we are clear on the right
         self._laser_obstructed_left = False     # Boolean to know we are clear on the left
         self.__laser_obstructed_direction = None # Direction you were started to go to avoid the obsturction - Note: must be set to None before can change again
-        self._laser_walk_around = laser_walk_around # If 0 robot will go left and 1 will go right and 2 will decide based on laser
-        self._laser_delay = laser_delay         # Number of seconds before avoidance is taken 
-        self._laser_delay_active = laser_delay  # Active value used in delay. If avoiding neighbor, the higher number robot will wait 2 * laser_delay
+        self._laser_delay_active = self._laser_delay  # Active value used in delay. If avoiding neighbor, the higher number robot will wait 2 * laser_delay
         self._laser_scan = None                 # Last known value of the laser scanner
         self._laser_min_angle = None            # Min angle of the laser scanner (setup in laser setup)
         self._laser_max_angle = None            # Max angle of the laser scanner (setup in laser setup)
@@ -241,7 +216,6 @@ class Agent(Node):
         self._laser_dynamic_left = False        # Flag used to determine if we are going left
         self._laser_dynamic_right = False       # Flag used to determine if we are going right
         self._pre_path_obstructed_laser = False # Flag to see what previous path obstructed was
-        self._laser_avoid_loop_max = laser_avoid_loop_max # number of loops before fail in laser avoid
         self._laser_avoid_loop_count = 0        # Track Current Loop Count
         self._laser_avoid_directions_start_idx = 0 # Starting index for directions traveled
         self._laser_avoid_directions_traveled = np.array([False, False, False, False])  
@@ -249,35 +223,22 @@ class Agent(Node):
         self._laser_avoid_error = False         # Flag used to tell if laser avoid error occured
 
         #Neighbor Avoid Vars
-        self.neighbor_avoid = neighbor_avoid    # Boolean to know we want to avoid our neighbors
-        self.neighbor_walk_around = True        # Boolean to let us walk around the neighbor. Set to False if you just want to sit and wait
-        self._neighbor_tolerance = 0.5          # How close to neighbors do we get
         self._neighbor_tolerance_active = self._neighbor_tolerance  # active value used in movement. Adjusted depending on step of movement
         self._neighbor_collision_vector = None  # Vector to robot that will collide
         self._neighbor_collision_name = None    # Name of robot that we are colliding with
-        self._neighbor_delay = neighbor_delay   # seconds to wait before acting on neighbor in way (lower number robot. Higher Number will be 2x as long)
-        self._neighbor_delay_active = neighbor_delay # ative delay value (lower number will be neighbor delay and higher will be 2 * neighbor delay)
+        self._neighbor_delay_active = self._neighbor_delay # ative delay value (lower number will be neighbor delay and higher will be 2 * neighbor delay)
         self._neighbor_obstructed_time = None   # Time that a neighbor is in the way (used in manual move)
-        self._neighbor_turning = 0              # Set to allow robot to turn before calculate collision, 1 = Left, 2 = right, 0 = not turning
         self._neighbor_turning_set = False      # Used to always turn the same way until path is clear
         self._neighbor_face_direction = None    # Which direction do I want to face
 
         # status for the agent
-        self._max_speed = 2.0 # 0.5             # max speed you can command the robot to move
-        self._max_angle = 2.0                   # max speed you can command the robot to turn
-        self._min_speed = 0.5
-        self._min_angle = 0.1
         self._desired_location = None
         self._attempted_desired_location = None
         self._desired_angle = None
         self._destination_reached = False
         self._motion_complete = False
         self._neighbors_complete = False
-        self._destination_tolerance = destination_tolerance
-        self._in_motion_tolerance = destination_tolerance
-        self._at_goal_historisis = at_goal_historisis   # how far way you need to be from your goal before you start moving again
-        self._angle_tolerance = angle_tolerance
-        self._sync_move = sync_move     # Boolean used to activate sync move mode
+        self._in_motion_tolerance = self._destination_tolerance
         self._synce_state = 0           # State of this agent. 0 = not ready 1 = ready 2 = complete 4 = obstructed
         self._path_obstructed_time = None
         self._path_obstructed = False
@@ -287,6 +248,323 @@ class Agent(Node):
         # Variables for detecting Thread slipping
         self._controller_running = False
         self._slip_warning = True
+
+    def declare_agent_parameters(self):
+
+        # --- Robot ---
+        self.declare_parameter("robot.id", 1)
+        self.declare_parameter("robot.neighbors", [1])
+        self.declare_parameter("robot.diameter", 0.4)
+        self.declare_parameter("robot.use_config", True)
+        self.declare_parameter("robot.config_file", "turtlebot_global_config.yaml")
+        self.declare_parameter("robot.offset_x", 0.0)
+        self.declare_parameter("robot.offset_y", 0.0)
+        self.declare_parameter("robot.neighborhood_mode", 'local')
+        self.declare_parameter("robot.neighborhood_local", [1])
+        self.declare_parameter("robot.neighborhood_global", [1])
+        self.declare_parameter("robot.neighborhood_size", 1)
+        self.declare_parameter("robot.neighborhood_default", 1)
+
+        # --- Mode ---
+        self.declare_parameter("mode.sim", False)
+        self.declare_parameter("mode.sync_move", False)
+        self.declare_parameter("mode.viewer", False)
+
+        # --- Logging ---
+        self.declare_parameter("logging.enabled", True)
+        self.declare_parameter("logging.paused", False)
+        self.declare_parameter("logging.log_dict_length", 9000)
+
+        # --- Sensors ---
+        self.declare_parameter("sensors.use_mocap", True)
+        self.declare_parameter("sensors.use_camera", False)
+
+        # --- Motion ---
+        self.declare_parameter("motion.max_speed", 2.0)
+        self.declare_parameter("motion.min_speed", 0.5)
+        self.declare_parameter("motion.max_angle", 2.0)
+        self.declare_parameter("motion.min_angle", 0.1)
+        self.declare_parameter("motion.destination_tolerance", 0.01)
+        self.declare_parameter("motion.angle_tolerance", 0.1)
+        self.declare_parameter("motion.at_goal_historisis", 1.0)
+        self.declare_parameter("motion.driving_heading_tolerance", 0.785) # pi/4
+        self.declare_parameter("motion.start_heading", 0.0)               # Direction robot turns to start from 0 - 2pi
+        self.declare_parameter("motion.end_heading", np.pi)             # Direction robot turns to end from 0 - 2pi
+        self.declare_parameter("motion.restart_start_position", True)   # Boolean to go back to start heading on restart of controller
+        self.declare_parameter("motion.wait_for_battery", False)         # Wait for battery topic to start
+
+        # --- Timing ---
+        self.declare_parameter("timing.control_loop_period", 0.1)
+        self.declare_parameter("timing.log_loop_period", 0.1)
+
+        # --- Restricted Area ---
+        self.declare_parameter("restricted_area.enabled", False)
+        self.declare_parameter("restricted_area.x_min", -2.9)
+        self.declare_parameter("restricted_area.x_max", 2.9)
+        self.declare_parameter("restricted_area.y_min", -5.0)
+        self.declare_parameter("restricted_area.y_max", 4.0)
+
+        # --- Laser ---
+        self.declare_parameter("laser.avoid", True)
+        self.declare_parameter("laser.distance", 0.5)
+        self.declare_parameter("laser.delay", 5.0)
+        self.declare_parameter("laser.walk_around", 2)
+        self.declare_parameter("laser.avoid_loop_max", 1)
+        self.declare_parameter("laser.rf_radian", -np.pi/3)               # This is used to setup the radian position for laser colision
+        self.declare_parameter("laser.lf_radian", np.pi/3)                # This is used to setup the radian position for laser colision
+        self.declare_parameter("laser.r_radian", -np.pi/2)                # This is used to setup the radian position for laser colision
+        self.declare_parameter("laser.l_radian", np.pi/2)                 # This is used to setup the radian position for laser colision
+        self.declare_parameter("laser.f_radian", 0.0)                       # This is used to setup the radian position for laser colision
+        
+
+        # --- Neighbor ---
+        self.declare_parameter("neighbor.avoid", True)
+        self.declare_parameter("neighbor.delay", 5.0)
+        self.declare_parameter("neighbor.tolerance", 0.5)
+        self.declare_parameter("neighbor.walk_around", True)
+        self.declare_parameter("neighbor.turning", 0)           # Set to allow robot to turn before calculate collision, 1 = Left, 2 = right, 0 = not turning
+
+        # --- LED ---
+        self.declare_parameter("led.override", False)           # set to true if you want take control of LED's in your code
+        self.declare_parameter("led.persistent", True)          # Sets LED every cycle
+
+    def assign_parameters(self):
+        # --- Robot ---
+        self.my_number = self.get_parameter("robot.id").value
+        self._diameter = self.get_parameter("robot.diameter").value
+        self._my_neighbors = [int(x) for x in self.get_parameter("robot.neighbors").value]
+        self._use_config_setup = self.get_parameter("robot.use_config").value
+        self.config_file = self.get_parameter("robot.config_file").value
+        self._offset_x = self.get_parameter("robot.offset_x").value
+        self._offset_y = self.get_parameter("robot.offset_y").value
+
+        # --- Neighborhood ---
+        self._neighborhood_mode = self.get_parameter("robot.neighborhood_mode").value
+        self._neighborhood_default = self.get_parameter("robot.neighborhood_default").value
+
+        if self._neighborhood_mode == 'global':
+            flat = self.get_parameter("robot.neighborhood_global").value
+            flat = [int(x) for x in flat]
+            self._neighborhood_size = self.get_parameter("robot.neighborhood_size").value
+            self._neighborhood = [
+                flat[i*self._neighborhood_size:(i+1)*self._neighborhood_size]
+                for i in range(self._neighborhood_size)
+            ]
+        elif self._neighborhood_mode == 'local':
+            self._neighborhood = [int(x) for x in self.get_parameter("robot.neighborhood_local").value]
+        else:
+            self.get_logger().warning(
+                f"Neighborhood value was invalid: {self._neighborhood_mode}. Will use No neighborhood"
+            )
+            self._neighborhood = []
+
+        # --- Mode ---
+        self._sim = self.get_parameter("mode.sim").value
+        self._sync_move = self.get_parameter("mode.sync_move").value    # Boolean used to activate sync move mode
+        self._only_viewer = self.get_parameter("mode.viewer").value
+
+        # --- Logging ---
+        self._logging_enable = self.get_parameter("logging.enabled").value
+        self.logging_paused = self.get_parameter("logging.paused").value
+        self._log_dict_length = self.get_parameter("logging.log_dict_length").value
+
+        # --- Sensors ---
+        self._use_mocap = self.get_parameter("sensors.use_mocap").value
+        self._use_camera = self.get_parameter("sensors.use_camera").value
+
+        # --- Motion ---
+        self._max_speed = self.get_parameter("motion.max_speed").value      # max speed you can command the robot to move
+        self._min_speed = self.get_parameter("motion.min_speed").value
+        self._max_angle = self.get_parameter("motion.max_angle").value      # max speed you can command the robot to turn
+        self._min_angle = self.get_parameter("motion.min_angle").value
+        self._destination_tolerance = self.get_parameter("motion.destination_tolerance").value
+        self._angle_tolerance = self.get_parameter("motion.angle_tolerance").value
+        self._at_goal_historisis = self.get_parameter("motion.at_goal_historisis").value                    # how far way you need to be from your goal before you start moving again
+        self.driving_heading_tolerance = self.get_parameter("motion.driving_heading_tolerance").value
+        self.start_heading = self.get_parameter("motion.start_heading").value
+        self.end_heading = self.get_parameter("motion.end_heading").value
+        self.restart_start_position = self.get_parameter("motion.restart_start_position").value
+        self._wait_for_battery = self.get_parameter("motion.wait_for_battery").value
+
+        # --- Timing ---
+        self._control_loop_period = self.get_parameter("timing.control_loop_period").value
+        self._log_loop_period = self.get_parameter("timing.log_loop_period").value
+
+        # --- Restricted Area ---
+        self._restricted_area = self.get_parameter("restricted_area.enabled").value
+        self._restricted_x_min = self.get_parameter("restricted_area.x_min").value
+        self._restricted_x_max = self.get_parameter("restricted_area.x_max").value
+        self._restricted_y_min = self.get_parameter("restricted_area.y_min").value
+        self._restricted_y_max = self.get_parameter("restricted_area.y_max").value
+
+        # --- Laser ---
+        self.laser_avoid = self.get_parameter("laser.avoid").value                    # Boolean to use laser to avoid obstructions
+        self.laser_distance = self.get_parameter("laser.distance").value                # Minimum distance you can get to an object
+        self._laser_delay = self.get_parameter("laser.delay").value                     # Number of seconds before avoidance is taken 
+        self._laser_walk_around = self.get_parameter("laser.walk_around").value         # If 0 robot will go left and 1 will go right and 2 will decide based on laser
+        self._laser_avoid_loop_max = self.get_parameter("laser.avoid_loop_max").value   # number of loops before fail in laser avoid
+        self.rf_radian = self.get_parameter("laser.rf_radian").value
+        self.lf_radian = self.get_parameter("laser.lf_radian").value
+        self.r_radian = self.get_parameter("laser.r_radian").value
+        self.l_radian = self.get_parameter("laser.l_radian").value
+        self.f_radian = self.get_parameter("laser.f_radian").value
+        
+        # --- Neighbor Avoidance ---
+        self.neighbor_avoid = self.get_parameter("neighbor.avoid").value              # Boolean to know we want to avoid our neighbors
+        self._neighbor_delay = self.get_parameter("neighbor.delay").value               # seconds to wait before acting on neighbor in way (lower number robot. Higher Number will be 2x as long)
+        self._neighbor_tolerance = self.get_parameter("neighbor.tolerance").value       # How close to neighbors do we get
+        self.neighbor_walk_around = self.get_parameter("neighbor.walk_around").value    # Boolean to let us walk around the neighbor. Set to False if you just want to sit and wait
+        self._neighbor_turning = self.get_parameter("neighbor.turning").value
+
+        # --- LED ---
+        self.led_override = self.get_parameter("led.override").value
+        self.led_persistent = self.get_parameter("led.persistent").value
+
+    def _build_param_update_map(self):
+        return {
+            # --- Robot ---
+            "robot.diameter": "_diameter",
+            "robot.offset_x": "_offset_x",
+            "robot.offset_y": "_offset_y",
+
+            # --- Mode ---
+            "mode.sync_move": "_sync_move",
+
+            # --- Logging ---
+            "logging.enabled": "logging_enable",
+            "logging.paused": "logging_paused",
+            "logging.log_dict_length": "_log_dict_length",
+
+            # --- Motion ---
+            "motion.max_speed": "_max_speed",
+            "motion.min_speed": "_min_speed",
+            "motion.max_angle": "_max_angle",
+            "motion.min_angle": "_min_angle",
+            "motion.angle_tolerance": "_angle_tolerance",
+            "motion.driving_heading_tolerance": "driving_heading_tolerance",
+            "motion.start_heading": "start_heading",
+            "motion.end_heading": "end_heading",
+            "motion.restart_start_position": "restart_start_position",
+            "motion.wait_for_battery": "_wait_for_battery",
+
+            # --- Restricted Area ---
+            "restricted_area.enabled": "_restricted_area",
+            "restricted_area.x_min": "_restricted_x_min",
+            "restricted_area.x_max": "_restricted_x_max",
+            "restricted_area.y_min": "_restricted_y_min",
+            "restricted_area.y_max": "_restricted_y_max",
+
+            # --- Laser ---
+            "laser.avoid": "laser_avoid",
+            "laser.distance": "laser_distance",
+            "laser.delay": "_laser_delay",
+            "laser.walk_around": "_laser_walk_around",
+            "laser.avoid_loop_max": "_laser_avoid_loop_max",
+
+            # --- Neighbor Avoidance ---
+            "neighbor.avoid": "neighbor_avoid",
+            "neighbor.delay": "_neighbor_delay",
+            "neighbor.tolerance": "_neighbor_tolerance",
+            "neighbor.walk_around": "neighbor_walk_around",
+            "neighbor.turning": "_neighbor_turning",
+
+            # --- LED ---
+            "led.override": "led_override",
+            "led.persistent": "led_persistent",
+        }
+
+    # Special Handlers for parameter update
+    def _handle_neighbors(self, value):
+        self._my_neighbors = [int(x) for x in value]
+        self.get_logger().info(f"Updated neighbors: {self._my_neighbors}")
+
+    def _handle_neighborhood(self, _):
+        # value not needed since we re-pull everything
+        self._rebuild_neighborhood()
+        self.get_logger().info("Rebuilt neighborhood")
+    
+    def _handle_destination_tolerance(self, value):
+        if self._destination_tolerance == self._in_motion_tolerance:
+            self._destination_tolerance = value
+        self._in_motion_tolerance = value
+        
+    def _hanlde_goal_tolerance(self, value):
+        if self._destination_tolerance == self._at_goal_historisis:
+            self._destination_tolerance = value
+        self._at_goal_historisis = value
+
+    # Allows for live updates
+    def parameter_callback(self, params):
+        for param in params:
+            name = param.name
+            value = param.value
+
+            # --- Special handlers FIRST ---
+            if name in self._param_special_handlers:
+                self._param_special_handlers[name](value)
+                continue
+
+            # --- Standard mapping ---
+            elif name in self._param_update_map:
+                attr = self._param_update_map[name]
+                old = getattr(self, attr, None)
+
+                setattr(self, attr, value)
+
+                self.get_logger().info(f"{name}: {old} -> {value}")
+
+            else:
+                self.get_logger().warning(f"Unhandled parameter: {name}")
+
+        return rclpy.parameter.ParameterEventHandler.Result(successful=True)
+
+    def _rebuild_neighborhood(self):
+        # If value is not set, use default
+        for robot, values in self.neighbor_poses.items():
+            self.neighbor_poses[robot]["in_neighborhood"] = bool(self._neighborhood_default)
+
+        # Given global neighborhood
+        if self._neighborhood_mode == 'global':
+            # Need to find what index we are looking at
+            my_index = -1
+            for index, neighbor in enumerate(self._my_neighbors):
+                if neighbor == self.my_number:
+                    my_index = index
+                    break
+            if my_index < 0 or my_index >= len(self._neighborhood):
+                if my_index < 0:
+                    self.get_logger().warning(f"Neighborhood mode set to global but my index was not included in nieghbor layout\\nNeighbors: {my_neighbors}")
+                else:
+                    self.get_logger().warning(f"Neighborhood mode set to global but my index was outside the range of the matrix given\nIndex: {my_index}\nNeighborhood: {self._neighborhood}")
+                # all values go to default
+                for robot, values in self.neighbor_poses:
+                    self.neighbor_poses[robot]["in_neighborhood"] = bool(self._neighborhood_default)
+            else:
+                # loop trough each of the neighbors and set the value
+                for index, neighbor in enumerate(self._my_neighbors):
+                    # Insure vlaues are actually in neighbors
+                    if str(neighbor) in self.neighbor_poses:
+                        if index < len(self._neighborhood[my_index]):
+                            self.neighbor_poses[str(neighbor)]["in_neighborhood"] = bool(self._neighborhood[my_index][index])
+                        else:
+                            self.get_logger().warning(f"Neighbor {neighbor} at index {index} is outside the range of neighborhood.\n{self._neighborhood}")
+                            self.neighbor_poses[str(neighbor)]["in_neighborhood"] = bool(self._neighborhood_default)
+        else:
+            # loop trough each of the neighbors and set the value
+            for index, neighbor in enumerate(self._my_neighbors):
+                # Insure vlaues are actually in neighbors
+                if str(neighbor) in self.neighbor_poses:
+                    if index < len(self._neighborhood):
+                        self.neighbor_poses[str(neighbor)]["in_neighborhood"] = bool(self._neighborhood[index])
+                    else:
+                        self.get_logger().warning(f"Neighbor {neighbor} at index {index} is outside the range of neighborhood.\n{self._neighborhood}")
+                        self.neighbor_poses[str(neighbor)]["in_neighborhood"] = bool(self._neighborhood_default)
+
+        # Only neighborhood in neighbor_position
+        for name, neighbor in self.neighbor_poses.items():
+            if not neighbor["in_neighborhood"] and name in self.neighbor_position:
+                self.neighbor_position.pop(name, None)
+                print(f"Poped {name}")
 
     def setup_robot_(self):
         '''
@@ -325,7 +603,7 @@ class Agent(Node):
 
 
     def check_robot_ready_(self):
-        checks = np.array([self._position_started, self._neighbors_started, self._lidar_started, self._camera_setup])
+        checks = np.array([self._position_started, self._neighbors_started, self._lidar_started, self._camera_setup, (not self._wait_for_battery or self._battery_received)])
         if checks.all():
             self.get_logger().info(f"{self.my_name} Now ready to move.")
             self.robot_ready = True
@@ -369,7 +647,7 @@ class Agent(Node):
         # self.direction_heading = self.get_angle_quad(orientation)
 
         if self.neighbor_avoid:
-            self.path_obstructed_neighbor = self.is_neighbor_in_direction_(self.position, self.desired_location, self.neighbor_position)
+            self.path_obstructed_neighbor = self.is_neighbor_in_direction_(self.position, self.desired_location, self.neighbor_poses)
 
     def neighbor_pose_callback_(self, pose: PoseStamped, name):
         self.update_neighbor_position_(name, pose.header, pose.pose)
@@ -404,7 +682,7 @@ class Agent(Node):
         # self.neighbor_orientation[name] = orientation
 
         # check if all have been found
-        if not self._neighbors_started and len(self.neighbor_position) == len(self.neighbor_position_sub_):
+        if not self._neighbors_started and len(self.neighbor_poses) == len(self.neighbor_position_sub_):
             self._neighbors_started = True
             self.get_logger().info(f"{self.my_name}: All Neighbor Topics Recieved")
 
@@ -777,7 +1055,7 @@ class Agent(Node):
             if not hasattr(self, 'log_timer'):
                 self._replay_dict = []
                 self._creat_log_file_names(datetime.datetime.now().strftime("%Y-%m-%d.%H%M%S"))
-                self.log_timer = self.create_timer(0.1, self._log_recording)
+                self.log_timer = self.create_timer(self._log_loop_period, self._log_recording)
                 self.get_logger().info(f"{self.my_name}: Logging Enabled")
                 
         self._logging_enable = bool(value) 
@@ -839,10 +1117,13 @@ class Agent(Node):
                     "z": pose.orientation.z,
                     "w": pose.orientation.w
                 }
-            }
+            },
+            "in_neighborhood": self.neighbor_poses[str(name)]['in_neighborhood']
         }
-        self.neighbor_position[name] = [pose.position.x,pose.position.y]
-        self.neighbor_orientation[name] = pose.orientation
+
+        if self.neighbor_poses[str(name)]['in_neighborhood']:
+            self.neighbor_position[name] = [pose.position.x,pose.position.y]
+            self.neighbor_orientation[name] = pose.orientation
 
     def record_laser_direction_heading_(self, direction):
         '''
@@ -1214,7 +1495,7 @@ class Agent(Node):
         magnitude = np.linalg.norm(self.position - desired_location)
         angle = self.angle(self.position, desired_location)
 
-        if self.is_neighbor_in_direction_(self.position, self.desired_location, self.neighbor_position, self.laser_distance * 2):
+        if self.is_neighbor_in_direction_(self.position, self.desired_location, self.neighbor_poses, self.laser_distance * 2):
             if self._neighbor_collision_name < self.my_number:
                 self._laser_delay_active = 2 * self._laser_delay
             else:
@@ -1313,7 +1594,20 @@ class Agent(Node):
         '''
         :param current_pos: is the coordinates of this robot
         :param desired_pos: is the coordinates of the desired location
-        :param neighbors: is a dictionary { name: position, ect,}
+        :param neighbors: is a dictionary { name:
+            header:...
+            pose:
+                position:
+                    x:
+                    y:
+                    z:
+                orientation:
+                    x:
+                    y:
+                    z:
+                    w:
+            in_neighborhood: True
+        }
 
         -Returns True if neighbor is in path
         '''
@@ -1342,7 +1636,7 @@ class Agent(Node):
             # Check each neighbor
             for name, neighbor in neighbors.items():
                 # Convert neighbor position to numpy array
-                neighbor_pos = np.array(neighbor)
+                neighbor_pos = np.array([neighbor['pose']['position']['x'], neighbor['pose']['position']['y']])
                 
                 # Calculate the vector from current position to the neighbor
                 to_neighbor_vector = neighbor_pos - current_pos
@@ -1378,7 +1672,20 @@ class Agent(Node):
         """
         Parameters:
         :param current_pos: The current position of the robot as a tuple (x, y).
-        :param neighbors: A list of tuples representing the positions of the neighbors.
+        :param neighbors: is a dictionary { name:
+            header:...
+            pose:
+                position:
+                    x:
+                    y:
+                    z:
+                orientation:
+                    x:
+                    y:
+                    z:
+                    w:
+            in_neighborhood: True
+        }
         
         Returns:
         - True if a neighbor is close enough and a collision is possible, False otherwise.
@@ -1395,7 +1702,7 @@ class Agent(Node):
         # Check each neighbor
         for name, neighbor in neighbors.items():
             # Convert neighbor position to numpy array
-            neighbor_pos = np.array(neighbor)
+            neighbor_pos = np.array([neighbor['pose']['position']['x'], neighbor['pose']['position']['y']])
             
             # Calculate the vector from current position to the neighbor
             to_neighbor_vector = neighbor_pos - current_pos
@@ -1462,7 +1769,7 @@ class Agent(Node):
                     else:
                         self.move_robot_(0.0, -1.0)
                 
-            elif not self.is_neighbor_in_direction_manual_(self.position, self.neighbor_position):
+            elif not self.is_neighbor_in_direction_manual_(self.position, self.neighbor_poses):
                 self.move_around_neighbor_movement_()
             else:
                 if self._neighbor_obstructed_time + datetime.timedelta(seconds=self._neighbor_delay_active) <= datetime.datetime.now():
@@ -1662,7 +1969,7 @@ class Agent(Node):
             self._replay_dict = []
 
         try:
-            if not self.logging_pasued:
+            if not self.logging_paused:
                 desired_location = self.desired_location
                 attempted_location = self._attempted_desired_location
                 if type(self.desired_location) != type(None): 
@@ -1782,7 +2089,7 @@ class Agent(Node):
                     self.move_to_angle(self.start_heading)
             
             if self.led_persistent:
-                self.set_led_mode_(self._robot_status )
+                self.set_led_mode_(self._robot_status)
             return
         
         self.robot_status = "STOPPED"

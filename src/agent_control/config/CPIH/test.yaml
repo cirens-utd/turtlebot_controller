@@ -1,0 +1,82 @@
+/**:
+  ros__parameters:
+
+    robot:
+      id: 1
+      neighbors: [1]
+      diameter: 0.4
+      use_config: true
+      config_file: "turtlebot_global_config.yaml"
+      offset_x: 0.0
+      offset_y: 0.0
+      neighborhood_mode: "global"   # "local" or "global" -> Local only has my neighborhood. Global has all neighborhoods
+      neighborhood_local: []
+      neighborhood_global: [
+        0, 1, 0,
+        1, 0, 1,
+        1, 0, 0
+        ]
+      neighborhood_size: 3
+      neighborhood_default: 1     # if outside the span, 1 means they are a neighbor and 0 means they are not
+
+    mode:
+      sim: false
+      sync_move: false
+      viewer: false
+
+    logging:
+      enabled: false
+      paused: false
+      log_dict_length: 9000
+
+    sensors:
+      use_mocap: true
+      use_camera: false
+
+    motion:
+      max_speed: 2.0
+      min_speed: 0.5
+      max_angle: 2.0
+      min_angle: 0.1
+      destination_tolerance: 0.01
+      angle_tolerance: 0.1
+      at_goal_historisis: 1.0
+      driving_heading_tolerance: 0.785
+      start_heading: 0.0
+      end_heading: 3.141592653589793   # np.pi
+      restart_start_position: true
+      wait_for_battery: false
+
+    timing:
+      control_loop_period: 0.1
+      log_loop_period: 0.1
+
+    restricted_area:
+      enabled: false
+      x_min: -2.9
+      x_max: 2.9
+      y_min: -5.0
+      y_max: 4.0
+
+    laser:
+      avoid: false
+      distance: 0.5
+      delay: 5.0
+      walk_around: 2
+      avoid_loop_max: 1
+      rf_radian: -1.0471975512   # -pi/3
+      lf_radian: 1.0471975512    # pi/3
+      r_radian: -1.5707963268    # -pi/2
+      l_radian: 1.5707963268     # pi/2
+      f_radian: 0.0
+
+    neighbor:
+      avoid: true
+      delay: 5.0
+      tolerance: 0.5
+      walk_around: true
+      turning: 0
+
+    led:
+      override: false
+      persistent: true

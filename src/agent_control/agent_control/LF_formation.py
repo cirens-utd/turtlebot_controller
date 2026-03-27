@@ -11,12 +11,7 @@ import traceback
 import pdb
 
 class LF_Formation(Agent):
-    def __init__(self, my_number, my_neighbors=[], formation_distance=[], *args, 
-        sim=False, sync_move=False,logging=False,
-        restricted_area = False, restricted_x_min = -2.9, restricted_x_max = 2.9, restricted_y_min = -5, restricted_y_max = 4,
-        destination_tolerance=0.01,
-        laser_avoid=True, laser_distance=0.5, laser_delay=5, laser_walk_around=2, laser_avoid_loop_max=1,
-        neighbor_avoid=True, neighbor_delay=5):
+    def __init__(self, node_name, yaml_data={}):
         '''
         formation_distance should be in the following formate
         formation_distance = {
@@ -24,14 +19,15 @@ class LF_Formation(Agent):
             ...
         }
         '''
-        super().__init__(my_number, my_neighbors, sync_move=sync_move, sim=sim,
-                        destination_tolerance=destination_tolerance, logging=logging,
-                        restricted_area=restricted_area, restricted_x_min=restricted_x_min, restricted_x_max=restricted_x_max, restricted_y_min=restricted_y_min, restricted_y_max=restricted_y_max,
-                        laser_avoid=laser_avoid, laser_distance=laser_distance, laser_delay=laser_delay, laser_walk_around=laser_walk_around, laser_avoid_loop_max=laser_avoid_loop_max,
-                        neighbor_avoid=neighbor_avoid, neighbor_delay=neighbor_delay)
+        super().__init__(node_name)
+
+        formation_distance, neighbor = build_formation_distance(yaml_data, self.my_number, self._my_neighbors)
+        self._my_neighbors = neighbor
+        self._rebuild_neighborhood()
+
         self._formation_distance = formation_distance
 
-        for number in my_neighbors:
+        for number in self._my_neighbors:
             if str(number) not in formation_distance:
                 raise NotImplementedError('When Passing formation distance into LF_Formation, all neighbors must have a set distance')
 
@@ -98,24 +94,14 @@ def main(args=None):
     This requires that all the robots in teh system are passed in neighbor, including our index
     '''
     parser = argparse.ArgumentParser()
-    parser.add_argument("-i", "--index", default="1", type=int, help="Index of this robot")
-    parser.add_argument("-f", "--formation", type = str, default = "path/to/ws/turtlebot_simulator/src/agent_control/config/agent_setup/agent_setup.yaml",help = "/path/to/agent_setup.yaml")
-    parser.add_argument("-s", "--sim", default=False, action="store_true", help="Set Simmulation mode")
-    parser.add_argument("-l", "--laser_avoid", default=True, action="store_false", help="Avoid using laser")
-    parser.add_argument("-n", "--neighbor", default=[], nargs='+', type=int, help="Array of neighbors")
-    parser.add_argument("-m", "--loop_max", default=1, type=int, help="Laser Loop Max Number")
-    parser.add_argument("-b", "--neighbor_avoid", default=True, action="store_false", help="Avoid Using neighbor position")
-    parser.add_argument("-r", "--record", default=False, action="store_true", help="Enable Logging")
-    parser.add_argument("--ros-args", default=False, action="store_true")
-    script_args = parser.parse_args()
+    parser.add_argument("-f", "--formation", type = str, default = "src/agent_control/config/agent_setup/agent_setup.yaml",help = "/path/to/agent_setup.yaml")
+    script_args, ros_args = parser.parse_known_args()
 
     yaml_data = get_yaml(script_args.formation)
-    fd, neighbor = build_formation_distance(yaml_data, script_args.index, script_args.neighbor)
 
     try:
-        rclpy.init(args=args)
-        my_robot = LF_Formation(int(script_args.index), np.array(neighbor), fd, sim=script_args.sim, logging=script_args.record,
-            restricted_area=True, laser_avoid=script_args.laser_avoid, neighbor_avoid=script_args.neighbor_avoid, laser_avoid_loop_max=script_args.loop_max)
+        rclpy.init(args=ros_args)
+        my_robot = LF_Formation("LF_Formation", yaml_data)
         rclpy.spin(my_robot)
     except Exception as e:
         traceback.print_exc()
