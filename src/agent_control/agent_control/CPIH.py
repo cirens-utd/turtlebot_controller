@@ -204,35 +204,34 @@ class CPIH(Agent):
         self.move_direction([x,y])      Function to move in a direction
         self.move_to_position([x,y])    Function to move to a position
         '''
-        print(f"My Neighbors: {self.neighbor_position.keys()}")
         
-    #     X = np.zeros((len(self.neighbor_position),2))
-    #     i = 0
-    #     for name, neighbor in self.neighbor_position.items():
-    #         X[i] = np.array(neighbor) 
+        X = np.zeros((len(self.neighbor_position),2))
+        i = 0
+        for name, neighbor in self.neighbor_position.items():
+            X[i] = np.array(neighbor) 
             
             
-    #         print("X[",i,"]: ",X[i])
-    #         i = i+1
-    #    # for neighbor in self.neighbor_poses:
-    #     #    X[i] = np.array((self.neighbor_poses[neighbor].pose.position.x, self.neighbor_poses[neighbor].pose.position.y))
-    #     tc = TukeyContour(X)
-    #     if tc.median_contour.shape[0] > 0:
-    #         # Target is the centroid of the median contour
+            print("X[",i,"]: ",X[i])
+            i = i+1
+       # for neighbor in self.neighbor_poses:
+        #    X[i] = np.array((self.neighbor_poses[neighbor].pose.position.x, self.neighbor_poses[neighbor].pose.position.y))
+        tc = TukeyContour(X)
+        if tc.median_contour.shape[0] > 0:
+            # Target is the centroid of the median contour
             
-    #         safepoint = np.mean(tc.median_contour, axis=0)
-    #         self.get_logger().info(f"{self.my_name} Has a valid target: {safepoint}")
-    #     else:
-    #         safepoint = self.position
-    #         self.get_logger().info(f"{self.my_name} Does not have valid target.")
-    #         self.get_logger().info(f"{tc.median_contour} ")
-    #     target = safepoint
-    #     if (np.linalg.norm(self.position-target)<0.3):
-    #         self.complete = True
-    #     if (self.my_number != 3):
-    #         self.move_to_position(target)
-    #     else:
-    #         self.move_to_position(np.array(([0, -4])))
+            safepoint = np.mean(tc.median_contour, axis=0)
+            self.get_logger().info(f"{self.my_name} Has a valid target: {safepoint}")
+        else:
+            safepoint = self.position
+            self.get_logger().info(f"{self.my_name} Does not have valid target.")
+            self.get_logger().info(f"{tc.median_contour} ")
+        target = safepoint
+        if (np.linalg.norm(self.position-target)<0.3):
+            self.complete = True
+        if (self.my_number != 3):
+            self.move_to_position(target)
+        else:
+            self.move_to_position(np.array(([0, -4])))
 
 
 def main(args=None):
@@ -240,10 +239,7 @@ def main(args=None):
     ## ros2 launch turtlebot_base launch_sim.launch.py 
     ## ros2 launch turtlebot_base launch_robots.launch.py yaml_load:=False robot_number:=4
 
-    ## ros2 run agent_control CPIH.py -i 1 -n 1 2 3 -s --ros-args --params-file src/agent_control/config/CPIH/test.yaml
-    ## ros2 run agent_control CPIH.py -i 1 -n 1 2 3 -s --ros-args -p robot.neighborhood_mode:=global -p robot.neighborhood_global:=[1,1,0,1,1,1,1,1,1] -p robot.neighborhood_size:=3
     ## python3 CPIH.py -i 1 -n 1 2 3 -s --ros-args -p robot.neighborhood_mode:=global -p robot.neighborhood_global:=[1,1,0,1,0,1,0,1,1] -p robot.neighborhood_size:=3
-
     ## ros2 run agent_control CPIH.py --ros-args --params-file src/agent_control/config/CPIH/test.yaml -p robot.id:=1 -p robot.neighbors:="[1,2,3]" -p mode.sim:=true 
 
 

@@ -153,6 +153,9 @@ class Agent(Node):
             
                 else:
                     self.get_logger().warning(f"{self.my_name}: Cannot be neighbor to myself.")
+                    if len(self._my_neighbors) == 1:
+                        self._has_neighbors = False
+                        self._neighbors_started = True
         
         else:
             # Setting flags so robot can start without mocab
@@ -271,7 +274,7 @@ class Agent(Node):
         self.declare_parameter("mode.viewer", False)
 
         # --- Logging ---
-        self.declare_parameter("logging.enabled", True)
+        self.declare_parameter("logging.enabled", False)
         self.declare_parameter("logging.paused", False)
         self.declare_parameter("logging.log_dict_length", 9000)
 

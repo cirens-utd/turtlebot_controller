@@ -17,6 +17,14 @@ shift
 # other_robots="$@"
 other_robots="[$(echo "$@" | sed 's/ /,/g')]"
 
+##New Robot
+# # Calibration 
+# tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control calibration.py --ros-args -p robot.id:=$ROBOT_NUM &> ./log.txt'"
+
+#CPIH Experiements
+# Exp 1: 9 robot run 
+tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control CPIH.py --ros-args --params-file src/agent_control/config/CPIH/Network1.yaml -p robot.id:=$ROBOT_NUM -p robot.neighbors:=$other_robots -p logging.enabled:=true&> ./log.txt'"
+
 ## Concesus
 # tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control consensus.py --ros-args -p robot.id:=$ROBOT_NUM -p robot.neighbors:=$other_robots &> ./log.txt'"
 # tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control consensus.py --ros-args -p robot.id:=$ROBOT_NUM -p robot.neighbors:=$other_robots -p logging.enabled:=true&> ./log.txt'"
@@ -36,8 +44,8 @@ other_robots="[$(echo "$@" | sed 's/ /,/g')]"
 # tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control coverage.py -b -3.8 0.19 -0.72 3.36 2.69 2.0 2.74 -2.6 -0.18 -5.0 -2.48 -5.21 --ros-args -p robot.id:=$ROBOT_NUM -p robot.neighbors:=$other_robots -p logging.enabled:=true&> ./log.txt'"
 
 
-# Vision Concesus
-tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control aprilTagDetection.py --ros-args -p robot.id:=$ROBOT_NUM -p logging.enabled:=true &> ./log.txt'"
+# # Vision Concesus
+# tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control aprilTagDetection.py --ros-args -p robot.id:=$ROBOT_NUM -p logging.enabled:=true &> ./log.txt'"
 
 # testme 
 # tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control testme.py --ros-args -p robot.id:=$ROBOT_NUM &> ./log.txt'"
