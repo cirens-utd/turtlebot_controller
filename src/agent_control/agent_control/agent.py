@@ -845,6 +845,7 @@ class Agent(Node):
         '''
         if value in self._robot_status_options:
             if value != self.robot_status and not self.led_override:
+                self.get_logger().info(f"{self.my_name}: Changed from {self.robot_status} to {value}")
                 self.set_led_mode_(value)
             
             self._robot_status = value
@@ -1427,7 +1428,14 @@ class Agent(Node):
         elif self.neighbor_avoid and self.path_obstructed_neighbor:
             if self.neighbor_walk_around:
                 self.move_around_neighbor_(desired_location)
-            else: self.move_robot_(0.0, 0.0)
+            else: 
+                # Robot has to wait for others to move. Moving to complete position in case they never move
+                if not self.motion_complete:
+                    self.end_controller()
+                else:
+                    if self.robot_status != "COMPLETE" and self.robot_status != "FINISHED":
+                        self.robot_status = "COMPLETE"
+                    self.check_neighbors_finished()
         else:
             self.move_robot_(0.0, 0.0)
             self.get_logger().info(f"{self.my_name} is obstructed but no detour method selected.")
@@ -2094,7 +2102,7 @@ class Agent(Node):
                     self.move_to_angle(self.start_heading)
             
             if self.led_persistent:
-                self.set_led_mode_(self._robot_status)
+                self.set_led_mode_(self.robot_status)
             return
         
         self.robot_status = "STOPPED"
