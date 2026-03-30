@@ -6,7 +6,7 @@ pi_wrk_space="/home/$USER/Turtlebot_Controller"
 # Check if we have arguments (robot numbers)
 if [ $# -lt 2 ]; then
   echo "Usage: $0 <operation> <robot_number1> <robot_number2> ..."
-  echo "Operations: copy, sync, build, deepBuid, run, stop, pullLogs, clearLogs, calibrate, testCalibrate, test"
+  echo "Operations: copy, sync, build, deepBuild, run, stop, pullLogs, clearLogs, calibrate, testCalibrate, test"
   echo "Example: $0 copy 1 3 5"
   exit 1
 fi
