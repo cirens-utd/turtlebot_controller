@@ -80,7 +80,7 @@
       avoid: true
       delay: 5.0
       tolerance: 0.5
-      walk_around: true
+      walk_around: false
       turning: 0
 
     led:
