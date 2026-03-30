@@ -7,7 +7,8 @@ import numpy as np
 from os import listdir, remove, rmdir, path, getcwd
 import zipfile
 import tkinter as tk
-from tkinter import filedialog
+from tkinter import filedialog, messagebox
+from update_turtleReplay import load_fix_and_save, LATEST_SCHEMA
 import argparse
 import pdb
 
@@ -20,11 +21,11 @@ def setup_script():
     global beauty
     global mp4_file_name 
     global x_vals, y_vals, yaws, neighbor_poses
-    global robot_ready, position_started, neighbors_started, lidar_started, robot_moving
+    global robot_ready, position_started, neighbors_started, lidar_started, wait_for_battery, battery_received, robot_moving
     global desired_heading, destination_reached, motion_complete, neighbors_complete 
     global movement_restricted, path_obstructed, path_obstructed_laser, path_obstructed_neighbor, laser_avoid_error
     global destination_tolerance, angle_tolerance, desired_location, desired_angle, attempted_desired_location
-    global robot_status, led_light_state
+    global robot_status, led_light_state, battery_dict
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-s", "--save", default=False, action="store_true", help="Save MP4")
@@ -46,6 +47,10 @@ def setup_script():
     )
 
     root.destroy()
+
+    if not turtle_replay_file:
+        print("No file selected.")
+        exit()
 
     # turtle_replay_file = r"../Replays/robot1_2024-08-25.004151.turtleReplay"
     # turtle_replay_file = "../Replays/Example.turtleReplay"
@@ -78,12 +83,26 @@ def setup_script():
             file.write(json.dumps(data, indent=2))
 
     # Extract informaiton
-    x_vals, y_vals, yaws, neighbor_poses = [], [], [], []
-    robot_ready, position_started, neighbors_started, lidar_started, robot_moving = [], [], [], [], []
+    x_vals, y_vals, yaws, neighbor_poses, battery_dict = [], [], [], [], []
+    robot_ready, position_started, neighbors_started, lidar_started, wait_for_battery, battery_received, robot_moving = [], [], [], [], [], [], []
     desired_heading, destination_reached, motion_complete, neighbors_complete = [], [], [], []
     movement_restricted, path_obstructed, path_obstructed_laser, path_obstructed_neighbor, laser_avoid_error = [], [], [], [], []
     destination_tolerance, angle_tolerance, desired_location, desired_angle, attempted_desired_location = [], [], [], [], []
     robot_status, led_light_state = [], []
+
+    # Verify version of replay is correct
+    if "replayVersion" not in data[0][0] or data[0][0]['replayVersion'] < LATEST_SCHEMA['replayVersion']:
+        current_version = data[0][0]['replayVersion'] if 'replayVersion' in data[0][0] else 0
+        latest_version = LATEST_SCHEMA['replayVersion']
+        save = messagebox.askyesno(
+                title="Overwrite Existing file?",
+                message=(
+                    f"{path.basename(file_name)} is outdated.\n\n"
+                    f"Version: {current_version} → {latest_version}\n\n"
+                    "Do you want to save the updated file?"
+                )
+            )
+        data = load_fix_and_save(turtle_replay_file, zip_output=turtle_replay_file, output_dir=path.basename(turtle_replay_file), verbose=True, save=save)
 
     total_frames = 0
 
@@ -92,14 +111,13 @@ def setup_script():
             total_frames += 1
 
             # Saving status Booleans
-            # ## TODO: TEMPERARY
-            # entry['neighbors_started'] = entry['neighors_started']
-
             robot_status.append(entry['robot_status'])
             robot_ready.append(entry['robot_ready'])
             position_started.append(entry['position_started'])
             neighbors_started.append(entry['neighbors_started'])
             lidar_started.append(entry['lidar_started'])
+            wait_for_battery.append(entry['wait_for_battery'])
+            battery_received.append(entry['battery_received'])
             robot_moving.append(entry['robot_moving'])
             desired_heading.append(entry['desired_heading'])
             destination_reached.append(entry['destination_reached'])
@@ -144,7 +162,11 @@ def setup_script():
                     'x': pose['pose']['position']['x'],
                     'y': pose['pose']['position']['y'],
                     'yaw': np.remainder((np.arctan2(2 * (qw * qz + qx * qy),1 - 2 * (qy * qy + qz * qz)) + np.pi) , 2 * np.pi),
+                    'in_neighborhood': pose['in_neighborhood']
                 }
+            
+            # Updating Battery
+            battery_dict.append(entry['battery_dict'])
         
     neighbor_info = data[-1][-1]["neighbor_poses"]
 
@@ -160,12 +182,12 @@ def setup_graph(total_frames=2):
     '''
     global fig, ax, robot_marker_circle, robot_marker_arrow, trail, trail_coords, neighbor_marker, neighbor_arrow, goal_marker_x, goal_marker_anlge
     global goal_radius, goal_attempt_marker_x, aspect, radius, status_label, status_text, ready_circle, ready_text, pos_started_circle, pos_started_text, neighbors_started_circle
-    global neighbors_started_text, lidar_started_circle, lidar_started_text, robot_moving_circle, robot_moving_text, movement_restricted_circle, movement_restricted_text
+    global neighbors_started_text, lidar_started_circle, lidar_started_text, robot_moving_circle, robot_moving_text, movement_restricted_circle, movement_restricted_text, wait_for_battery, battery_received
     global path_obstructed_circle, path_obstructed_text, laser_obstructed_circle, laser_obstructed_text, neighbor_obstructed_circle, neighbor_obstructed_text, laser_avoid_error_circle
     global laser_avoid_error_text, desired_heading_circle, desired_heading_text, destination_reached_circle, destination_reached_text, motion_complete_circle, motion_complete_text
     global neighbor_complete_circle, neighbor_complete_text, destination_tolerance_text, angle_tolerance_text, complete_circle, complete_text, restart_button, slider, prev_slider
     global LED_Label, led_ring_patches, frame_rate, robot_radius
-    global neighbor_info
+    global neighbor_info, battery_ready_circle, battery_ready_text
 
     # Set up the plot
     fig, ax = plt.subplots(figsize=(10,6))  # (x, y) x inches wide and y inches tall
@@ -204,13 +226,15 @@ def setup_graph(total_frames=2):
     neighbor_marker = {}
     neighbor_arrow = {}
     for name, pose in neighbor_info.items():
-        neighbor_marker[name] = patches.Circle((-100, -100), radius=robot_radius, color='peachpuff', ec='darkorange', zorder=8)
+        neighbor_marker[name] = patches.Circle((-100, -100), radius=robot_radius, color='peachpuff' if neighbor_info[name]['in_neighborhood'] else 'lightgray', ec='darkorange' if neighbor_info[name]['in_neighborhood'] else 'gray', zorder=8)
         ax.add_patch(neighbor_marker[name])
 
         neighbor_arrow[name] = patches.FancyArrowPatch((-100, -100), (-100+arrow_dy, -100+arrow_dx), 
                                             arrowstyle='->',
-                                            mutation_scale=20, color='darkorange',
+                                            mutation_scale=20, color='darkorange' if neighbor_info[name]['in_neighborhood'] else 'gray',
                                             linewidth=2, zorder=9)
+        neighbor_marker[name].set_facecolor('peachpuff' if pose['in_neighborhood'] else 'lightgray')
+        neighbor_marker[name].set_edgecolor('darkorange' if pose['in_neighborhood'] else 'gray')
         ax.add_patch(neighbor_arrow[name])
 
 
@@ -235,86 +259,128 @@ def setup_graph(total_frames=2):
     start_line_x = 0.02
     start_line_y = 0.95
     delta_line_x = 0.1
-    delta_line_y = 0.055
+    # delta_line_y = 0.055
+    delta_line_y = 0.05
     x_indent = 0.015
 
-    # First Line
-    status_label = fig.text(start_line_x - 0.01, start_line_y - delta_line_y*0, 'Robot Status: ', fontsize=fontsize, ha='left', va='top')
-    status_text = fig.text(start_line_x + 0.11, start_line_y - delta_line_y*0, 'No Status', fontsize=fontsize, ha='left', va='top')
+    line_num = 0
+
+    # Zero Line
+    status_label = fig.text(start_line_x - 0.01, start_line_y - delta_line_y*line_num, 'Robot Status: ', fontsize=fontsize, ha='left', va='top')
+    status_text = fig.text(start_line_x + 0.11, start_line_y - delta_line_y*line_num, 'No Status', fontsize=fontsize, ha='left', va='top')
+
+    line_num = line_num + 1
 
     # First line
-    ready_circle = patches.Ellipse((start_line_x, start_line_y - delta_line_y - radius), width=radius, height=radius*aspect, transform=fig.transFigure, clip_on=False, color='red')
-    ready_text = fig.text(start_line_x + radius, start_line_y - delta_line_y, 'Robot Not Ready', fontsize=fontsize, ha='left', va='top')
+    ready_circle = patches.Ellipse((start_line_x, start_line_y - delta_line_y*line_num - radius), width=radius, height=radius*aspect, transform=fig.transFigure, clip_on=False, color='red')
+    ready_text = fig.text(start_line_x + radius, start_line_y - delta_line_y*line_num, 'Robot Not Ready', fontsize=fontsize, ha='left', va='top')
     ax.add_patch(ready_circle)
 
+    line_num = line_num + 1
+
     # Second line
-    pos_started_circle = patches.Ellipse((start_line_x + x_indent, start_line_y - delta_line_y*2 - radius), width=radius, height=radius*aspect, transform=fig.transFigure, clip_on=False, color='red')
-    pos_started_text = fig.text(start_line_x + x_indent + radius, start_line_y - delta_line_y*2, 'Position Not Obtained', fontsize=fontsize, ha='left', va='top')
+    pos_started_circle = patches.Ellipse((start_line_x + x_indent, start_line_y - delta_line_y*line_num - radius), width=radius, height=radius*aspect, transform=fig.transFigure, clip_on=False, color='red')
+    pos_started_text = fig.text(start_line_x + x_indent + radius, start_line_y - delta_line_y*line_num, 'Position Not Obtained', fontsize=fontsize, ha='left', va='top')
     ax.add_patch(pos_started_circle)
 
+    line_num = line_num + 1
+
     # Third line
-    neighbors_started_circle = patches.Ellipse((start_line_x + x_indent, start_line_y - delta_line_y*3 - radius), width=radius, height=radius*aspect, transform=fig.transFigure, clip_on=False, color='red')
-    neighbors_started_text = fig.text(start_line_x + x_indent + radius, start_line_y - delta_line_y*3, 'Neighbor Position Not Obtained', fontsize=fontsize, ha='left', va='top')
+    neighbors_started_circle = patches.Ellipse((start_line_x + x_indent, start_line_y - delta_line_y*line_num - radius), width=radius, height=radius*aspect, transform=fig.transFigure, clip_on=False, color='red')
+    neighbors_started_text = fig.text(start_line_x + x_indent + radius, start_line_y - delta_line_y*line_num, 'Neighbor Position Not Obtained', fontsize=fontsize, ha='left', va='top')
     ax.add_patch(neighbors_started_circle)
 
+    line_num = line_num + 1
+
     # Forth line
-    lidar_started_circle = patches.Ellipse((start_line_x + x_indent, start_line_y - delta_line_y*4 - radius), width=radius, height=radius*aspect, transform=fig.transFigure, clip_on=False, color='red')
-    lidar_started_text = fig.text(start_line_x + x_indent + radius, start_line_y - delta_line_y*4, 'Lidar Not Obtained', fontsize=fontsize, ha='left', va='top')
+    lidar_started_circle = patches.Ellipse((start_line_x + x_indent, start_line_y - delta_line_y*line_num - radius), width=radius, height=radius*aspect, transform=fig.transFigure, clip_on=False, color='red')
+    lidar_started_text = fig.text(start_line_x + x_indent + radius, start_line_y - delta_line_y*line_num, 'Lidar Not Obtained', fontsize=fontsize, ha='left', va='top')
     ax.add_patch(lidar_started_circle)
 
-    # Fifth line
-    robot_moving_circle = patches.Ellipse((start_line_x, start_line_y - delta_line_y*5 - radius), width=radius, height=radius*aspect, transform=fig.transFigure, clip_on=False, color='red')
-    robot_moving_text = fig.text(start_line_x + radius, start_line_y - delta_line_y*5, 'Robot Not Moving', fontsize=fontsize, ha='left', va='top')
-    ax.add_patch(robot_moving_circle)
+    line_num = line_num + 1
+
+    # Fifth Line
+    battery_ready_circle = patches.Ellipse((start_line_x + x_indent, start_line_y - delta_line_y*line_num - radius), width=radius, height=radius*aspect, transform=fig.transFigure, clip_on=False, color='red')
+    battery_ready_text = fig.text(start_line_x + x_indent + radius, start_line_y - delta_line_y*line_num, 'Battery Not Obtained', fontsize=fontsize, ha='left', va='top')
+    ax.add_patch(battery_ready_circle)
+
+    line_num = line_num + 1
 
     # Sixth line
-    movement_restricted_circle = patches.Ellipse((start_line_x, start_line_y - delta_line_y*6 - radius), width=radius, height=radius*aspect, transform=fig.transFigure, clip_on=False, color='red')
-    movement_restricted_text = fig.text(start_line_x + radius, start_line_y - delta_line_y*6, 'Movement Not Restricted', fontsize=fontsize, ha='left', va='top')
-    ax.add_patch(movement_restricted_circle)
+    robot_moving_circle = patches.Ellipse((start_line_x, start_line_y - delta_line_y*line_num - radius), width=radius, height=radius*aspect, transform=fig.transFigure, clip_on=False, color='red')
+    robot_moving_text = fig.text(start_line_x + radius, start_line_y - delta_line_y*line_num, 'Robot Not Moving', fontsize=fontsize, ha='left', va='top')
+    ax.add_patch(robot_moving_circle)
+
+    line_num = line_num + 1
 
     # Seventh line
-    path_obstructed_circle = patches.Ellipse((start_line_x, start_line_y - delta_line_y*7 - radius), width=radius, height=radius*aspect, transform=fig.transFigure, clip_on=False, color='red')
-    path_obstructed_text = fig.text(start_line_x + radius, start_line_y - delta_line_y*7, 'Path Not Obstructed', fontsize=fontsize, ha='left', va='top')
-    ax.add_patch(path_obstructed_circle)
+    movement_restricted_circle = patches.Ellipse((start_line_x, start_line_y - delta_line_y*line_num - radius), width=radius, height=radius*aspect, transform=fig.transFigure, clip_on=False, color='red')
+    movement_restricted_text = fig.text(start_line_x + radius, start_line_y - delta_line_y*line_num, 'Movement Not Restricted', fontsize=fontsize, ha='left', va='top')
+    ax.add_patch(movement_restricted_circle)
+
+    line_num = line_num + 1
 
     # Eighth line
-    laser_obstructed_circle = patches.Ellipse((start_line_x + x_indent, start_line_y - delta_line_y*8 - radius), width=radius, height=radius*aspect, transform=fig.transFigure, clip_on=False, color='red')
-    laser_obstructed_text = fig.text(start_line_x + x_indent + radius, start_line_y - delta_line_y*8, 'Laser Not Obstructed', fontsize=fontsize, ha='left', va='top')
-    ax.add_patch(laser_obstructed_circle)
+    path_obstructed_circle = patches.Ellipse((start_line_x, start_line_y - delta_line_y*line_num - radius), width=radius, height=radius*aspect, transform=fig.transFigure, clip_on=False, color='red')
+    path_obstructed_text = fig.text(start_line_x + radius, start_line_y - delta_line_y*line_num, 'Path Not Obstructed', fontsize=fontsize, ha='left', va='top')
+    ax.add_patch(path_obstructed_circle)
+
+    line_num = line_num + 1
 
     # Ninth line
-    neighbor_obstructed_circle = patches.Ellipse((start_line_x + x_indent, start_line_y - delta_line_y*9 - radius), width=radius, height=radius*aspect, transform=fig.transFigure, clip_on=False, color='red')
-    neighbor_obstructed_text = fig.text(start_line_x + x_indent + radius, start_line_y - delta_line_y*9, 'Neighbor Not Obstructed', fontsize=fontsize, ha='left', va='top')
-    ax.add_patch(neighbor_obstructed_circle)
+    laser_obstructed_circle = patches.Ellipse((start_line_x + x_indent, start_line_y - delta_line_y*line_num - radius), width=radius, height=radius*aspect, transform=fig.transFigure, clip_on=False, color='red')
+    laser_obstructed_text = fig.text(start_line_x + x_indent + radius, start_line_y - delta_line_y*line_num, 'Laser Not Obstructed', fontsize=fontsize, ha='left', va='top')
+    ax.add_patch(laser_obstructed_circle)
+
+    line_num = line_num + 1
 
     # Tenth line
-    laser_avoid_error_circle = patches.Ellipse((start_line_x + x_indent, start_line_y - delta_line_y*10 - radius), width=radius, height=radius*aspect, transform=fig.transFigure, clip_on=False, color='red')
-    laser_avoid_error_text = fig.text(start_line_x + x_indent + radius, start_line_y - delta_line_y*10, 'No Laser Avoid Error', fontsize=fontsize, ha='left', va='top')
-    ax.add_patch(laser_avoid_error_circle)
+    neighbor_obstructed_circle = patches.Ellipse((start_line_x + x_indent, start_line_y - delta_line_y*line_num - radius), width=radius, height=radius*aspect, transform=fig.transFigure, clip_on=False, color='red')
+    neighbor_obstructed_text = fig.text(start_line_x + x_indent + radius, start_line_y - delta_line_y*line_num, 'Neighbor Not Obstructed', fontsize=fontsize, ha='left', va='top')
+    ax.add_patch(neighbor_obstructed_circle)
+
+    line_num = line_num + 1
 
     # Eleventh line
-    desired_heading_circle = patches.Ellipse((start_line_x, start_line_y - delta_line_y*11 - radius), width=radius, height=radius*aspect, transform=fig.transFigure, clip_on=False, color='red')
-    desired_heading_text = fig.text(start_line_x + radius, start_line_y - delta_line_y*11, 'Desired Heading Not Reached', fontsize=fontsize, ha='left', va='top')
-    ax.add_patch(desired_heading_circle)
+    laser_avoid_error_circle = patches.Ellipse((start_line_x + x_indent, start_line_y - delta_line_y*line_num - radius), width=radius, height=radius*aspect, transform=fig.transFigure, clip_on=False, color='red')
+    laser_avoid_error_text = fig.text(start_line_x + x_indent + radius, start_line_y - delta_line_y*line_num, 'No Laser Avoid Error', fontsize=fontsize, ha='left', va='top')
+    ax.add_patch(laser_avoid_error_circle)
+
+    line_num = line_num + 1
 
     # Twelfth line
-    destination_reached_circle = patches.Ellipse((start_line_x, start_line_y - delta_line_y*12 - radius), width=radius, height=radius*aspect, transform=fig.transFigure, clip_on=False, color='red')
-    destination_reached_text = fig.text(start_line_x + radius, start_line_y - delta_line_y*12, 'Destination Not Reached', fontsize=fontsize, ha='left', va='top')
-    ax.add_patch(destination_reached_circle)
+    desired_heading_circle = patches.Ellipse((start_line_x, start_line_y - delta_line_y*line_num - radius), width=radius, height=radius*aspect, transform=fig.transFigure, clip_on=False, color='red')
+    desired_heading_text = fig.text(start_line_x + radius, start_line_y - delta_line_y*line_num, 'Desired Heading Not Reached', fontsize=fontsize, ha='left', va='top')
+    ax.add_patch(desired_heading_circle)
+
+    line_num = line_num + 1
 
     # Thirteenth line
-    motion_complete_circle = patches.Ellipse((start_line_x, start_line_y - delta_line_y*13 - radius), width=radius, height=radius*aspect, transform=fig.transFigure, clip_on=False, color='red')
-    motion_complete_text = fig.text(start_line_x + radius, start_line_y - delta_line_y*13, 'Motion Not Complete', fontsize=fontsize, ha='left', va='top')
-    ax.add_patch(motion_complete_circle)
+    destination_reached_circle = patches.Ellipse((start_line_x, start_line_y - delta_line_y*line_num - radius), width=radius, height=radius*aspect, transform=fig.transFigure, clip_on=False, color='red')
+    destination_reached_text = fig.text(start_line_x + radius, start_line_y - delta_line_y*line_num, 'Destination Not Reached', fontsize=fontsize, ha='left', va='top')
+    ax.add_patch(destination_reached_circle)
+
+    line_num = line_num + 1
 
     # Fourteenth line
-    neighbor_complete_circle = patches.Ellipse((start_line_x, start_line_y - delta_line_y*14 - radius), width=radius, height=radius*aspect, transform=fig.transFigure, clip_on=False, color='red')
-    neighbor_complete_text = fig.text(start_line_x + radius, start_line_y - delta_line_y*14, 'Neighbors Not Complete', fontsize=fontsize, ha='left', va='top')
+    motion_complete_circle = patches.Ellipse((start_line_x, start_line_y - delta_line_y*line_num - radius), width=radius, height=radius*aspect, transform=fig.transFigure, clip_on=False, color='red')
+    motion_complete_text = fig.text(start_line_x + radius, start_line_y - delta_line_y*line_num, 'Motion Not Complete', fontsize=fontsize, ha='left', va='top')
+    ax.add_patch(motion_complete_circle)
+
+    line_num = line_num + 1
+
+    # Fifteen line
+    neighbor_complete_circle = patches.Ellipse((start_line_x, start_line_y - delta_line_y*line_num - radius), width=radius, height=radius*aspect, transform=fig.transFigure, clip_on=False, color='red')
+    neighbor_complete_text = fig.text(start_line_x + radius, start_line_y - delta_line_y*line_num, 'Neighbors Not Complete', fontsize=fontsize, ha='left', va='top')
     ax.add_patch(neighbor_complete_circle)
 
+    line_num = line_num + 1
+
     # tolerances
-    destination_tolerance_text = fig.text(start_line_x - 0.01, start_line_y - delta_line_y*15, "Destination Tolerance: XXX", fontsize=fontsize, ha='left', va='top')
-    angle_tolerance_text = fig.text(start_line_x - 0.01, start_line_y - delta_line_y * 16, "Angle Tolerance: XXX", fontsize=fontsize, ha='left', va='top')
+    destination_tolerance_text = fig.text(start_line_x - 0.01, start_line_y - delta_line_y*line_num, "Destination Tolerance: XXX", fontsize=fontsize, ha='left', va='top')
+    angle_tolerance_text = fig.text(start_line_x - 0.01, start_line_y - delta_line_y * (line_num+1), "Angle Tolerance: XXX", fontsize=fontsize, ha='left', va='top')
+
+    line_num = line_num + 2
 
     # completion
     complete_circle = patches.Ellipse((0.50,0.95), width=radius*2, height=2*radius*aspect, transform=fig.transFigure, color='red')
@@ -379,7 +445,7 @@ def init():
         neighbor_arrow[name].remove()
         neighbor_arrow[name] = patches.FancyArrowPatch((-100, -100), (-100+arrow_dy, -100+arrow_dx), 
                                         arrowstyle='->',
-                                        mutation_scale=20, color='darkorange',
+                                        mutation_scale=20, color='darkorange' if neighbor_info[name]['in_neighborhood'] else 'gray',
                                         linewidth=2, zorder=9)
         ax.add_patch(neighbor_arrow[name])
 
@@ -415,6 +481,9 @@ def init():
     lidar_started_text.set_text('Lidar Not Obtrained')
     lidar_started_text.set_color('red')
     lidar_started_circle.set_color('red')
+    battery_ready_text.set_text('Battery Not Obtrained')
+    battery_ready_text.set_color('red')
+    battery_ready_circle.set_color('red')
     robot_moving_text.set_text('Robot Not Moving')
     robot_moving_text.set_color('red')
     robot_moving_circle.set_color('red')
@@ -497,11 +566,13 @@ def update(frame):
         arrow_dy = arrow_length * np.sin(neighbor_orientation)
         neighbor_arrow[name] = patches.FancyArrowPatch((pose['y'], pose['x']), (pose['y']+arrow_dy, pose['x']+arrow_dx), 
                                                     arrowstyle='->',
-                                                    mutation_scale=20, color='darkorange',
+                                                    mutation_scale=20, color='darkorange' if pose['in_neighborhood'] else 'gray',
                                                     linewidth=2, zorder=9)
+        neighbor_marker[name].set_facecolor('peachpuff' if pose['in_neighborhood'] else 'lightgray')
+        neighbor_marker[name].set_edgecolor('darkorange' if pose['in_neighborhood'] else 'gray')
         ax.add_patch(neighbor_arrow[name])
 
-    # updating goal location 
+    # Updating Goal Location 
     if destination_reached[frame]:
         if goal_marker_x in ax.lines:
             goal_marker_x.remove()
@@ -531,7 +602,7 @@ def update(frame):
     if type(attempted_desired_location[frame]) != type(None):
         goal_attempt_marker_x.set_data([attempted_desired_location[frame][1]], [attempted_desired_location[frame][0]])
 
-    # updating status variables
+    # Updating Status Variables
     status_text.set_text(robot_status[frame])
     ready_text.set_text('Robot Ready' if robot_ready[frame] else 'Robot Not Ready')
     ready_text.set_color('green' if robot_ready[frame] else 'red')
@@ -545,6 +616,9 @@ def update(frame):
     lidar_started_text.set_text('Lidar Obtained' if lidar_started[frame] else 'Lidar Not Obtrained')
     lidar_started_text.set_color('green' if lidar_started[frame] else 'red')
     lidar_started_circle.set_color('green' if lidar_started[frame] else 'red')
+    battery_ready_text.set_text(f'Battery Obtained {f"- {battery_dict[frame]['percentage']*100}%" if battery_dict[frame]['percentage'] else ""}' if not wait_for_battery[frame] or battery_received[frame] else ' Battery Not Obtained')
+    battery_ready_text.set_color('green' if not wait_for_battery[frame] or battery_received[frame] else 'red')
+    battery_ready_circle.set_color('green' if not wait_for_battery[frame] or battery_received[frame] else 'red')
     robot_moving_text.set_text('Robot Moving' if robot_moving[frame] else 'Robot Not Moving')
     robot_moving_text.set_color('green' if robot_moving[frame] else 'red')
     robot_moving_circle.set_color('green' if robot_moving[frame] else 'red')

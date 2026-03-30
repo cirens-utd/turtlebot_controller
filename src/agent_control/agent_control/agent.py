@@ -1984,6 +1984,7 @@ class Agent(Node):
                     "time": datetime.datetime.now().strftime("%Y-%m-%d.%H%M%S"),
                     "my_name": self.my_name,
                     "mainClass": type(self).__name__,
+                    "replayVersion": 1,
 
                     # Robot Conditions
                     "robot_status": self.robot_status,
@@ -1994,6 +1995,7 @@ class Agent(Node):
                     "camera_started": self._camera_started,
                     "camera_setup": self._camera_setup,
                     "battery_received": self._battery_received,
+                    "wait_for_battery": self._wait_for_battery,
                     "robot_moving": self.robot_moving,
                     "desired_heading": self.desired_heading,
                     "destination_reached": self.destination_reached,
