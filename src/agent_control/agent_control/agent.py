@@ -1663,7 +1663,7 @@ class Agent(Node):
                     # check to make sure we are not being obstructed manually
                     if self._neighbor_obstructed_time == None:
                         self._neighbor_collision_vector = to_neighbor_vector
-                    self._neighbor_collision_name = name
+                    self._neighbor_collision_name = int(name)
                     return True
 
         # If no neighbors were within tolerance in the right direction or no collision path detected, return False
@@ -1729,15 +1729,15 @@ class Agent(Node):
                 if self._neighbor_obstructed_time == None:
                     self._neighbor_obstructed_time = self._path_obstructed_time
                     self._neighbor_tolerance_active = 2 * self._neighbor_tolerance
-                    self._neighbor_collision_name = name
-                    if name  < self.my_number:
+                    self._neighbor_collision_name = int(name)
+                    if self._neighbor_collision_name  < self.my_number:
                         self._neighbor_delay_active = self._neighbor_delay * 2
 
-                elif name != self._neighbor_collision_name:
-                    self._neighbor_collision_name = name
+                elif int(name) != self._neighbor_collision_name:
+                    self._neighbor_collision_name = int(name)
                     self._neighbor_obstructed_time = datetime.datetime.now()
                     self._neighbor_collision_vector = to_neighbor_vector
-                    if name  < self.my_number:
+                    if self._neighbor_collision_name  < self.my_number:
                         self._neighbor_delay_active = self._neighbor_delay * 2
                     else:
                         self._neighbor_delay_active = self._neighbor_delay
