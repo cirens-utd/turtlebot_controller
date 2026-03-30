@@ -211,7 +211,7 @@ class CPIH(Agent):
             X[i] = np.array(neighbor) 
             
             
-            print("X[",i,"]: ",X[i])
+            # print("X[",i,"]: ",X[i])
             i = i+1
        # for neighbor in self.neighbor_poses:
         #    X[i] = np.array((self.neighbor_poses[neighbor].pose.position.x, self.neighbor_poses[neighbor].pose.position.y))
@@ -220,7 +220,7 @@ class CPIH(Agent):
             # Target is the centroid of the median contour
             
             safepoint = np.mean(tc.median_contour, axis=0)
-            self.get_logger().info(f"{self.my_name} Has a valid target: {safepoint}")
+            # self.get_logger().info(f"{self.my_name} Has a valid target: {safepoint}")
         else:
             safepoint = self.position
             self.get_logger().info(f"{self.my_name} Does not have valid target.")
@@ -254,6 +254,7 @@ def main(args=None):
     finally:
         if my_robot:
             my_robot.shutdown()
+        if rclpy.ok():
             rclpy.shutdown()
 
 if __name__ == '__main__':
