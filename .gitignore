@@ -13,3 +13,4 @@
 *.*Replay*
 /Replayer/*.mpr
 /Config/
+*log.txt
