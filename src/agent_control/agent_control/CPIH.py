@@ -13,7 +13,7 @@ class CPIH(Agent):
         destination_tolerance=0.01,
         restricted_area = False, restricted_x_min = -2.9, restricted_x_max = 2.9, restricted_y_min = -5, restricted_y_max = 4,
         laser_avoid=True, laser_distance=0.5, laser_delay=5, laser_walk_around=2, laser_avoid_loop_max=1,
-        neighbor_avoid=True, neighbor_delay=5):
+        neighbor_avoid=True, neighbor_delay=5, adv_indices = []):
         super().__init__(my_number, my_neighbors, sim=sim, sync_move=sync_move, 
                         destination_tolerance=destination_tolerance,
                         restricted_area=restricted_area, restricted_x_min=restricted_x_min, restricted_x_max=restricted_x_max, restricted_y_min=restricted_y_min, restricted_y_max=restricted_y_max,
@@ -34,8 +34,7 @@ class CPIH(Agent):
         self.move_to_position([x,y])    Function to move to a position
         '''
         n = len(self.my_neighbors)
-        adv_indices = [3]
-        f = len(adv_indices)
+        f = len(self.adv_indices)
         adv_target = np.array(([0, -4]))
         X = np.zeros((n,2))
         ZDynamics = False
@@ -62,7 +61,7 @@ class CPIH(Agent):
         if (np.linalg.norm(self.position-target)<0.3):
             self.complete = True
         # Adversarial behaviour. 
-        if (self.my_number not in adv_indices):
+        if (self.my_number not in self.adv_indices):
             self.move_to_position(target)
         else:
             self.move_to_position(adv_target)
@@ -80,13 +79,14 @@ def main(args=None):
     parser.add_argument("-l", "--laser_avoid", default=True, action="store_false", help="Avoid using laser")
     parser.add_argument("-m", "--loop_max", default=1, type=int, help="Laser Loop Max Number")
     parser.add_argument("-b", "--neighbor_avoid", default=True, action="store_false", help="Avoid Using neighbor position")
+    parser.add_argument("-a", "--adversaries", default = 3,nargs = '+', type = int,, help ="Array of adversaries")
     parser.add_argument("--ros-args", default=False, action="store_true")
     script_args = parser.parse_args()
 
     try:
         rclpy.init(args=args)
         my_robot = CPIH(int(script_args.index), np.array(script_args.neighbor), sim=script_args.sim, 
-            restricted_area=True, laser_avoid=script_args.laser_avoid, neighbor_avoid=script_args.neighbor_avoid, laser_avoid_loop_max=script_args.loop_max)
+            restricted_area=True, laser_avoid=script_args.laser_avoid, neighbor_avoid=script_args.neighbor_avoid, laser_avoid_loop_max=script_args.loop_max, adv_indices = script_args.adversaries)
         rclpy.spin(my_robot)
     except Exception as e:
         traceback.print_exc()
