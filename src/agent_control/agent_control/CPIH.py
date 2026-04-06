@@ -33,20 +33,25 @@ class CPIH(Agent):
         self.move_direction([x,y])      Function to move in a direction
         self.move_to_position([x,y])    Function to move to a position
         '''
-        X = np.zeros((6,2))
+        n = len(self.my_neighbors)
+        adv_indices = [3]
+        f = len(adv_indices)
+        adv_target = np.array(([0, -4]))
+        X = np.zeros((n,2))
+        ZDynamics = False
+
         i = 0
         for name, neighbor in self.neighbor_position.items():
             X[i] = np.array(neighbor) 
-            
-            
-            print("X[",i,"]: ",X[i])
             i = i+1
+        X[n] = self.position
+            
+       
        # for neighbor in self.neighbor_poses:
         #    X[i] = np.array((self.neighbor_poses[neighbor].pose.position.x, self.neighbor_poses[neighbor].pose.position.y))
         tc = TukeyContour(X)
         if tc.median_contour.shape[0] > 0:
             # Target is the centroid of the median contour
-            
             safepoint = np.mean(tc.median_contour, axis=0)
             self.get_logger().info(f"{self.my_name} Has a valid target: {safepoint}")
         else:
@@ -56,10 +61,11 @@ class CPIH(Agent):
         target = safepoint
         if (np.linalg.norm(self.position-target)<0.3):
             self.complete = True
-        if (self.my_number != 3):
+        # Adversarial behaviour. 
+        if (self.my_number not in adv_indices):
             self.move_to_position(target)
         else:
-            self.move_to_position(np.array(([0, -4])))
+            self.move_to_position(adv_target)
 
 
 def main(args=None):
