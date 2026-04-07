@@ -3,11 +3,13 @@
 import numpy as np
 import rclpy
 from rclpy.node import Node
+from rcl_interfaces.msg import SetParametersResult
+from rclpy.qos import qos_profile_sensor_data
 from std_msgs.msg import Bool
 from geometry_msgs.msg import PoseArray, PoseStamped, Twist
 from sensor_msgs.msg import LaserScan, BatteryState
 from irobot_create_msgs.msg import LightringLeds
-from rclpy.qos import qos_profile_sensor_data
+from std_srvs.srv import Empty
 from enum import Enum 
 from dataclasses import dataclass
 import argparse
@@ -57,13 +59,17 @@ class Agent(Node):
             "robot.neighborhood_size": self._handle_neighborhood,
             "robot.neighborhood_default": self._handle_neighborhood,
             "motion.destination_tolerance": self._handle_destination_tolerance,
-            "motion.at_goal_historisis": self._hanlde_goal_tolerance
+            "motion.at_goal_historisis": self._hanlde_goal_tolerance,
+            "laser.enable": self._handle_laser_mode
         }
+        self._param_update_map = self._build_param_update_map()
+        if hasattr(self, "_extra_param_update_map"):
+            self._param_update_map.update(self._extra_param_update_map)
+
         self.declare_agent_parameters()
         self.assign_parameters()
         self.add_on_set_parameters_callback(self.parameter_callback)
 
-        self.my_name = f"robot{self.my_number}"
         self._replay_dict = []                  # this is about 15 min
         self._creat_log_file_names(self.start_time)
         policy = qos_profile_sensor_data
@@ -166,7 +172,10 @@ class Agent(Node):
             self.get_logger().info(f"{self.my_name}: (Not using Mocab) Setting neighbor_started")
 
         # Lidar Topics
-        self.lidar_sub_ = self.create_subscription(LaserScan, f"/{self.my_name}/scan", self.lidar_callback_, 10)
+        self.lidar_sub_ = None
+        self._stop_laser_client = self.create_client(Empty, f'/{self.my_name}/stop_motor')
+        self._start_laser_client = self.create_client(Empty, f'/{self.my_name}/start_motor')
+        self._handle_laser_mode(self._laser_enable)
 
         self.timer = self.create_timer(self._control_loop_period, self._controller_loop)
         if self.logging_enable:
@@ -256,6 +265,7 @@ class Agent(Node):
 
         # --- Robot ---
         self.declare_parameter("robot.id", 1)
+        self.declare_parameter("robot.name", "robot")
         self.declare_parameter("robot.neighbors", [1])
         self.declare_parameter("robot.diameter", 0.4)
         self.declare_parameter("robot.use_config", True)
@@ -308,6 +318,8 @@ class Agent(Node):
         self.declare_parameter("restricted_area.y_max", 4.0)
 
         # --- Laser ---
+        self.declare_parameter("laser.enable", True)
+        self.declare_parameter("laser.service_timeout", 5)
         self.declare_parameter("laser.avoid", True)
         self.declare_parameter("laser.distance", 0.5)
         self.declare_parameter("laser.delay", 5.0)
@@ -334,6 +346,7 @@ class Agent(Node):
     def assign_parameters(self):
         # --- Robot ---
         self.my_number = self.get_parameter("robot.id").value
+        self.my_name = self.get_parameter("robot.name").value + str(self.my_number)
         self._diameter = self.get_parameter("robot.diameter").value
         self._my_neighbors = [int(x) for x in self.get_parameter("robot.neighbors").value]
         self._use_config_setup = self.get_parameter("robot.use_config").value
@@ -401,6 +414,8 @@ class Agent(Node):
         self._restricted_y_max = self.get_parameter("restricted_area.y_max").value
 
         # --- Laser ---
+        self._laser_enable = self.get_parameter("laser.enable").value                    # Boolean to enable lidar laser              
+        self._timeout_sec = self.get_parameter("laser.service_timeout").value                    
         self.laser_avoid = self.get_parameter("laser.avoid").value                    # Boolean to use laser to avoid obstructions
         self.laser_distance = self.get_parameter("laser.distance").value                # Minimum distance you can get to an object
         self._laser_delay = self.get_parameter("laser.delay").value                     # Number of seconds before avoidance is taken 
@@ -458,6 +473,7 @@ class Agent(Node):
             "restricted_area.y_max": "_restricted_y_max",
 
             # --- Laser ---
+            "laser.enable": "laser_enable",
             "laser.avoid": "laser_avoid",
             "laser.distance": "laser_distance",
             "laser.delay": "_laser_delay",
@@ -496,6 +512,40 @@ class Agent(Node):
             self._destination_tolerance = value
         self._at_goal_historisis = value
 
+    def _handle_laser_mode(self, enable: bool):
+        """
+        Enable or disable the TurtleBot 4 LiDAR using ROS2 lifecycle service.
+
+        Parameters:
+            enable (bool) : True to start LiDAR, False to stop
+
+        Returns:
+            bool : True if successful, False otherwise
+        """
+
+        if enable:
+            """Creates a subscription to wake the driver and calls the start service."""
+            self.get_logger().info(f'{self.my_name}: Starting LiDAR...')
+            self.lidar_sub_ = self.create_subscription(LaserScan, f"/{self.my_name}/scan", self.lidar_callback_, 10)
+            return self._call_service(self._start_laser_client)
+            
+        else:
+            """
+            Motor will auto start if there is a subscriber though.
+            Need to destroy subscription
+
+            def kill_diagnostics(self):
+                '''Kills the background diagnostics node that prevents the motor from stopping.'''
+                self.get_logger().info('Killing diagnostics node...')
+                subprocess.run(["pkill", "-f", "turtlebot4_diagnostics"])
+            """
+            if self.lidar_sub_:
+                self.destroy_subscription(self.lidar_sub_)
+                self.lidar_sub_ = None
+                
+            self.get_logger().info(f'{self.my_name}: Sending Stop Motor request...')
+            return self._call_service(self._stop_laser_client)
+
     # Allows for live updates
     def parameter_callback(self, params):
         for param in params:
@@ -511,15 +561,14 @@ class Agent(Node):
             elif name in self._param_update_map:
                 attr = self._param_update_map[name]
                 old = getattr(self, attr, None)
-
                 setattr(self, attr, value)
-
-                self.get_logger().info(f"{name}: {old} -> {value}")
+                self.get_logger().info(f"{self.my_name} Parameter update - {name}: {old} -> {value}")
 
             else:
-                self.get_logger().warning(f"Unhandled parameter: {name}")
+                self.get_logger().warning(f"{self.my_name} Unhandled parameter: {name}")
+                setattr(self, name, value)
 
-        return rclpy.parameter.ParameterEventHandler.Result(successful=True)
+        return SetParametersResult(successful=True)
 
     def _rebuild_neighborhood(self):
         # If value is not set, use default
@@ -536,7 +585,7 @@ class Agent(Node):
                     break
             if my_index < 0 or my_index >= len(self._neighborhood):
                 if my_index < 0:
-                    self.get_logger().warning(f"Neighborhood mode set to global but my index was not included in nieghbor layout\\nNeighbors: {my_neighbors}")
+                    self.get_logger().warning(f"Neighborhood mode set to global but my index was not included in nieghbor layout\\nNeighbors: {self._my_neighbors}")
                 else:
                     self.get_logger().warning(f"Neighborhood mode set to global but my index was outside the range of the matrix given\nIndex: {my_index}\nNeighborhood: {self._neighborhood}")
                 # all values go to default
@@ -568,6 +617,12 @@ class Agent(Node):
             if not neighbor["in_neighborhood"] and name in self.neighbor_position:
                 self.neighbor_position.pop(name, None)
                 print(f"Poped {name}")
+
+    def _call_service(self, client):
+        if not client.wait_for_service(timeout_sec=2.0):
+            self.get_logger().error('Service not available!')
+            return
+        return client.call_async(Empty.Request())
 
     def setup_robot_(self):
         '''
