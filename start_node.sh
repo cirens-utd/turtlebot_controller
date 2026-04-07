@@ -17,9 +17,12 @@ shift
 # other_robots="$@"
 other_robots="[$(echo "$@" | sed 's/ /,/g')]"
 
-##New Robot
+# ##New Robot
 # # Calibration 
 # tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control calibration.py --ros-args -p robot.id:=$ROBOT_NUM &> ./log.txt'"
+
+# # Adversary
+# tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control doNothing.py --ros-args --params-file src/agent_control/config/CPIH/Network1.yaml -p robot.id:=$ROBOT_NUM -p robot.neighbors:=$other_robots -p logging.enabled:=true&> ./log.txt'"
 
 #CPIH Experiements
 # Exp 1: 9 robot run 
