@@ -3,6 +3,7 @@
 
     robot:
       id: 1
+      name: "robot"
       neighbors: [1]
       diameter: 0.4
       use_config: true
@@ -18,9 +19,9 @@
         1, 1, 0, 0, 1, 1, 1, 0, 0,
         1, 1, 1, 0, 0, 1, 0, 1, 0,
         1, 1, 1, 1, 0, 0, 0, 0, 1,
-        0, 1, 1, 1, 1, 0, 1, 0, 0,
-        0, 0, 1, 1, 1, 1, 0, 1, 0,
-        1, 0, 0, 1, 1, 1, 0, 0, 1
+        0, 1, 1, 1, 1, 0, 0, 1, 0,
+        0, 0, 1, 1, 1, 1, 0, 0, 1,
+        1, 0, 0, 1, 1, 1, 1, 0, 0
         ]
       neighborhood_size: 9
       neighborhood_default: 0     # if outside the span, 1 means they are a neighbor and 0 means they are not
@@ -65,6 +66,8 @@
       y_max: 4.0
 
     laser:
+      enable: true
+      service_timeout: 5
       avoid: false
       distance: 0.5
       delay: 5.0
@@ -87,23 +90,7 @@
       override: false
       persistent: true
 
-
-/**:
-  ros__parameters:
-    robot:
-      neighborhood_mode: "global"   # "local" or "global" -> Local only has my neighborhood. Global has all neighborhoods
-      neighborhood_local: []
-      # 3 Advesaries as the last 3 robots. 0 robot has 2 bad neighbors
-      neighborhood_global: [
-        0, 0, 1, 1, 1, 0, 1, 1, 0,
-        0, 0, 1, 1, 1, 1, 0, 1, 0,
-        1, 0, 0, 1, 1, 1, 0, 0, 1,
-        1, 1, 0, 0, 1, 1, 1, 0, 0,
-        1, 1, 1, 0, 0, 1, 0, 1, 0,
-        1, 1, 1, 1, 0, 0, 0, 0, 1,
-        0, 1, 1, 1, 1, 0, 1, 0, 0,
-        0, 0, 1, 1, 1, 1, 0, 1, 0,
-        1, 0, 0, 1, 1, 1, 0, 0, 1
-        ]
-      neighborhood_size: 9
-      neighborhood_default: 0     # if outside the span, 1 means they are a neighbor and 0 means they are not
+    CPIH:
+      self_trust: 0         # 0 - Self Distrust, 1 - normal Tukey, 2 = Self Trust
+      safe_point_mode: 0    # 0 - Use Tukey Centroid, 1 - Use Safepoint, 2 - use fByzantine-safe point
+      imprecision: 0

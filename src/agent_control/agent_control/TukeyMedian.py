@@ -118,62 +118,138 @@ class TukeyContour:
 
         self.median_contour = np.array(final_contour_points)
 
-    def CPIH_Safepoint(self,n,Bx,Xi):
-        k = int(np.floor(2/3*n)+1)
-        n = np.arange(n)
-        combk = list(combinations(n,k))
-        safeX = []
-        safeY =[]
-        first= True
-        CPIH= Polygon()
-        #testing
-    
-        for C in combk:
-            if Xi in C:
-                comb3 = list(combinations(C,3))
-                dp1 =[]
-                Chull = Polygon()
-                for i in range(len(comb3)):
-                    comb2 = list(combinations(comb3[i][:],2))
-                    b1 = int(comb3[i][0])
-                    b2 = int(comb3[i][1])
-                    b3 = int(comb3[i][2])
-                    dp1 = np.vstack((Bx[b1,:,:],Bx[b2,:,:],Bx[b3,:,:]))
-                    verts = self._monotone_chain_convex_hull(dp1)
-                    dp1 = Polygon(verts)
-                    dp2 = Polygon()
-                    for j in range(len(comb2)):
-                        a1 = comb2[j][0]
-                        a2 = comb2[j][1]
-                        temp= np.vstack((Bx[a1,:,:],Bx[a2,:,:]))
-                        verts2 = self._monotone_chain_convex_hull(temp)
-                        temp =  Polygon(temp)
-                        dp2 = unary_union([dp2,temp])
-                    diff = dp1.difference(dp2)
-                    Chull= unary_union([Chull,diff])
+class CPIH:
+    def __init__(self):
+        pass
 
+    def CPIH_Safepoint(self, Bx, Xi, self_pos, mode=1):
+        """
+        CPIH-based resilient safe point.
 
-                if (first and not Chull.is_empty):
-                    CPIH = Polygon(Chull.convex_hull)
+        Parameters:
+            Bx       : (n, m, 2) array of agent regions
+            Xi       : index of this agent
+            self_pos : np.array([x, y]) current robot position
+            mode     : 0 (self distrust), 1 (normal), 2 (self trust)
 
-                else:
-                    #NEW 
-                    if not Chull.is_empty:
-                        Chull = Polygon(Chull.convex_hull)
-                    #ENDNEW
-                    CPIH = CPIH.intersection(Chull)
-                    if not CPIH.geom_type == 'Polygon' and not CPIH.is_empty:
+        Returns:
+            np.array([x, y]) safe point
+        """
 
-                        for member in CPIH.geoms:
-                            if member.geom_type == 'Polygon':
-                                CPIH = member
+        n = Bx.shape[0]
+        k = int(np.floor(2/3 * n) + 1)
+        indices = np.arange(n)
 
+        CPIH = Polygon()
+        first = True
 
-                    if CPIH.is_empty:
-                        return [0,0]
-                        break
+        for C in combinations(indices, k):
+
+            # -----------------------------
+            # Mode filtering
+            # -----------------------------
+            if mode == 0 and Xi in C:
+                continue
+            if mode == 2 and Xi not in C:
+                continue
+
+            Chull = Polygon()
+
+            for triple in combinations(C, 3):
+                b1, b2, b3 = map(int, triple)
+
+                dp1_pts = np.vstack((Bx[b1], Bx[b2], Bx[b3]))
+                verts = self._monotone_chain_convex_hull(dp1_pts)
+                dp1 = Polygon(verts)
+
+                dp2 = Polygon()
+                for pair in combinations(triple, 2):
+                    a1, a2 = pair
+                    temp_pts = np.vstack((Bx[a1], Bx[a2]))
+                    temp_poly = Polygon(temp_pts)
+                    dp2 = unary_union([dp2, temp_poly])
+
+                diff = dp1.difference(dp2)
+                Chull = unary_union([Chull, diff])
+
+            if Chull.is_empty:
+                continue
+
+            Chull = Polygon(Chull.convex_hull)
+
+            # -----------------------------
+            # Intersections
+            # -----------------------------
+            if first:
+                CPIH = Chull
                 first = False
-        safeX,safeY = np.array(CPIH.exterior.xy)
-            #safeX.append(x);
-            #safeY.append(y);
-        return [safeX,safeY]
+            else:
+                CPIH = CPIH.intersection(Chull)
+
+                if not CPIH.is_empty and CPIH.geom_type != 'Polygon':
+                    for geom in CPIH.geoms:
+                        if geom.geom_type == 'Polygon':
+                            CPIH = geom
+                            break
+
+            # Early exit
+            if CPIH.is_empty:
+                return np.array(self_pos)
+
+        # -----------------------------
+        # Final result
+        # -----------------------------
+        if CPIH.is_empty:
+            return np.array(self_pos)
+
+        centroid = CPIH.centroid
+        return np.array([centroid.x, centroid.y])
+    
+    def CPIH_Fast_Safepoint(self, Bx, Xi, self_pos, mode=1):
+        """
+        Fast approximation of a Byzantine-safe point.
+
+        Returns a robust centroid using distance-based filtering.
+        Runs in O(n log n) instead of combinatorial time.
+        """
+
+        n = Bx.shape[0]
+
+        # -----------------------------
+        # Step 1: get representative point per agent
+        # -----------------------------
+        centers = np.mean(Bx, axis=1)   # shape (n,2)
+
+        # -----------------------------
+        # Step 2: mode filtering
+        # -----------------------------
+        indices = np.arange(n)
+
+        if mode == 0:
+            indices = indices[indices != Xi]
+        elif mode == 2:
+            indices = indices[indices == Xi] if n > 1 else indices
+
+        if len(indices) == 0:
+            return np.array(self_pos)
+
+        pts = centers[indices]
+
+        # -----------------------------
+        # Step 3: compute distances
+        # -----------------------------
+        mean_pt = np.mean(pts, axis=0)
+        dists = np.linalg.norm(pts - mean_pt, axis=1)
+
+        # -----------------------------
+        # Step 4: keep closest k points
+        # -----------------------------
+        k = int(np.floor(2/3 * len(pts)) + 1)
+
+        sorted_idx = np.argsort(dists)
+        safe_pts = pts[sorted_idx[:k]]
+
+        # -----------------------------
+        # Step 5: return centroid
+        # -----------------------------
+        return np.mean(safe_pts, axis=0)
