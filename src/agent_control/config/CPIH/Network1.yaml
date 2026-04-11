@@ -4,7 +4,7 @@
     robot:
       id: 1
       name: "robot"
-      neighbors: [1]
+      neighbors: []
       diameter: 0.4
       use_config: true
       config_file: "turtlebot_global_config.yaml"
@@ -28,7 +28,7 @@
       neighborhood_default: 0     # if outside the span, 1 means they are a neighbor and 0 means they are not
     
     mode:
-      sim: false
+      sim: true
       sync_move: false
       viewer: false
 
@@ -99,3 +99,4 @@
 
     Start:
       positions: [-2.7, -2.9, 2.1, -3.7, 1.7, -2.9, 1.4, -3.7, -3.3, -3.4, -2.2, -3.4, -1.0, 3.2, -0.17, 5.0, 0.91, 2.9]
+      wait: False

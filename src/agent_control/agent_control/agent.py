@@ -3,6 +3,7 @@
 import numpy as np
 import rclpy
 from rclpy.node import Node
+from rclpy.parameter import Parameter
 from rcl_interfaces.msg import SetParametersResult
 from rclpy.qos import qos_profile_sensor_data
 from std_msgs.msg import Bool
@@ -23,6 +24,7 @@ import json
 from copy import deepcopy 
 
 import pdb
+
 
 # making RGB dataclass
 @dataclass
@@ -348,7 +350,7 @@ class Agent(Node):
         self.my_number = self.get_parameter("robot.id").value
         self.my_name = self.get_parameter("robot.name").value + str(self.my_number)
         self._diameter = self.get_parameter("robot.diameter").value
-        self._my_neighbors = [int(x) for x in self.get_parameter("robot.neighbors").value]
+        self._my_neighbors = [int(x) for x in self.get_parameter("robot.neighbors").value] if self.get_parameter_or('robot.neighbors', None).type_ != Parameter.Type.NOT_SET else []
         self._use_config_setup = self.get_parameter("robot.use_config").value
         self.config_file = self.get_parameter("robot.config_file").value
         self._offset_x = self.get_parameter("robot.offset_x").value
@@ -359,7 +361,10 @@ class Agent(Node):
         self._neighborhood_default = self.get_parameter("robot.neighborhood_default").value
 
         if self._neighborhood_mode == 'global':
-            flat = self.get_parameter("robot.neighborhood_global").value
+            flat = []
+            if(self.get_parameter_or('robot.neighborhood_global', None).type_ != Parameter.Type.NOT_SET):
+                flat = self.get_parameter("robot.neighborhood_global").value
+
             flat = [int(x) for x in flat]
             self._neighborhood_size = self.get_parameter("robot.neighborhood_size").value
             self._neighborhood = [
@@ -367,7 +372,11 @@ class Agent(Node):
                 for i in range(self._neighborhood_size)
             ]
         elif self._neighborhood_mode == 'local':
-            self._neighborhood = [int(x) for x in self.get_parameter("robot.neighborhood_local").value]
+            if(self.get_parameter_or('robot.neighborhood_local', None).type_ != Parameter.Type.NOT_SET):
+                self._neighborhood = [int(x) for x in self.get_parameter("robot.neighborhood_local").value]
+            else:
+                self._neighborhood = []
+
         else:
             self.get_logger().warning(
                 f"Neighborhood value was invalid: {self._neighborhood_mode}. Will use No neighborhood"
@@ -589,7 +598,7 @@ class Agent(Node):
                 else:
                     self.get_logger().warning(f"Neighborhood mode set to global but my index was outside the range of the matrix given\nIndex: {my_index}\nNeighborhood: {self._neighborhood}")
                 # all values go to default
-                for robot, values in self.neighbor_poses:
+                for robot, values in self.neighbor_poses.items():
                     self.neighbor_poses[robot]["in_neighborhood"] = bool(self._neighborhood_default)
             else:
                 # loop trough each of the neighbors and set the value

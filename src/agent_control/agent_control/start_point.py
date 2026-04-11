@@ -2,6 +2,7 @@
 
 import numpy as np
 import rclpy
+from rclpy.parameter import Parameter
 from agent_control.agent import Agent
 import argparse
 import datetime
@@ -12,41 +13,47 @@ from irobot_create_msgs.msg import LightringLeds
 import pdb
 
 class StartPoint(Agent):
-    def __init__(self, node_name, start_points, wait=False):
+    def __init__(self, node_name):
 
+        self._extra_param_update_map = {
+            "Start.positions": "start_positions",
+            "Start.wait": "wait"
+        }
         super().__init__(node_name)
 
-        start_point = None
-        for n_idx, item in enumerate(self._my_neighbors):
-            idx = n_idx
-            catchMe = 0
-            while idx >= len(start_points):
-                idx -= len(start_points)
-                catchMe += 1
-                if catchMe == 1000:
-                    raise ValueError(f"Bro, why are you in this while loop for so long?")
+        self.declare_parameter("Start.positions", [0.0, 0.0])    # (X1, Y1, X2, Y2, ..., Xn, Yn)
+        self.start_positions = self.get_parameter("Start.positions").value if self.get_parameter_or('Start.positions', None).type_ != Parameter.Type.NOT_SET else []
 
-            if self.my_number == item:
-                x, y = start_points[idx*2], start_points[idx*2+1]
-                start_point = (x, y)
+        self.declare_parameter("Start.wait", False)    # Overrides neighbor_walk_around
+        self.wait = self.get_parameter("Start.wait").value
 
-        if type(start_point) == type(None):
-            raise ValueError(f"Could not find a value for {self.my_number}")
+        if len(self.start_positions):
+            start_point = None
+            num_points = len(self.start_positions) // 2
+
+            for n_idx, item in enumerate(self._my_neighbors):
+                if self.my_number == item:
+                    idx = n_idx % num_points
+                    x = self.start_positions[idx * 2]
+                    y = self.start_positions[idx * 2 + 1]
+                    start_point = (x, y)
+
+            if type(start_point) == type(None):
+                raise ValueError(f"Could not find a value for {self.my_number}")
+        else:
+            self.get_logger().warning(f"{self.my_name}:No Start Positions Passed!!")
+            start_point = (0,0)
             
 
         self.get_logger().info(f"Going to {start_point}")
         self.starting_point = start_point
         # set to true so we don't need to wait on neigbors to move
         self.robot_moving = True
-        self.neighbor_walk_around = not wait
+        self.neighbor_walk_around = not self.wait
 
     def controller(self):
         '''
         This function is called every time the robot position is updated. We will put our formation controle logic here.
-
-        Equation:
-        new_position = sum((np.linalg.norm(neighbor - self.position) - self._formation_distance[i])* neighbor - self.position)
-        
 
         Needed info from agent.
         self.position                   This agents position
@@ -69,20 +76,22 @@ def main(args=None):
     Pass in all the neighbors and order of their points.
     Script will find which point belongs to this index and move to that point
     '''
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-w", "--wait", default=False, action="store_true", help="Set to make robot just wait for neighbors to move")
-    parser.add_argument("-s", "--start_points", nargs='+', type=float, help="List of coordinates defining the starting points (e.g. x1 y1 x2 y2 ...)")
-    script_args, ros_args = parser.parse_known_args()
+    ## Start Simulation Script
+    ## ros2 launch turtlebot_base launch_sim.launch.py 
+    ## ros2 launch turtlebot_base launch_robots.launch.py yaml_load:=False robot_number:=4
 
+    my_robot = None
     try:
-        rclpy.init(args=ros_args)
-        my_robot = StartPoint("StartPoint", script_args.start_points, script_args.wait)
+        rclpy.init(args=args)
+        my_robot = StartPoint("StartPoint")
         rclpy.spin(my_robot)
     except Exception as e:
         traceback.print_exc()
     finally:
-        my_robot.shutdown()
-        rclpy.shutdown()
+        if my_robot:
+            my_robot.shutdown()
+        if rclpy.ok():
+            rclpy.shutdown()
 
 if __name__ == '__main__':
     main()

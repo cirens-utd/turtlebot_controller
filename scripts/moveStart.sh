@@ -7,7 +7,7 @@ shift
 shift
 shift
 shift
-other_robots="$@"
+other_robots="[$(echo "$@" | sed 's/ /,/g')]"
 
 ssh ${USER}@${pi_ip} << EOF
 
@@ -29,6 +29,7 @@ ssh ${USER}@${pi_ip} << EOF
 
     source install/setup.bash 
     
-    ros2 run agent_control start_point.py -n $other_robots -i $robot_num -l -p -3.79 0.06 0.02 3.31 2.84 1.89 2.72 -2.57 -2.26 -5.07
+    ros2 run agent_control start_point.py --ros-args --params-file src/agent_control/config/CPIH/Network1.yaml -p robot.id:=$ROBOT_NUM -p robot.neighbors:=$other_robots
+    # QE Start Points -s -2.7 -2.9 2.1 -3.7 1.7 -2.9 1.4 -3.7 -3.3 -3.4 -2.2 -3.4 -1 3.2 -.17 5 .91 2.9
     
 EOF
