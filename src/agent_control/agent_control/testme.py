@@ -105,6 +105,7 @@ def main(args=None):
     You pass in which node is this one through -i and all the others will be neighbors
     '''
 
+    my_robot = None
     try:
         rclpy.init(args=args)
         my_robot = TestMe("TestMe")
@@ -112,8 +113,10 @@ def main(args=None):
     except Exception as e:
         traceback.print_exc()
     finally:
-        my_robot.shutdown()
-        rclpy.shutdown()
+        if my_robot:
+            my_robot.shutdown()
+        if rclpy.ok():
+            rclpy.shutdown()
 
 if __name__ == '__main__':
     main()

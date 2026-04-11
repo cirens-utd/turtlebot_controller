@@ -99,6 +99,7 @@ def main(args=None):
 
     yaml_data = get_yaml(script_args.formation)
 
+    my_robot = None
     try:
         rclpy.init(args=ros_args)
         my_robot = LF_Formation("LF_Formation", yaml_data)
@@ -106,8 +107,10 @@ def main(args=None):
     except Exception as e:
         traceback.print_exc()
     finally:
-        my_robot.shutdown()
-        rclpy.shutdown()
+        if my_robot:
+            my_robot.shutdown()
+        if rclpy.ok():
+            rclpy.shutdown()
 
 if __name__ == '__main__':
     main()

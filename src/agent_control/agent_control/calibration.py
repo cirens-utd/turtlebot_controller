@@ -155,12 +155,16 @@ def main(args=None):
     parser.add_argument("-c", "--calibrate", default=True, action="store_false", help="Set if you do not want to run calibration")
     script_args, ros_args = parser.parse_known_args()
 
-    rclpy.init(args=ros_args)
-    my_robot = Calibration(
-        "Calibration",
-        script_args.calibrate)
-    rclpy.spin(my_robot)
-    rclpy.shutdown()
+    my_robot = None
+    try:
+        rclpy.init(args=ros_args)
+        my_robot = Calibration(
+            "Calibration",
+            script_args.calibrate)
+        rclpy.spin(my_robot)
+    finally:
+        if rclpy.ok():
+            rclpy.shutdown()
 
 if __name__ == '__main__':
     main()

@@ -500,17 +500,19 @@ def main(args=None):
 
     # --ros-args -p robot.id:=1 -p robot.neighbors:="[1,2,3]" -p laser.avoid:=false -p logging.enabled:=false
     
-    rclpy.init(args=args)
-    apriltag_detector_node = AprilTagDetectorNode("AprilTagDetector")
+    apriltag_detector_node = None
     try:
+        rclpy.init(args=args)
+        apriltag_detector_node = AprilTagDetectorNode("AprilTagDetector")
         rclpy.spin(apriltag_detector_node)
     except KeyboardInterrupt:
-        pass
-
-    # Destroy the node explicitly
-    apriltag_detector_node.shutdown()
-    rclpy.shutdown()
-    cv2.destroyAllWindows()
+        
+    finally:
+        if apriltag_detector_node:
+            apriltag_detector_node.shutdown()
+        if rclpy.ok():
+            rclpy.shutdown()
+        cv2.destroyAllWindows()
 
 if __name__ == '__main__':
     main()

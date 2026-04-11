@@ -215,6 +215,7 @@ def main(args=None):
     #             print(exc)
     #             break
 
+    my_robot = None
     try:
         rclpy.init(args=args)
         my_robot = LF_multi_formation("LF_Multi_Formation", yaml_data)
@@ -223,8 +224,10 @@ def main(args=None):
         traceback.print_exc()
     finally:
         try:
-            my_robot.shutdown()
-            rclpy.shutdown()
+            if my_robot:
+                my_robot.shutdown()
+            if rclpy.ok():
+                rclpy.shutdown()
         except Exception as e:
             my_robot.get_logger().info(f"Error shutting down. {e}")
 

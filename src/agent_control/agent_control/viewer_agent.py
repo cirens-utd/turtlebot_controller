@@ -228,6 +228,7 @@ def main(args=None):
     else:
         points = [(-2.9, -5),(-2.9, 4),(2.9, 4), (2.9, -5)]
 
+    my_robot = None
     try:
         rclpy.init(args=args)
         my_robot = TestMe(int(script_args.index), np.array(script_args.neighbor), #perimeter=points,
@@ -247,8 +248,10 @@ def main(args=None):
     except Exception as e:
         traceback.print_exc()
     finally:
-        my_robot.shutdown()
-        rclpy.shutdown()
+        if my_robot:
+            my_robot.shutdown()
+        if rclpy.ok():
+            rclpy.shutdown()
 
 if __name__ == '__main__':
     main()

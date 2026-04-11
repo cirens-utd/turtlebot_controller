@@ -2247,25 +2247,31 @@ def main(args=None):
     ## Start Simulation Script
     ## ros2 launch turtlebot_base launch_sim.launch.py 
     ## ros2 launch turtlebot_base launch_robots.launch.py yaml_load:=False robot_number:=2
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-i", "--index", default="1", type=int, help="Index of this robot")
-    parser.add_argument("-n", "--neighbor", default=[], nargs='+', type=int, help="Array of neighbors")
-    parser.add_argument("-s", "--sim", default=False, action="store_true", help="Set Simmulation mode")
-    parser.add_argument("-l", "--laser_avoid", default=True, action="store_false", help="Avoid using laser")
-    parser.add_argument("-m", "--loop_max", default=1, type=int, help="Laser Loop Max Number")
-    parser.add_argument("-b", "--neighbor_avoid", default=True, action="store_false", help="Avoid Using neighbor position")
-    parser.add_argument("-t", "--test", default=[0,0], nargs='+', type=int, help="test var to pass in")
-    script_args = parser.parse_args()
+    ## ... --ros-args --params-file src/agent_control/config/CPIH/test.yaml -p robot.id:=1 -p robot.neighbors:="[1,2,3]" -p mode.sim:=true 
 
+    ## NO LONGER USED!!! All Parameters now.
+    # parser = argparse.ArgumentParser()
+    # parser.add_argument("-i", "--index", default="1", type=int, help="Index of this robot")
+    # parser.add_argument("-n", "--neighbor", default=[], nargs='+', type=int, help="Array of neighbors")
+    # parser.add_argument("-s", "--sim", default=False, action="store_true", help="Set Simmulation mode")
+    # parser.add_argument("-l", "--laser_avoid", default=True, action="store_false", help="Avoid using laser")
+    # parser.add_argument("-m", "--loop_max", default=1, type=int, help="Laser Loop Max Number")
+    # parser.add_argument("-b", "--neighbor_avoid", default=True, action="store_false", help="Avoid Using neighbor position")
+    # parser.add_argument("-t", "--test", default=[0,0], nargs='+', type=int, help="test var to pass in")
+    # script_args = parser.parse_args()
+
+    my_robot = None
     try:
         rclpy.init(args=args)
-        my_robot = Agent(int(script_args.index), np.array(script_args.neighbor), sim=script_args.sim, laser_avoid=script_args.laser_avoid, neighbor_avoid=script_args.neighbor_avoid, laser_avoid_loop_max=script_args.loop_max)
+        my_robot = Agent("Agent")
         rclpy.spin(my_robot)
     except Exception as e:
         traceback.print_exc()
     finally:
-        my_robot.shutdown()
-        rclpy.shutdown()
+        if my_robot:
+            my_robot.shutdown()
+        if rclpy.ok()
+            rclpy.shutdown()
 
 if __name__ == '__main__':
     main()

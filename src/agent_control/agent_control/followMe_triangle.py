@@ -118,6 +118,7 @@ def main(args=None):
 
     # --ros-args -p robot.id:=1 -p robot.neighbors:="[1,2,3]" -p mode.sim:=true -p laser.avoid:=true -p laser.avoid_loop_max:=2nt, help="Index of this robot")
 
+    my_robot = None
     try:
         rclpy.init(args=args)
         my_robot = FollowMe("FollowMe")
@@ -125,8 +126,10 @@ def main(args=None):
     except Exception as e:
         traceback.print_exc()
     finally:
-        my_robot.shutdown()
-        rclpy.shutdown()
+        if my_robot:
+            my_robot.shutdown()
+        if rclpy.ok():
+            rclpy.shutdown()
 
 if __name__ == '__main__':
     main()

@@ -140,6 +140,7 @@ def main(args=None):
     else:
         points = [(-3.8, 0.19), (-0.12, 3.36), (2.69, 2.0), (2.74, -2.6), (-0.18, -5.0), (-2.36, -5.12)]
 
+    my_robot = None
     try:
         rclpy.init(args=ros_args)
         my_robot = Coverage("Coverage", perimeter=points)
@@ -147,8 +148,10 @@ def main(args=None):
     except Exception as e:
         traceback.print_exc()
     finally:
-        my_robot.shutdown()
-        rclpy.shutdown()
+        if my_robot:
+            my_robot.shutdown()
+        if rclpy.ok():
+            rclpy.shutdown()
 
 if __name__ == '__main__':
     main()
