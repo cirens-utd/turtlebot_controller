@@ -13,7 +13,8 @@
       neighborhood_mode: "global"   # "local" or "global" -> Local only has my neighborhood. Global has all neighborhoods
       neighborhood_local: []
       neighborhood_global: [
-        0, 0, 1, 1, 1, 0, 1, 1, 0,
+        # 0, 0, 1, 1, 1, 0, 1, 1, 0,
+        0, 1, 1, 1, 1, 0, 1, 0, 0,
         0, 0, 1, 1, 1, 1, 0, 1, 0,
         1, 0, 0, 1, 1, 1, 0, 0, 1,
         1, 1, 0, 0, 1, 1, 1, 0, 0,
@@ -59,7 +60,7 @@
       log_loop_period: 0.1
 
     restricted_area:
-      enabled: false
+      enabled: true
       x_min: -2.9
       x_max: 2.9
       y_min: -5.0
@@ -91,6 +92,10 @@
       persistent: true
 
     CPIH:
-      self_trust: 0         # 0 - Self Distrust, 1 - normal Tukey, 2 = Self Trust
-      safe_point_mode: 0    # 0 - Use Tukey Centroid, 1 - Use Safepoint, 2 - use fByzantine-safe point
-      imprecision: 0
+      self_trust: 2         # 0 - Self Distrust, 1 - normal Tukey, 2 = Self Trust
+      safe_point_mode: 1   # 0 - Use Tukey Centroid, 1 - Use Safepoint, 2 - use fByzantine-safe point
+      imprecision: 0.01
+      push_bad: true
+
+    Start:
+      positions: [-2.7, -2.9, 2.1, -3.7, 1.7, -2.9, 1.4, -3.7, -3.3, -3.4, -2.2, -3.4, -1.0, 3.2, -0.17, 5.0, 0.91, 2.9]

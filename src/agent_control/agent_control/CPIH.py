@@ -3,6 +3,7 @@
 import numpy as np
 import rclpy
 from agent_control.agent import Agent
+from geometry_msgs.msg import PoseStamped
 import argparse
 import datetime
 from agent_control.TukeyMedian import TukeyContour, CPIH
@@ -14,7 +15,8 @@ class CPIH(Agent):
         self._extra_param_update_map = {
             "CPIH.self_trust": "self_trust",
             "CPIH.safe_point_mode": "safe_point_mode",
-            "CPIH.imprecision": "imprecision"
+            "CPIH.imprecision": "imprecision",
+            "CPIH.push_bad": "push_bad"
         }
         super().__init__(node_name)
         self.complete = False
@@ -25,8 +27,55 @@ class CPIH(Agent):
         self.declare_parameter("CPIH.safe_point_mode", 0)    # 0 - Use Tukey Centroid, 1 - Use Safepoint, 2 - use fByzantine-safe point
         self.safe_point_mode = self.get_parameter("CPIH.safe_point_mode").value
 
-        self.declare_parameter("CPIH.imprecision", 0)
+        self.declare_parameter("CPIH.imprecision", 0.0)
         self.imprecision = self.get_parameter("CPIH.imprecision").value
+
+        self.declare_parameter("CPIH.push_bad", False)  # Send agents over 10 to the far -y direction
+        self.push_bad = self.get_parameter("CPIH.push_bad").value
+
+        # Sanity Check
+        self.get_logger().info(f"{self.my_name} Running Point Mode: {self.safe_point_mode}")
+        self.get_logger().info(f"{self.my_name} Running trust Mode: {self.self_trust}")
+
+
+    def neighbor_pose_callback_(self, pose: PoseStamped, name):
+        # Make bad guys go to the moon
+        new_pose = pose
+        if self.push_bad and int(name) > 10:
+            # new_pose.pose.position.x = (np.abs(pose.pose.position.x) + 100 ) * np.abs(pose.pose.position.x)/pose.pose.position.x
+            new_pose.pose.position.x = pose.pose.position.x
+            new_pose.pose.position.y = (np.abs(pose.pose.position.y) + 100 ) * np.abs(pose.pose.position.y)/pose.pose.position.y
+
+        self.update_neighbor_position_(name, pose.header, new_pose.pose)
+
+        orientation = pose.pose.orientation
+        neighbor_facing = self.get_angle_quad(orientation)
+
+
+        # check if all have been found
+        if not self._neighbors_started and len(self.neighbor_poses) == len(self.neighbor_position_sub_):
+            self._neighbors_started = True
+            self.get_logger().info(f"{self.my_name}: All Neighbor Topics Recieved")
+
+        # check to see that all robots are in the right orientation
+        if not self.robot_moving:
+            test_angle = self.start_heading
+            if test_angle == 0 or test_angle == np.pi * 2:
+                test_angle = (test_angle + np.pi) % (np.pi * 2)
+                neighbor_facing = (neighbor_facing + np.pi) % (np.pi * 2)
+            if np.abs(neighbor_facing - test_angle) < self._angle_tolerance:
+                self._neighbors_ready[name] = True
+            
+            if self.desired_heading:
+                all_good = True
+                for key, value in self._neighbors_ready.items():
+                    if not value:
+                        all_good = False
+                        break
+                
+                if all_good:
+                    self.robot_moving = True
+                    self.get_logger().info(f"{self.my_name} Sees all neighbors are ready.")
 
     def getImprecisionRegions(self, X,imp):
         n = len(X)
@@ -50,6 +99,13 @@ class CPIH(Agent):
         self.neighbor_position          Dictionary of neighbors position
         self.move_direction([x,y])      Function to move in a direction
         self.move_to_position([x,y])    Function to move to a position
+
+         """
+            Main logic to compute the Tukey median contour.
+            mode 0: Self Distrust.
+            mode 1: Normal.
+            mode 2: Self Trust.
+        """
         '''
         
         X = np.zeros((len(self.neighbor_position)+1,2))
@@ -66,7 +122,7 @@ class CPIH(Agent):
         if self.safe_point_mode == 0:
             # for neighbor in self.neighbor_poses:
             #    X[i] = np.array((self.neighbor_poses[neighbor].pose.position.x, self.neighbor_poses[neighbor].pose.position.y))
-            tc = TukeyContour(X)
+            tc = TukeyContour(X, 0, mode=self.self_trust)
 
             '''
             This is finding the mean of the tukey median. This is the mean of the vertices of the deepest area in the set.
@@ -85,6 +141,7 @@ class CPIH(Agent):
             sp = CPIH()
             target = sp.CPIH_Safepoint(Bx, 0, self.position, mode=self.self_trust)
         elif self.safe_point_mode == 2:
+            sp = CPIH()
             target = sp.CPIH_Fast_Safepoint(Bx, 0, self.position, mode=self.self_trust)
         else:
             target = self.position

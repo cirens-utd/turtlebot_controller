@@ -12,17 +12,17 @@ class TukeyContour:
     Calculates the Tukey depth contour (median region) for a set of 2D points.
 
     """
-    def __init__(self, input_points: np.ndarray,imprecision: float = 0.0, verbose: bool = False):
+    def __init__(self, input_points: np.ndarray, Xi: np.array, mode: int = 1, verbose: bool = False):
         self.primal_points = np.asarray(input_points)
         self.verbose = verbose
         self.median_contour = []
-        self.imp = imprecision
+        self.Xi = Xi
+        self.mode = mode
         if self.primal_points.shape[0] < 3:
             # Not enough points to form a contour
             return
 
-        if self.imp <0.1:
-            self._calculate_contour()
+        self._calculate_contour()
         
     def _cross_product(self, p1, p2, p3):
         """Calculates the 2D cross product to determine orientation."""
@@ -48,7 +48,12 @@ class TukeyContour:
         return lower_hull[:-1] + upper_hull[:-1]
 
     def _calculate_contour(self):
-        """Main logic to compute the Tukey median contour."""
+        """
+            Main logic to compute the Tukey median contour.
+            mode 0: Self Distrust.
+            mode 1: Normal.
+            mode 2: Self Trust.
+        """
         # 1. Duality Transform: Point (px, py) -> Line y = px*x - py
         # We store lines as (m, c) for y = mx + c
         dual_lines = np.array([[p[0], -p[1]] for p in self.primal_points])
@@ -58,6 +63,14 @@ class TukeyContour:
         epsilon = 1e-9
         for i in range(len(dual_lines)):
             for j in range(i + 1, len(dual_lines)):
+                if self.mode == 0:
+                    # Exclude if either line belongs to the target_index
+                    if i == self.Xi or j == self.Xi:
+                        continue
+                elif self.mode == 2:
+                    # ONLY include if one of the lines belongs to target_index
+                    if i != self.Xi and j != Self.Xi:
+                        continue
                 m1, c1 = dual_lines[i]
                 m2, c2 = dual_lines[j]
                 if abs(m1 - m2) > epsilon:
