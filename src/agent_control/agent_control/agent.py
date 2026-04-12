@@ -623,9 +623,13 @@ class Agent(Node):
 
         # Only neighborhood in neighbor_position
         for name, neighbor in self.neighbor_poses.items():
-            if not neighbor["in_neighborhood"] and name in self.neighbor_position:
-                self.neighbor_position.pop(name, None)
-                print(f"Poped {name}")
+            if not neighbor["in_neighborhood"]:
+                if name in self.neighbor_position:
+                    self.neighbor_position.pop(name, None)
+                    print(f"Poped {name}")
+
+                if name in self.neighbor_orientation:
+                    self.neighbor_orientation.pop(name, None)
 
     def _call_service(self, client):
         if not client.wait_for_service(timeout_sec=2.0):
