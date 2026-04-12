@@ -38,7 +38,23 @@ LATEST_SCHEMA = {
     "led_light_state": {},
 
     # Battery Info
-    "battery_dict": {},
+    "battery_dict": {
+            "voltage": None,
+            "temperature": None,
+            "current": None,
+            "charge": None,
+            "capacity": None,
+            "design_capacity": None,
+            "percentage": None,
+            "power_supply_status": None,
+            "power_supply_health": None,
+            "power_supply_technology": None,
+            "present": None,
+            "cell_voltage": [],
+            "cell_temperature": [],
+            "location": '',
+            "serial_number": ''
+    },
 
     # Avoidance Conditions
     "path_obstructed": False,
@@ -80,7 +96,7 @@ LATEST_SCHEMA = {
                 "position": {},
                 "orientation": {}
             },
-            "in_neighborhood": False
+            "in_neighborhood": True
         }
     }
 }

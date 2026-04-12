@@ -364,7 +364,7 @@ class ReplayVisualizer:
         self.ax_pause = plt.axes([0.8, 0.9, 0.08, 0.065])
         self.pause_button = Button(self.ax_pause, 'Pause')
 
-        self.ax_slider = plt.axes([0.35, self.start_line_y - self.delta_line_y * 16.75, 0.53, 0.03])
+        self.ax_slider = plt.axes([0.35, self.start_line_y - self.delta_line_y * 18.50, 0.53, 0.03])
         self.slider = Slider(self.ax_slider, '', 0, self.total_frames-1, valinit=0, valstep=1)
         self.prev_slider = 0
 

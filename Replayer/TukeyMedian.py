@@ -1,0 +1,268 @@
+import numpy as np
+import random
+from shapely import Polygon,Point,MultiPoint,LineString
+
+from itertools import combinations
+from shapely.ops import unary_union
+
+
+
+class TukeyContour:
+    """
+    Calculates the Tukey depth contour (median region) for a set of 2D points.
+
+    """
+    def __init__(self, input_points: np.ndarray, Xi: np.array, mode: int = 1, verbose: bool = False):
+        self.primal_points = np.asarray(input_points)
+        self.verbose = verbose
+        self.median_contour = []
+        self.Xi = Xi
+        self.mode = mode
+        if self.primal_points.shape[0] < 3:
+            # Not enough points to form a contour
+            return
+
+        self._calculate_contour()
+        
+    def _cross_product(self, p1, p2, p3):
+        """Calculates the 2D cross product to determine orientation."""
+        return (p2[0] - p1[0]) * (p3[1] - p1[1]) - (p2[1] - p1[1]) * (p3[0] - p1[0])
+
+    def _monotone_chain_convex_hull(self, points: np.ndarray):
+        """Computes the convex hull of a set of 2D points."""
+        points = sorted(points, key=lambda p: (p[0], p[1]))
+        if len(points) <= 2:
+            return points
+
+        upper_hull, lower_hull = [], []
+        for p in points:
+            while len(lower_hull) >= 2 and self._cross_product(lower_hull[-2], lower_hull[-1], p) <= 0:
+                lower_hull.pop()
+            lower_hull.append(p)
+
+        for p in reversed(points):
+            while len(upper_hull) >= 2 and self._cross_product(upper_hull[-2], upper_hull[-1], p) <= 0:
+                upper_hull.pop()
+            upper_hull.append(p)
+
+        return lower_hull[:-1] + upper_hull[:-1]
+
+    def _calculate_contour(self):
+        """
+            Main logic to compute the Tukey median contour.
+            mode 0: Self Distrust.
+            mode 1: Normal.
+            mode 2: Self Trust.
+        """
+        # 1. Duality Transform: Point (px, py) -> Line y = px*x - py
+        # We store lines as (m, c) for y = mx + c
+        dual_lines = np.array([[p[0], -p[1]] for p in self.primal_points])
+
+        # 2. Find all intersection points of dual lines
+        dual_intersections = []
+        epsilon = 1e-9
+        for i in range(len(dual_lines)):
+            for j in range(i + 1, len(dual_lines)):
+                if self.mode == 0:
+                    # Exclude if either line belongs to the target_index
+                    if i == self.Xi or j == self.Xi:
+                        continue
+                elif self.mode == 2:
+                    # ONLY include if one of the lines belongs to target_index
+                    if i != self.Xi and j != Self.Xi:
+                        continue
+                m1, c1 = dual_lines[i]
+                m2, c2 = dual_lines[j]
+                if abs(m1 - m2) > epsilon:
+                    x = (c2 - c1) / (m1 - m2)
+                    y = m1 * x + c1
+                    dual_intersections.append((x, y))
+
+        # 3. Calculate the depth of each intersection point
+        max_depth = 0
+        intersections_with_depth = []
+        for p in dual_intersections:
+            px, py = p
+            lines_above = np.sum((dual_lines[:, 0] * px + dual_lines[:, 1]) > py + epsilon)
+            lines_below = np.sum((dual_lines[:, 0] * px + dual_lines[:, 1]) < py - epsilon)
+            depth = min(lines_above, lines_below) + 1 # Depth is 1-indexed
+            intersections_with_depth.append({'point': p, 'depth': depth})
+            if depth > max_depth:
+                max_depth = depth
+
+        if self.verbose:
+            print(f"Calculated depths. Maximum depth (k*) is {max_depth}.")
+
+        # 4. Iteratively find a non-empty contour, starting from max_depth
+        final_contour_points = []
+        k = max_depth
+        while k > 0 and not final_contour_points:
+            median_dual_vertices = [item['point'] for item in intersections_with_depth if item['depth'] >= k]
+            
+            if len(median_dual_vertices) < 3:
+                k -= 1
+                continue
+
+            # 5. Get the convex hull of the k-level region in dual space
+            dual_contour_hull = self._monotone_chain_convex_hull(median_dual_vertices)
+
+            # 6. Transform dual hull vertices back to primal lines
+            primal_contour_lines = np.array([[p[0], -p[1]] for p in dual_contour_hull])
+
+            # 7. Find intersections of these primal lines
+            primal_vertices = []
+            for i in range(len(primal_contour_lines)):
+                for j in range(i + 1, len(primal_contour_lines)):
+                    m1, c1 = primal_contour_lines[i]
+                    m2, c2 = primal_contour_lines[j]
+                    if abs(m1 - m2) > epsilon:
+                        x = (c2 - c1) / (m1 - m2)
+                        y = m1 * x + c1
+                        primal_vertices.append((x, y))
+            
+            # 8. The final contour is the convex hull of these primal intersections
+            if primal_vertices:
+                final_contour_points = self._monotone_chain_convex_hull(primal_vertices)
+            
+            if not final_contour_points:
+                if self.verbose:
+                    print(f"Contour with depth {k} is empty, trying depth {k-1}")
+                k -= 1
+
+        self.median_contour = np.array(final_contour_points)
+
+class CPIH:
+    def __init__(self):
+        pass
+
+    def CPIH_Safepoint(self, Bx, Xi, self_pos, mode=1):
+        """
+        CPIH-based resilient safe point.
+
+        Parameters:
+            Bx       : (n, m, 2) array of agent regions
+            Xi       : index of this agent
+            self_pos : np.array([x, y]) current robot position
+            mode     : 0 (self distrust), 1 (normal), 2 (self trust)
+
+        Returns:
+            np.array([x, y]) safe point
+        """
+
+        n = Bx.shape[0]
+        k = int(np.floor(2/3 * n) + 1)
+        indices = np.arange(n)
+
+        CPIH = Polygon()
+        first = True
+
+        for C in combinations(indices, k):
+
+            # -----------------------------
+            # Mode filtering
+            # -----------------------------
+            if mode == 0 and Xi in C:
+                continue
+            if mode == 2 and Xi not in C:
+                continue
+
+            Chull = Polygon()
+
+            for triple in combinations(C, 3):
+                b1, b2, b3 = map(int, triple)
+
+                dp1_pts = np.vstack((Bx[b1], Bx[b2], Bx[b3]))
+                verts = self._monotone_chain_convex_hull(dp1_pts)
+                dp1 = Polygon(verts)
+
+                dp2 = Polygon()
+                for pair in combinations(triple, 2):
+                    a1, a2 = pair
+                    temp_pts = np.vstack((Bx[a1], Bx[a2]))
+                    temp_poly = Polygon(temp_pts)
+                    dp2 = unary_union([dp2, temp_poly])
+
+                diff = dp1.difference(dp2)
+                Chull = unary_union([Chull, diff])
+
+            if Chull.is_empty:
+                continue
+
+            Chull = Polygon(Chull.convex_hull)
+
+            # -----------------------------
+            # Intersections
+            # -----------------------------
+            if first:
+                CPIH = Chull
+                first = False
+            else:
+                CPIH = CPIH.intersection(Chull)
+
+                if not CPIH.is_empty and CPIH.geom_type != 'Polygon':
+                    for geom in CPIH.geoms:
+                        if geom.geom_type == 'Polygon':
+                            CPIH = geom
+                            break
+
+            # Early exit
+            if CPIH.is_empty:
+                return np.array(self_pos)
+
+        # -----------------------------
+        # Final result
+        # -----------------------------
+        if CPIH.is_empty:
+            return np.array(self_pos)
+
+        centroid = CPIH.centroid
+        return np.array([centroid.x, centroid.y])
+    
+    def CPIH_Fast_Safepoint(self, Bx, Xi, self_pos, mode=1):
+        """
+        Fast approximation of a Byzantine-safe point.
+
+        Returns a robust centroid using distance-based filtering.
+        Runs in O(n log n) instead of combinatorial time.
+        """
+
+        n = Bx.shape[0]
+
+        # -----------------------------
+        # Step 1: get representative point per agent
+        # -----------------------------
+        centers = np.mean(Bx, axis=1)   # shape (n,2)
+
+        # -----------------------------
+        # Step 2: mode filtering
+        # -----------------------------
+        indices = np.arange(n)
+
+        if mode == 0:
+            indices = indices[indices != Xi]
+        elif mode == 2:
+            indices = indices[indices == Xi] if n > 1 else indices
+
+        if len(indices) == 0:
+            return np.array(self_pos)
+
+        pts = centers[indices]
+
+        # -----------------------------
+        # Step 3: compute distances
+        # -----------------------------
+        mean_pt = np.mean(pts, axis=0)
+        dists = np.linalg.norm(pts - mean_pt, axis=1)
+
+        # -----------------------------
+        # Step 4: keep closest k points
+        # -----------------------------
+        k = int(np.floor(2/3 * len(pts)) + 1)
+
+        sorted_idx = np.argsort(dists)
+        safe_pts = pts[sorted_idx[:k]]
+
+        # -----------------------------
+        # Step 5: return centroid
+        # -----------------------------
+        return np.mean(safe_pts, axis=0)
