@@ -50,6 +50,8 @@ class TukeyCenterPointPlugin:
         for _, pose in viz.neighbor_poses[frame].items():
             if pose['in_neighborhood']:
                 pts.append([pose["x"], pose["y"]])
+            # else:
+            #     pts.append([pose["x"], pose["y"]])
 
         pts = np.array(pts)
 
