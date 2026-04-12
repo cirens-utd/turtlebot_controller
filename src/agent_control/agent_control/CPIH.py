@@ -113,8 +113,6 @@ class CPIH(Agent):
         X[0] = self.position
         for name, neighbor in self.neighbor_position.items():
             X[i] = np.array(neighbor) 
-            
-            
             # print("X[",i,"]: ",X[i])
             i = i+1
         Bx = self.getImprecisionRegions(X,self.imprecision)

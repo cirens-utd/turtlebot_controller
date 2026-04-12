@@ -103,6 +103,7 @@ class Agent(Node):
 
         if self._sim:
             policy = 10
+            self.get_logger().info(f"Running in SIM mode")
 
         # Create Publisher for movement
         self.cmd_vel_pub_ = self.create_publisher(Twist, f"/{self.my_name}/cmd_vel", policy)
@@ -135,7 +136,7 @@ class Agent(Node):
                     "w": empty_poseStamped.pose.orientation.w
                 }
             },
-            "in_neighborhood": True
+            "in_neighborhood": self._neighborhood_default
         }
         
         if self._use_mocap:
@@ -358,7 +359,7 @@ class Agent(Node):
 
         # --- Neighborhood ---
         self._neighborhood_mode = self.get_parameter("robot.neighborhood_mode").value
-        self._neighborhood_default = self.get_parameter("robot.neighborhood_default").value
+        self._neighborhood_default = bool(self.get_parameter("robot.neighborhood_default").value)
 
         if self._neighborhood_mode == 'global':
             flat = []
@@ -367,6 +368,8 @@ class Agent(Node):
 
             flat = [int(x) for x in flat]
             self._neighborhood_size = self.get_parameter("robot.neighborhood_size").value
+            if np.abs(len(self._my_neighbors) - self._neighborhood_size) > 1:
+                self.get_logger().warning(f"{self.my_name}: Please check neighborhood size. It is set to {self._neighborhood_size} but my_neighbors lenth is {len(self._my_neighbors)}")
             self._neighborhood = [
                 flat[i*self._neighborhood_size:(i+1)*self._neighborhood_size]
                 for i in range(self._neighborhood_size)
@@ -582,7 +585,7 @@ class Agent(Node):
     def _rebuild_neighborhood(self):
         # If value is not set, use default
         for robot, values in self.neighbor_poses.items():
-            self.neighbor_poses[robot]["in_neighborhood"] = bool(self._neighborhood_default)
+            self.neighbor_poses[robot]["in_neighborhood"] = self._neighborhood_default
 
         # Given global neighborhood
         if self._neighborhood_mode == 'global':
@@ -599,7 +602,7 @@ class Agent(Node):
                     self.get_logger().warning(f"Neighborhood mode set to global but my index was outside the range of the matrix given\nIndex: {my_index}\nNeighborhood: {self._neighborhood}")
                 # all values go to default
                 for robot, values in self.neighbor_poses.items():
-                    self.neighbor_poses[robot]["in_neighborhood"] = bool(self._neighborhood_default)
+                    self.neighbor_poses[robot]["in_neighborhood"] = self._neighborhood_default
             else:
                 # loop trough each of the neighbors and set the value
                 for index, neighbor in enumerate(self._my_neighbors):
@@ -609,7 +612,7 @@ class Agent(Node):
                             self.neighbor_poses[str(neighbor)]["in_neighborhood"] = bool(self._neighborhood[my_index][index])
                         else:
                             self.get_logger().warning(f"Neighbor {neighbor} at index {index} is outside the range of neighborhood.\n{self._neighborhood}")
-                            self.neighbor_poses[str(neighbor)]["in_neighborhood"] = bool(self._neighborhood_default)
+                            self.neighbor_poses[str(neighbor)]["in_neighborhood"] = self._neighborhood_default
         else:
             # loop trough each of the neighbors and set the value
             for index, neighbor in enumerate(self._my_neighbors):
@@ -619,7 +622,7 @@ class Agent(Node):
                         self.neighbor_poses[str(neighbor)]["in_neighborhood"] = bool(self._neighborhood[index])
                     else:
                         self.get_logger().warning(f"Neighbor {neighbor} at index {index} is outside the range of neighborhood.\n{self._neighborhood}")
-                        self.neighbor_poses[str(neighbor)]["in_neighborhood"] = bool(self._neighborhood_default)
+                        self.neighbor_poses[str(neighbor)]["in_neighborhood"] = self._neighborhood_default
 
         # Only neighborhood in neighbor_position
         for name, neighbor in self.neighbor_poses.items():
@@ -2274,7 +2277,7 @@ def main(args=None):
     finally:
         if my_robot:
             my_robot.shutdown()
-        if rclpy.ok()
+        if rclpy.ok():
             rclpy.shutdown()
 
 if __name__ == '__main__':

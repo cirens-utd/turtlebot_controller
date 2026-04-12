@@ -13,8 +13,7 @@
       neighborhood_mode: "global"   # "local" or "global" -> Local only has my neighborhood. Global has all neighborhoods
       neighborhood_local: []
       neighborhood_global: [
-        # 0, 0, 1, 1, 1, 0, 1, 1, 0,
-        0, 1, 1, 1, 1, 0, 1, 0, 0,
+        0, 0, 1, 1, 1, 0, 1, 1, 0,
         0, 0, 1, 1, 1, 1, 0, 1, 0,
         1, 0, 0, 1, 1, 1, 0, 0, 1,
         1, 1, 0, 0, 1, 1, 1, 0, 0,
@@ -28,7 +27,7 @@
       neighborhood_default: 0     # if outside the span, 1 means they are a neighbor and 0 means they are not
     
     mode:
-      sim: true
+      sim: false
       sync_move: false
       viewer: false
 
