@@ -6,8 +6,8 @@ from shapely.geometry import Polygon, LineString, Point, box
 import matplotlib.pyplot as plt
 import pdb
 
-# points = np.array([[0, 0], [1, 0], [0, 1], [1, 1], [0.25, 0.25], [0.5, 0.5], [0.25, 0.75]])
-points = np.array([[0, 0], [1, 0], [0, 1]])
+points = np.array([[-2.26700234, -5.15908527], [-2.05122352, -0.6547026 ], [-0.62305647,  1.71807921], [ 1.48229587,  0.59669858], [ 1.06217539, -2.12913156]])
+# points = np.array([[0, 0], [1, 0], [0, 1]])
 track_pt = np.array([0.25, 0.75])
 track_wt = np.array([0.5,0.5]) #dynamically set later
 
