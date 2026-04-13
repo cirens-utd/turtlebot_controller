@@ -68,6 +68,7 @@ class StartPoint(Agent):
 
         if self.motion_complete:
             self.robot_status = "FINISHED"
+            self.get_logger().info(f"My Neighbors: {self.neighbor_position}")
             self.shutdown()
             rclpy.shutdown()
 
