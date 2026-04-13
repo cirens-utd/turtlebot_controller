@@ -1198,7 +1198,7 @@ class Agent(Node):
 
         if self.neighbor_poses[str(name)]['in_neighborhood']:
             self.neighbor_position[name] = [pose.position.x,pose.position.y]
-            self.neighbor_orientation[name] = pose.orientation
+            self.neighbor_orientation[name] = [pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w]
 
     def record_laser_direction_heading_(self, direction):
         '''
@@ -2058,12 +2058,19 @@ class Agent(Node):
                     desired_location = desired_location.tolist()
                 if type(attempted_location) != type(None):
                     attempted_location = attempted_location.tolist()
+                neighbor_pos = {}
+                for name, neighbor in self.neighbor_position.items():
+                    neighbor_pos[name] = neighbor
+
+                neighbor_ori = {}
+                for name, neighbor in self.neighbor_orientation.items():
+                    neighbor_ori[name] = neighbor
 
                 self._replay_dict.append({
                     "time": datetime.datetime.now().strftime("%Y-%m-%d.%H%M%S"),
                     "my_name": self.my_name,
                     "mainClass": type(self).__name__,
-                    "replayVersion": 1,
+                    "replayVersion": 2,
 
                     # Robot Conditions
                     "robot_status": self.robot_status,
@@ -2103,7 +2110,9 @@ class Agent(Node):
             
                     # Tracking positions
                     "my_pose": deepcopy(self.pose),
-                    "neighbor_poses": deepcopy(self.neighbor_poses)
+                    "neighbor_poses": deepcopy(self.neighbor_poses),
+                    "neighbor_posistion": deepcopy(neighbor_pos),
+                    "neighbor_orientation": deepcopy(neighbor_ori)
                 })
         except MemoryError:
             self.get_logger().warning(f"Log replay overflowed!")
