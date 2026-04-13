@@ -6,7 +6,7 @@ from agent_control.agent import Agent
 from geometry_msgs.msg import PoseStamped
 import argparse
 import datetime
-from agent_control.TukeyMedian import TukeyContour, CPIH
+from agent_control.TukeyMedian import TukeyContour, SafePoint
 import traceback
 import pdb
 
@@ -136,10 +136,10 @@ class CPIH(Agent):
                 self.get_logger().info(f"{tc.median_contour} ")
             target = safepoint
         elif self.safe_point_mode == 1:
-            sp = CPIH()
+            sp = SafePoint()
             target = sp.CPIH_Safepoint(Bx, 0, self.position, mode=self.self_trust)
         elif self.safe_point_mode == 2:
-            sp = CPIH()
+            sp = SafePoint()
             target = sp.CPIH_Fast_Safepoint(Bx, 0, self.position, mode=self.self_trust)
         else:
             target = self.position

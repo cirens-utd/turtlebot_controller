@@ -131,7 +131,7 @@ class TukeyContour:
 
         self.median_contour = np.array(final_contour_points)
 
-class CPIH:
+class SafePoint:
     def __init__(self):
         pass
 
