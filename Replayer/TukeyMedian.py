@@ -131,7 +131,7 @@ class TukeyContour:
 
         self.median_contour = np.array(final_contour_points)
 
-class CPIH:
+class SafePoint:
     def __init__(self):
         pass
 
@@ -175,12 +175,27 @@ class CPIH:
                 verts = self._monotone_chain_convex_hull(dp1_pts)
                 dp1 = Polygon(verts)
 
-                dp2 = Polygon()
+                dp2 = None
                 for pair in combinations(triple, 2):
                     a1, a2 = pair
                     temp_pts = np.vstack((Bx[a1], Bx[a2]))
-                    temp_poly = Polygon(temp_pts)
-                    dp2 = unary_union([dp2, temp_poly])
+
+                    if len(temp_pts) < 3:
+                        continue
+
+                    hull = self._monotone_chain_convex_hull(temp_pts)
+                    if len(hull) < 3:
+                        continue
+
+                    temp_poly = Polygon(hull).buffer(0)
+
+                    if dp2 is None:
+                        dp2 = temp_poly
+                    else:
+                        try:
+                            dp2 = unary_union([dp2, temp_poly])
+                        except Exception:
+                            continue
 
                 diff = dp1.difference(dp2)
                 Chull = unary_union([Chull, diff])
@@ -215,8 +230,9 @@ class CPIH:
         if CPIH.is_empty:
             return np.array(self_pos)
 
-        centroid = CPIH.centroid
-        return np.array([centroid.x, centroid.y])
+        return CPIH
+        # centroid = CPIH.centroid
+        # return np.array([centroid.x, centroid.y])
     
     def CPIH_Fast_Safepoint(self, Bx, Xi, self_pos, mode=1):
         """
@@ -262,7 +278,40 @@ class CPIH:
         sorted_idx = np.argsort(dists)
         safe_pts = pts[sorted_idx[:k]]
 
-        # -----------------------------
-        # Step 5: return centroid
-        # -----------------------------
-        return np.mean(safe_pts, axis=0)
+        # # -----------------------------
+        # # Step 5: return centroid
+        # # -----------------------------
+        # return np.mean(safe_pts, axis=0)
+
+        if len(safe_pts) >= 3:
+            hull_pts = self._monotone_chain_convex_hull(safe_pts)
+            region = Polygon(hull_pts)
+            centroid = region.centroid
+        else:
+            region = None  # not enough points
+            centroid = None
+
+        return centroid, region
+
+    def _monotone_chain_convex_hull(self, points: np.ndarray):
+        """Computes the convex hull of a set of 2D points."""
+        points = sorted(points, key=lambda p: (p[0], p[1]))
+        if len(points) <= 2:
+            return points
+
+        upper_hull, lower_hull = [], []
+        for p in points:
+            while len(lower_hull) >= 2 and self._cross_product(lower_hull[-2], lower_hull[-1], p) <= 0:
+                lower_hull.pop()
+            lower_hull.append(p)
+
+        for p in reversed(points):
+            while len(upper_hull) >= 2 and self._cross_product(upper_hull[-2], upper_hull[-1], p) <= 0:
+                upper_hull.pop()
+            upper_hull.append(p)
+
+        return lower_hull[:-1] + upper_hull[:-1]
+
+    def _cross_product(self, p1, p2, p3):
+        """Calculates the 2D cross product to determine orientation."""
+        return (p2[0] - p1[0]) * (p3[1] - p1[1]) - (p2[1] - p1[1]) * (p3[0] - p1[0])

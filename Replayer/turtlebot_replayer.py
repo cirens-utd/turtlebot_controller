@@ -72,6 +72,7 @@ class ReplayVisualizer:
             zip_ref.extractall("usable_replay")
 
         file_name = listdir(r"usable_replay/")[0]
+        self.title = file_name
 
         with open(r"usable_replay/" + file_name, 'r', errors="ignore") as curFile:
             file_content = curFile.read()
