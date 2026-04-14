@@ -266,3 +266,37 @@ class SafePoint:
         # Step 5: return centroid
         # -----------------------------
         return np.mean(safe_pts, axis=0)
+
+        # if len(safe_pts) >= 3:
+        #     hull_pts = self._monotone_chain_convex_hull(safe_pts)
+        #     region = Polygon(hull_pts)
+        #     centroid = region.centroid
+        # else:
+        #     region = None  # not enough points
+        #     centroid = None
+
+        # return centroid, region
+
+    
+    def _monotone_chain_convex_hull(self, points: np.ndarray):
+        """Computes the convex hull of a set of 2D points."""
+        points = sorted(points, key=lambda p: (p[0], p[1]))
+        if len(points) <= 2:
+            return points
+
+        upper_hull, lower_hull = [], []
+        for p in points:
+            while len(lower_hull) >= 2 and self._cross_product(lower_hull[-2], lower_hull[-1], p) <= 0:
+                lower_hull.pop()
+            lower_hull.append(p)
+
+        for p in reversed(points):
+            while len(upper_hull) >= 2 and self._cross_product(upper_hull[-2], upper_hull[-1], p) <= 0:
+                upper_hull.pop()
+            upper_hull.append(p)
+
+        return lower_hull[:-1] + upper_hull[:-1]
+
+    def _cross_product(self, p1, p2, p3):
+        """Calculates the 2D cross product to determine orientation."""
+        return (p2[0] - p1[0]) * (p3[1] - p1[1]) - (p2[1] - p1[1]) * (p3[0] - p1[0])
