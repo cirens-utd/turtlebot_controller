@@ -12,13 +12,21 @@ import pdb
 
 class CPIH(Agent):
     def __init__(self, node_name):
-        self._extra_param_update_map = {
+        self.extra_param_update_map = {
             "CPIH.self_trust": "self_trust",
             "CPIH.safe_point_mode": "safe_point_mode",
             "CPIH.imprecision": "imprecision",
             "CPIH.push_bad": "push_bad"
         }
+        self.extra_log_field_map = {
+            'safe_area': '_safe_area',
+            'self_trust': 'self_trust',
+            'safe_point_mode': 'safe_point_mode',
+            'imprecision': 'imprecision'
+        }
         super().__init__(node_name)
+        self._safe_area = []
+
         self.complete = False
 
         self.declare_parameter("CPIH.self_trust", 1)    # 0 - Self Distrust, 1 - normal Tukey, 2 = Self Trust
@@ -127,23 +135,44 @@ class CPIH(Agent):
             '''
             if tc.median_contour.shape[0] > 0:
                 # Target is the centroid of the median contour
+                self._safe_area = tc.median_contour.tolist()
                 
                 safepoint = np.mean(tc.median_contour, axis=0)
                 # self.get_logger().info(f"{self.my_name} Has a valid target: {safepoint}")
             else:
+                self._safe_area = []
                 safepoint = self.position
                 self.get_logger().info(f"{self.my_name} Does not have valid target.")
                 self.get_logger().info(f"{tc.median_contour} ")
             target = safepoint
         elif self.safe_point_mode == 1:
+            # This doesn't work....
             sp = SafePoint()
             target = sp.CPIH_Safepoint(Bx, 0, self.position, mode=self.self_trust)
+            self._safe_area = []
         elif self.safe_point_mode == 2:
             sp = SafePoint()
-            target = sp.CPIH_Fast_Safepoint(Bx, 0, self.position, mode=self.self_trust)
+            centroid, region = sp.CPIH_Fast_Safepoint(Bx, 0, self.position, mode=self.self_trust)
+
+            target = self.position
+            if type(centroid) != type(None):
+                target = np.array([centroid.x, centroid.y])
+
+            if  region is None or region.is_empty:
+                self._safe_area = []
+            else:
+                if region.geom_type == "MultiPolygon":
+                    region = max(region.geoms, key=lambda g: g.area)
+                # If not a polygon, skip
+                if region.geom_type != "Polygon":
+                    self._safe_area = []
+                else:
+                    self._safe_area = np.array(region.exterior.coords).tolist()
+                
         else:
             target = self.position
             self.get_logger().warning(f"{self.my_name}: Invalid mode set. Mode = {self.safe_point_mode}")
+            self._safe_area = []
 
         if (np.linalg.norm(self.position-target)<0.3):
             self.complete = True
@@ -156,7 +185,7 @@ def main(args=None):
     ## ros2 launch turtlebot_base launch_robots.launch.py yaml_load:=False robot_number:=4
 
     ## python3 CPIH.py -i 1 -n 1 2 3 -s --ros-args -p robot.neighborhood_mode:=global -p robot.neighborhood_global:=[1,1,0,1,0,1,0,1,1] -p robot.neighborhood_size:=3
-    ## ros2 run agent_control CPIH.py --ros-args --params-file src/agent_control/config/CPIH/test.yaml -p robot.id:=1 -p robot.neighbors:="[1,2,3]" -p mode.sim:=true 
+    ## ros2 run agent_control CPIH.py --ros-args --params-file src/agent_control/config/CPIH/Network1.yaml -p robot.id:=1 -p robot.neighbors:=['1','2','3', '4'] -p logging.enabled:=true -p mode.sim:=true 
 
 
     my_robot = None 

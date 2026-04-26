@@ -92,7 +92,7 @@
 
     CPIH:
       self_trust: 1        # 0 - Self Distrust, 1 - normal Tukey, 2 = Self Trust
-      safe_point_mode: 1   # 0 - Use Tukey Centroid, 1 - Use Safepoint, 2 - use fByzantine-safe point
+      safe_point_mode: 0   # 0 - Use Tukey Centroid, 1 - Use Safepoint, 2 - use fByzantine-safe point
       imprecision: 0.01
       push_bad: true
 

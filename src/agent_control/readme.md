@@ -1,3 +1,72 @@
+**TODO: Take camera and odometry reset from apriltag to agent
+
+NEW:
+Odometry Position vs Mocap
+Adjusted Self.position update to be amethod so it can be done by mocap or odometry
+Adjusted Robot Position to be the same
+Added A flag to not start until camera is setup
+Added self.quaternion
+Now use Ros Parameters instead of arguments
+
+Added logging to show when logging is enabled and disabled
+
+Persistent LED State
+Added Battery level to logger and to replay dict
+ - self._wait_for_battery
+ - self._battery_dict
+ - self.battery_received
+ - replayVersion
+
+min_speed
+min_angle
+
+neighbor_position is only robots in neighborhood where as neighbor_poses show all known robots
+change neighbor orientation to be [x,y,z,w] instead of being orentation.x...
+
+
+
+Change Discovery Server: export ROS_DISCOVERY_SERVER=X.X.X:11811 (seperate with ;)
+- source ~/.bashrc
+
+Note: ros2 daemon stop/start
+
+parameter setup for child class:
+Before init:
+self._extra_param_update_map = {
+    "CPIH.self_trust": "self_trust",
+    "CPIH.safe_point_mode": "safe_point_mode",
+    "CPIH.imprecision": "imprecision"
+}
+
+Turn on and off the lidar. Self.laser_enable
+TODO: move my_neighbor calculation in update. Need to check if publisher is created. Need to subscribe to topics...
+TODO: Start using launch files instead of start_node.sh??
+
+
+Robustness:
+my_robot = None
+...
+    finally:
+        if my_robot:
+            my_robot.shutdown()
+        if rclpy.ok():
+            rclpy.shutdown()
+
+Update Agent to have a dynamic Replay file. If you want to add a value to the replayer, you create it to the self.extra_log_field_map before the init. (Just like extra_parm_update) 
+This is setup so the key is what is saved in the replay and the value is the name of the attribute. 
+Additionally, you can do special types of adds (aka serialize data) by putting a function in the value instead. (ex. self.desire_location = self._serialize_dsired_location)
+Lastly, you have extend_log_entry you can append to if you really need some special cases to add to the dictionary
+
+
+Update replay. Now it is schema Driven. If you want to have more values, just add the name to self.replay_schema. (self.replay_schema.add("NewValue"))
+If there are special conditions for this, you will need to create a function and fill it into the self.extpract_map.
+
+
+TODO: Destination Tolerance not changing on the replay after reaching goal?
+How to update parameters if all the nodes have the same name???
+
+
+
 # Agent Controller Overview
 
 ## Overview

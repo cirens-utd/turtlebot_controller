@@ -15,7 +15,7 @@ class TukeyContour:
     def __init__(self, input_points: np.ndarray, Xi: np.array, mode: int = 1, verbose: bool = False):
         self.primal_points = np.asarray(input_points)
         self.verbose = verbose
-        self.median_contour = []
+        self.median_contour = np.array([])
         self.Xi = Xi
         self.mode = mode
         if self.primal_points.shape[0] < 3:
@@ -265,17 +265,16 @@ class SafePoint:
         # -----------------------------
         # Step 5: return centroid
         # -----------------------------
-        return np.mean(safe_pts, axis=0)
 
-        # if len(safe_pts) >= 3:
-        #     hull_pts = self._monotone_chain_convex_hull(safe_pts)
-        #     region = Polygon(hull_pts)
-        #     centroid = region.centroid
-        # else:
-        #     region = None  # not enough points
-        #     centroid = None
+        if len(safe_pts) >= 3:
+            hull_pts = self._monotone_chain_convex_hull(safe_pts)
+            region = Polygon(hull_pts)
+            centroid = region.centroid
+        else:
+            region = None  # not enough points
+            centroid = None
 
-        # return centroid, region
+        return centroid, region
 
     
     def _monotone_chain_convex_hull(self, points: np.ndarray):

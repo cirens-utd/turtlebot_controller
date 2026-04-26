@@ -5,6 +5,7 @@ from matplotlib.widgets import Button, Slider
 import matplotlib.animation as animation
 import numpy as np
 from os import listdir, remove, rmdir, path, getcwd
+from collections import defaultdict
 import zipfile
 import tkinter as tk
 from tkinter import filedialog, messagebox
@@ -12,13 +13,24 @@ from update_turtleReplay import load_fix_and_save, LATEST_SCHEMA
 import argparse
 import pdb
 
+class DotDict(defaultdict):
+    def __getattr__(self, key):
+        try:
+            return self[key]
+        except KeyError:
+            self[key] = self.default_factory()
+            return self[key]
+
+    def __setattr__(self, key, value):
+        self[key] = value
+
 class ReplayVisualizer:
     def __init__(self, play=True, save=False, filename='MyReplay', beautify=False, *args, trail_length=100):
         self.play = play
         self.save = save
         self.filename = filename
         self.beautify = beautify
-        self.data = []
+        self.replay_data = []
 
         self.title = "Robot Position Over Time"
         self.paused = False
@@ -40,6 +52,109 @@ class ReplayVisualizer:
         self.x_indent = 0.015
 
         self.plugins = []
+        self.data = DotDict(list)
+        self._setup_extract_maps()
+
+    def _setup_extract_maps(self):
+        self.replay_schema = {
+            # --- robot state ---
+            "robot_status",
+            "robot_ready",
+            "position_started",
+            "neighbors_started",
+            "lidar_started",
+            "wait_for_battery",
+            "battery_received",
+            "robot_moving",
+
+            # --- motion / planning ---
+            "desired_heading",
+            "destination_reached",
+            "motion_complete",
+            "neighbors_complete",
+
+            # --- safety / avoidance ---
+            "movement_restricted",
+            "path_obstructed",
+            "path_obstructed_laser",
+            "path_obstructed_neighbor",
+            "laser_avoid_error",
+
+            # --- LED ---
+            "led_light_state",
+
+            # --- goal ---
+            "destination_tolerance",
+            "angle_tolerance",
+            "desired_location",
+            "attempted_desired_location",
+            "desired_angle",
+
+            # --- raw / structured data ---
+            "battery_dict",
+            "my_pose",
+            "neighbor_poses",
+            "neighbor_position"
+        }
+
+        self.extract_map = {
+            "my_pose": self._extract_pose,
+            "neighbor_poses": self._extract_neighbors,
+        }
+
+    def _extract_pose(self, entry):
+        pose_msg = entry.get("my_pose")
+
+        if pose_msg is None:
+            self.data.x_vals.append(0)
+            self.data.y_vals.append(0)
+            self.data.yaws.append(0)
+            return
+
+        pose = pose_msg["pose"]
+
+        x = pose["position"]["x"]
+        y = pose["position"]["y"]
+
+        ori = pose["orientation"]
+        qx, qy, qz, qw = ori["x"], ori["y"], ori["z"], ori["w"]
+
+        yaw = np.remainder(
+            (np.arctan2(
+                2 * (qw * qz + qx * qy),
+                1 - 2 * (qy * qy + qz * qz)
+            ) + np.pi),
+            2 * np.pi
+        )
+
+        self.data.x_vals.append(x)
+        self.data.y_vals.append(y)
+        self.data.yaws.append(yaw)
+
+    def _extract_neighbors(self, entry):
+        neighbors_data = {}
+
+        for name, pose in entry.get("neighbor_poses", {}).items():
+
+            ori = pose["pose"]["orientation"]
+            qx, qy, qz, qw = ori["x"], ori["y"], ori["z"], ori["w"]
+
+            yaw = np.remainder(
+                (np.arctan2(
+                    2 * (qw * qz + qx * qy),
+                    1 - 2 * (qy * qy + qz * qz)
+                ) + np.pi),
+                2 * np.pi
+            )
+
+            neighbors_data[name] = {
+                "x": pose["pose"]["position"]["x"],
+                "y": pose["pose"]["position"]["y"],
+                "yaw": yaw,
+                "in_neighborhood": pose["in_neighborhood"]
+            }
+
+        self.data.neighbor_poses.append(neighbors_data)
 
     def add_plugin(self, plugin):
         self.plugins.append(plugin)
@@ -78,26 +193,21 @@ class ReplayVisualizer:
             file_content = curFile.read()
             json_arrays = file_content.strip().split("\n")
             for json_array in json_arrays:
-                self.data.append(json.loads(json_array))
+                self.replay_data.append(json.loads(json_array))
 
         remove(r"usable_replay/" + file_name)
         rmdir(r"usable_replay/")
 
         if self.beautify:
             with open("Pretty_JSON.json", 'w') as file:
-                file.write(json.dumps(self.data, indent=2))
+                file.write(json.dumps(self.replay_data, indent=2))
 
-        # Extract informaiton
-        self.x_vals, self.y_vals, self.yaws, self.neighbor_poses, self.battery_dict = [], [], [], [], []
-        self.robot_ready, self.position_started, self.neighbors_started, self.lidar_started, self.wait_for_battery, self.battery_received, self.robot_moving = [], [], [], [], [], [], []
-        self.desired_heading, self.destination_reached, self.motion_complete, self.neighbors_complete = [], [], [], []
-        self.movement_restricted, self.path_obstructed, self.path_obstructed_laser, self.path_obstructed_neighbor, self.laser_avoid_error = [], [], [], [], []
-        self.destination_tolerance, self.angle_tolerance, self.desired_location, self.desired_angle, self.attempted_desired_location = [], [], [], [], []
-        self.robot_status, self.led_light_state = [], []
+        self.extract_data()
 
+    def extract_data(self):
         # Verify version of replay is correct
-        if "replayVersion" not in self.data[0][0] or self.data[0][0]['replayVersion'] < LATEST_SCHEMA['replayVersion']:
-            current_version = self.data[0][0]['replayVersion'] if 'replayVersion' in self.data[0][0] else 0
+        if "replayVersion" not in self.replay_data[0][0] or self.replay_data[0][0]['replayVersion'] < LATEST_SCHEMA['replayVersion']:
+            current_version = self.replay_data[0][0]['replayVersion'] if 'replayVersion' in self.replay_data[0][0] else 0
             latest_version = LATEST_SCHEMA['replayVersion']
             save = messagebox.askyesno(
                     title="Overwrite Existing file?",
@@ -107,71 +217,31 @@ class ReplayVisualizer:
                         "Do you want to save the updated file?"
                     )
                 )
-            self.data = load_fix_and_save(turtle_replay_file, zip_output=turtle_replay_file, output_dir=path.basename(turtle_replay_file), verbose=True, save=save)
+            self.replay_data = load_fix_and_save(turtle_replay_file, zip_output=turtle_replay_file, output_dir=path.basename(turtle_replay_file), verbose=True, save=save)
 
-        for line in self.data:
+        errors = {}
+        for line in self.replay_data:
             for entry in line:
                 self.total_frames += 1
 
-                # Saving status Booleans
-                self.robot_status.append(entry['robot_status'])
-                self.robot_ready.append(entry['robot_ready'])
-                self.position_started.append(entry['position_started'])
-                self.neighbors_started.append(entry['neighbors_started'])
-                self.lidar_started.append(entry['lidar_started'])
-                self.wait_for_battery.append(entry['wait_for_battery'])
-                self.battery_received.append(entry['battery_received'])
-                self.robot_moving.append(entry['robot_moving'])
-                self.desired_heading.append(entry['desired_heading'])
-                self.destination_reached.append(entry['destination_reached'])
-                self.motion_complete.append(entry['motion_complete'])
-                self.neighbors_complete.append(entry['neighbors_complete'])
-                self.movement_restricted.append(entry['movement_restricted'])
-                self.path_obstructed.append(entry['path_obstructed'])
-                self.path_obstructed_laser.append(entry['path_obstructed_laser'])
-                self.path_obstructed_neighbor.append(entry['path_obstructed_neighbor'])
-                self.laser_avoid_error.append(entry['laser_avoid_error'])
+                for key in self.replay_schema:
+                    try:
+                        # --- custom extractor ---
+                        if key in self.extract_map:
+                            self.extract_map[key](entry)
+                            continue
 
-                # LED info
-                self.led_light_state.append(entry['led_light_state'])
+                        # --- default extractor ---
+                        self.data[key].append(entry[key])
 
-                # Goal Information
-                self.destination_tolerance.append(entry['destination_tolerance'])
-                self.angle_tolerance.append(entry['angle_tolerance'])
-                self.desired_location.append(entry['desired_location'])
-                self.attempted_desired_location.append(entry['attempted_desired_location'])
-                self.desired_angle.append(entry['desired_angle'])
+                    except Exception as e:
+                        if key not in errors:
+                            errors[key] = e
+        for key, value in errors.items():
+            print(f"Replay extract failed for {key}: {value}")
 
-                # Saving main robot information
-                if type(entry['my_pose']) != type(None):
-                    self.x_vals.append(entry['my_pose']['pose']['position']['x'])
-                    self.y_vals.append(entry['my_pose']['pose']['position']['y'])
-                    ori = entry['my_pose']['pose']['orientation']
-                    qx, qy, qz, qw = ori['x'], ori['y'], ori['z'], ori['w']
-                    yaw = np.remainder((np.arctan2(2 * (qw * qz + qx * qy),1 - 2 * (qy * qy + qz * qz)) + np.pi) , 2 * np.pi)
-                    self.yaws.append(yaw)
-                else:
-                    self.x_vals.append(0)
-                    self.y_vals.append(0)
-                    self.yaws.append(0)
-
-
-                # Saving Neighbors Info
-                self.neighbor_poses.append({})
-                for name, pose in entry['neighbor_poses'].items():
-                    ori = pose['pose']['orientation']
-                    qx, qy, qz, qw = ori['x'], ori['y'], ori['z'], ori['w']
-                    self.neighbor_poses[-1][name] = {
-                        'x': pose['pose']['position']['x'],
-                        'y': pose['pose']['position']['y'],
-                        'yaw': np.remainder((np.arctan2(2 * (qw * qz + qx * qy),1 - 2 * (qy * qy + qz * qz)) + np.pi) , 2 * np.pi),
-                        'in_neighborhood': pose['in_neighborhood']
-                    }
-                
-                # Updating Battery
-                self.battery_dict.append(entry['battery_dict'])
-            
-        self.neighbor_info = self.data[-1][-1]["neighbor_poses"]
+        # final metadata
+        self.neighbor_info = self.data.neighbor_poses[-1]
 
     def setup(self):
 
@@ -500,11 +570,11 @@ class ReplayVisualizer:
         frame = self.slider.val
 
         # update my position
-        x,y = self.x_vals[frame], self.y_vals[frame]
-        yaw = self.yaws[frame] + np.pi
+        x,y = self.data.x_vals[frame], self.data.y_vals[frame]
+        yaw = self.data.yaws[frame] + np.pi
 
         self.robot_marker_circle.set_center((y, x))    # note they are backwards
-        self.robot_marker_circle.set_color('lightgreen' if self.robot_ready[frame] else 'mistyrose')
+        self.robot_marker_circle.set_color('lightgreen' if self.data.robot_ready[frame] else 'mistyrose')
 
         self.robot_marker_arrow.remove()
         arrow_length = 1.2 * self.robot_radius
@@ -517,7 +587,7 @@ class ReplayVisualizer:
         self.ax.add_patch(self.robot_marker_arrow)
 
         # update neighbor position
-        for name, pose in self.neighbor_poses[frame].items():
+        for name, pose in self.data.neighbor_poses[frame].items():
             self.neighbor_marker[name].set_center((pose['y'], pose['x']))
 
             self.neighbor_arrow[name].remove()
@@ -533,11 +603,11 @@ class ReplayVisualizer:
             self.ax.add_patch(self.neighbor_arrow[name])
 
         # Updating Goal Location 
-        if self.destination_reached[frame]:
+        if self.data.destination_reached[frame]:
             if self.goal_marker_x in self.ax.lines:
                 self.goal_marker_x.remove()
-            goal_y, goal_x = self.desired_location[frame][1], self.desired_location[frame][0]
-            goal_ori = self.desired_angle[frame] + np.pi
+            goal_y, goal_x = self.data.desired_location[frame][1], self.data.desired_location[frame][0]
+            goal_ori = self.data.desired_angle[frame] + np.pi
             arrow_dx = arrow_length * np.cos(goal_ori)
             arrow_dy = arrow_length * np.sin(goal_ori)
             self.goal_marker_anlge.remove()
@@ -556,72 +626,72 @@ class ReplayVisualizer:
             self.ax.add_patch(self.goal_marker_anlge)
             if self.goal_marker_x not in self.ax.lines:
                 self.goal_marker_x = self.ax.plot(self._offgrid[1], self._offgrid[0], marker='x', color='#FF10F0', markersize=15, zorder=11)[0]
-            if type(self.desired_location[frame]) != type(None):
-                self.goal_marker_x.set_data([self.desired_location[frame][1]], [self.desired_location[frame][0]])
+            if type(self.data.desired_location[frame]) != type(None):
+                self.goal_marker_x.set_data([self.data.desired_location[frame][1]], [self.data.desired_location[frame][0]])
 
-        if type(self.attempted_desired_location[frame]) != type(None):
-            self.goal_attempt_marker_x.set_data([self.attempted_desired_location[frame][1]], [self.attempted_desired_location[frame][0]])
+        if type(self.data.attempted_desired_location[frame]) != type(None):
+            self.goal_attempt_marker_x.set_data([self.data.attempted_desired_location[frame][1]], [self.data.attempted_desired_location[frame][0]])
 
         # Updating Status Variables
-        self.status_text.set_text(self.robot_status[frame])
-        self.ready_text.set_text('Robot Ready' if self.robot_ready[frame] else 'Robot Not Ready')
-        self.ready_text.set_color('green' if self.robot_ready[frame] else 'red')
-        self.ready_circle.set_color('green' if self.robot_ready[frame] else 'red')
-        self.pos_started_text.set_text('Position Obtained' if self.position_started[frame] else 'Position Not Obtrained')
-        self.pos_started_text.set_color('green' if self.position_started[frame] else 'red')
-        self.pos_started_circle.set_color('green' if self.position_started[frame] else 'red')
-        self.neighbors_started_text.set_text('Neighbor Position Obtained' if self.neighbors_started[frame] else 'Neighbor Position Not Obtrained')
-        self.neighbors_started_text.set_color('green' if self.neighbors_started[frame] else 'red')
-        self.neighbors_started_circle.set_color('green' if self.neighbors_started[frame] else 'red')
-        self.lidar_started_text.set_text('Lidar Obtained' if self.lidar_started[frame] else 'Lidar Not Obtrained')
-        self.lidar_started_text.set_color('green' if self.lidar_started[frame] else 'red')
-        self.lidar_started_circle.set_color('green' if self.lidar_started[frame] else 'red')
-        self.battery_ready_text.set_text(f'Battery Obtained {f"- {self.battery_dict[frame]['percentage']*100}%" if self.battery_dict[frame]['percentage'] else ""}' if not self.wait_for_battery[frame] or self.battery_received[frame] else ' Battery Not Obtained')
-        self.battery_ready_text.set_color('green' if not self.wait_for_battery[frame] or self.battery_received[frame] else 'red')
-        self.battery_ready_circle.set_color('green' if not self.wait_for_battery[frame] or self.battery_received[frame] else 'red')
-        self.robot_moving_text.set_text('Robot Moving' if self.robot_moving[frame] else 'Robot Not Moving')
-        self.robot_moving_text.set_color('green' if self.robot_moving[frame] else 'red')
-        self.robot_moving_circle.set_color('green' if self.robot_moving[frame] else 'red')
-        self.movement_restricted_text.set_text('Movement Restricted' if self.movement_restricted[frame] else 'Movement Not Restricted')
-        self.movement_restricted_text.set_color('green' if self.movement_restricted[frame] else 'red')
-        self.movement_restricted_circle.set_color('green' if self.movement_restricted[frame] else 'red')
-        self.path_obstructed_text.set_text('Path Obstructed' if self.path_obstructed[frame] else 'Path Not Obstructed')
-        self.path_obstructed_text.set_color('green' if self.path_obstructed[frame] else 'red')
-        self.path_obstructed_circle.set_color('green' if self.path_obstructed[frame] else 'red')
-        self.laser_obstructed_text.set_text('Laser Obstructed' if self.path_obstructed_laser[frame] else 'Laser Not Obstructed')
-        self.laser_obstructed_text.set_color('green' if self.path_obstructed_laser[frame] else 'red')
-        self.laser_obstructed_circle.set_color('green' if self.path_obstructed_laser[frame] else 'red')
-        self.neighbor_obstructed_text.set_text('Neighbor Obstructed' if self.path_obstructed_neighbor[frame] else 'Neighbor Not Obstructed')
-        self.neighbor_obstructed_text.set_color('green' if self.path_obstructed_neighbor[frame] else 'red')
-        self.neighbor_obstructed_circle.set_color('green' if self.path_obstructed_neighbor[frame] else 'red')
-        self.laser_avoid_error_text.set_text('Laser Avoid Error' if self.laser_avoid_error[frame] else 'No Laser Avoid Error')
-        self.laser_avoid_error_text.set_color('green' if self.laser_avoid_error[frame] else 'red')
-        self.laser_avoid_error_circle.set_color('green' if self.laser_avoid_error[frame] else 'red')
-        self.desired_heading_text.set_text('Desired Heading Reached' if self.desired_heading[frame] else 'Desired Heading Not Reached')
-        self.desired_heading_text.set_color('green' if self.desired_heading[frame] else 'red')
-        self.desired_heading_circle.set_color('green' if self.desired_heading[frame] else 'red')
-        self.destination_reached_text.set_text('Destination Reached' if self.destination_reached[frame] else 'Destination Not Reached')
-        self.destination_reached_text.set_color('green' if self.destination_reached[frame] else 'red')
-        self.destination_reached_circle.set_color('green' if self.destination_reached[frame] else 'red')
-        self.motion_complete_text.set_text('Motion Completed' if self.motion_complete[frame] else 'Motion Not Completed')
-        self.motion_complete_text.set_color('green' if self.motion_complete[frame] else 'red')
-        self.motion_complete_circle.set_color('green' if self.motion_complete[frame] else 'red')
-        self.neighbor_complete_text.set_text('Neighbors Completed' if self.neighbors_complete[frame] else 'Neighbors Not Completed')
-        self.neighbor_complete_text.set_color('green' if self.neighbors_complete[frame] else 'red')
-        self.neighbor_complete_circle.set_color('green' if self.neighbors_complete[frame] else 'red')
+        self.status_text.set_text(self.data.robot_status[frame])
+        self.ready_text.set_text('Robot Ready' if self.data.robot_ready[frame] else 'Robot Not Ready')
+        self.ready_text.set_color('green' if self.data.robot_ready[frame] else 'red')
+        self.ready_circle.set_color('green' if self.data.robot_ready[frame] else 'red')
+        self.pos_started_text.set_text('Position Obtained' if self.data.position_started[frame] else 'Position Not Obtrained')
+        self.pos_started_text.set_color('green' if self.data.position_started[frame] else 'red')
+        self.pos_started_circle.set_color('green' if self.data.position_started[frame] else 'red')
+        self.neighbors_started_text.set_text('Neighbor Position Obtained' if self.data.neighbors_started[frame] else 'Neighbor Position Not Obtrained')
+        self.neighbors_started_text.set_color('green' if self.data.neighbors_started[frame] else 'red')
+        self.neighbors_started_circle.set_color('green' if self.data.neighbors_started[frame] else 'red')
+        self.lidar_started_text.set_text('Lidar Obtained' if self.data.lidar_started[frame] else 'Lidar Not Obtrained')
+        self.lidar_started_text.set_color('green' if self.data.lidar_started[frame] else 'red')
+        self.lidar_started_circle.set_color('green' if self.data.lidar_started[frame] else 'red')
+        self.battery_ready_text.set_text(f'Battery Obtained {f"- {self.data.battery_dict[frame]['percentage']*100}%" if self.data.battery_dict[frame]['percentage'] else ""}' if not self.data.wait_for_battery[frame] or self.data.battery_received[frame] else ' Battery Not Obtained')
+        self.battery_ready_text.set_color('green' if not self.data.wait_for_battery[frame] or self.data.battery_received[frame] else 'red')
+        self.battery_ready_circle.set_color('green' if not self.data.wait_for_battery[frame] or self.data.battery_received[frame] else 'red')
+        self.robot_moving_text.set_text('Robot Moving' if self.data.robot_moving[frame] else 'Robot Not Moving')
+        self.robot_moving_text.set_color('green' if self.data.robot_moving[frame] else 'red')
+        self.robot_moving_circle.set_color('green' if self.data.robot_moving[frame] else 'red')
+        self.movement_restricted_text.set_text('Movement Restricted' if self.data.movement_restricted[frame] else 'Movement Not Restricted')
+        self.movement_restricted_text.set_color('green' if self.data.movement_restricted[frame] else 'red')
+        self.movement_restricted_circle.set_color('green' if self.data.movement_restricted[frame] else 'red')
+        self.path_obstructed_text.set_text('Path Obstructed' if self.data.path_obstructed[frame] else 'Path Not Obstructed')
+        self.path_obstructed_text.set_color('green' if self.data.path_obstructed[frame] else 'red')
+        self.path_obstructed_circle.set_color('green' if self.data.path_obstructed[frame] else 'red')
+        self.laser_obstructed_text.set_text('Laser Obstructed' if self.data.path_obstructed_laser[frame] else 'Laser Not Obstructed')
+        self.laser_obstructed_text.set_color('green' if self.data.path_obstructed_laser[frame] else 'red')
+        self.laser_obstructed_circle.set_color('green' if self.data.path_obstructed_laser[frame] else 'red')
+        self.neighbor_obstructed_text.set_text('Neighbor Obstructed' if self.data.path_obstructed_neighbor[frame] else 'Neighbor Not Obstructed')
+        self.neighbor_obstructed_text.set_color('green' if self.data.path_obstructed_neighbor[frame] else 'red')
+        self.neighbor_obstructed_circle.set_color('green' if self.data.path_obstructed_neighbor[frame] else 'red')
+        self.laser_avoid_error_text.set_text('Laser Avoid Error' if self.data.laser_avoid_error[frame] else 'No Laser Avoid Error')
+        self.laser_avoid_error_text.set_color('green' if self.data.laser_avoid_error[frame] else 'red')
+        self.laser_avoid_error_circle.set_color('green' if self.data.laser_avoid_error[frame] else 'red')
+        self.desired_heading_text.set_text('Desired Heading Reached' if self.data.desired_heading[frame] else 'Desired Heading Not Reached')
+        self.desired_heading_text.set_color('green' if self.data.desired_heading[frame] else 'red')
+        self.desired_heading_circle.set_color('green' if self.data.desired_heading[frame] else 'red')
+        self.destination_reached_text.set_text('Destination Reached' if self.data.destination_reached[frame] else 'Destination Not Reached')
+        self.destination_reached_text.set_color('green' if self.data.destination_reached[frame] else 'red')
+        self.destination_reached_circle.set_color('green' if self.data.destination_reached[frame] else 'red')
+        self.motion_complete_text.set_text('Motion Completed' if self.data.motion_complete[frame] else 'Motion Not Completed')
+        self.motion_complete_text.set_color('green' if self.data.motion_complete[frame] else 'red')
+        self.motion_complete_circle.set_color('green' if self.data.motion_complete[frame] else 'red')
+        self.neighbor_complete_text.set_text('Neighbors Completed' if self.data.neighbors_complete[frame] else 'Neighbors Not Completed')
+        self.neighbor_complete_text.set_color('green' if self.data.neighbors_complete[frame] else 'red')
+        self.neighbor_complete_circle.set_color('green' if self.data.neighbors_complete[frame] else 'red')
 
         # update tolerances
-        self.destination_tolerance_text.set_text(f"Destination Tolerance: {self.destination_tolerance[frame]}")
-        self.angle_tolerance_text.set_text(f"Angle Tolerance: {self.angle_tolerance[frame]}")
-        if type(self.desired_location[frame]) != type(None):
-            new_goal_radius = self.destination_tolerance[frame]
-            self.goal_radius.set_center((self.desired_location[frame][1], self.desired_location[frame][0]))
+        self.destination_tolerance_text.set_text(f"Destination Tolerance: {self.data.destination_tolerance[frame]}")
+        self.angle_tolerance_text.set_text(f"Angle Tolerance: {self.data.angle_tolerance[frame]}")
+        if type(self.data.desired_location[frame]) != type(None):
+            new_goal_radius = self.data.destination_tolerance[frame]
+            self.goal_radius.set_center((self.data.desired_location[frame][1], self.data.desired_location[frame][0]))
             self.goal_radius.radius = new_goal_radius
 
         # update LED Ring
-        if type(self.led_light_state[frame]) != type(None):
+        if type(self.data.led_light_state[frame]) != type(None):
             self.led_colors = []
-            for led in self.led_light_state[frame]['leds']:
+            for led in self.data.led_light_state[frame]['leds']:
                 self.led_colors.append((led['red']/255, led['green']/255, led['blue']/255))
             self.update_led_ring(self.led_colors)
 

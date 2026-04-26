@@ -65,15 +65,20 @@ class Agent(Node):
             "laser.enable": self._handle_laser_mode
         }
         self._param_update_map = self._build_param_update_map()
-        if hasattr(self, "_extra_param_update_map"):
-            self._param_update_map.update(self._extra_param_update_map)
+        if hasattr(self, "extra_param_update_map"):
+            self._param_update_map.update(self.extra_param_update_map)
 
         self.declare_agent_parameters()
         self.assign_parameters()
         self.add_on_set_parameters_callback(self.parameter_callback)
 
-        self._replay_dict = []                  # this is about 15 min
+        self._replay_dict = []                  
         self._creat_log_file_names(self.start_time)
+        self._setup_log_maps()
+
+        if hasattr(self, "extra_log_field_map"):
+            self._log_field_map.update(self.extra_log_field_map)
+        self._replay_version = 2
         policy = qos_profile_sensor_data
 
         # LED Info
@@ -2038,84 +2043,123 @@ class Agent(Node):
         self._uncompress_file = f"{self._replay_file}.replay"
         self._compress_file = f"{self._replay_file}.turtleReplay"
 
+    def _setup_log_maps(self):
+        self._log_field_map = {
+            # --- Robot Conditions ---
+            "robot_status": "robot_status",
+            "robot_ready": "robot_ready",
+            "position_started": "_position_started",
+            "neighbors_started": "_neighbors_started",
+            "lidar_started": "_lidar_started",
+            "camera_started": "_camera_started",
+            "camera_setup": "_camera_setup",
+            "battery_received": "_battery_received",
+            "wait_for_battery": "_wait_for_battery",
+            "robot_moving": "robot_moving",
+            "desired_heading": "desired_heading",
+            "destination_reached": "destination_reached",
+            "motion_complete": "motion_complete",
+            "neighbors_complete": "neighbors_complete",
+            "movement_restricted": "_robot_restricted_movement",
+
+            # --- LED Info ---
+            "led_light_state": "led_light_state",
+
+            # --- Battery Info ---
+            "battery_dict": "_battery_dict",
+
+            # --- Avoidance Conditions ---
+            "path_obstructed": "path_obstructed",
+            "path_obstructed_laser": "_path_obstructed_laser",
+            "path_obstructed_neighbor": "path_obstructed_neighbor",
+            "laser_avoid_error": "laser_avoid_error",
+
+            # --- Goal Info ---
+            "destination_tolerance": "_destination_tolerance",
+            "angle_tolerance": "_angle_tolerance",
+            "desired_location": self._serialize_desired_location,
+            "attempted_desired_location": self._serialize_attempted_location,
+            "desired_angle": "desired_angle",
+
+            # --- Tracking ---
+            "my_pose": "pose",
+            "neighbor_poses": "neighbor_poses",
+            "neighbor_position": self._serialize_neighbor_position,
+            "neighbor_orientation": self._serialize_neighbor_orientation,
+        }
+        self._log_special_handlers = {
+            "led_light_state": deepcopy,
+            "battery_dict": deepcopy,
+            "my_pose": deepcopy,
+            "neighbor_poses": deepcopy,
+        }
+
+    def _serialize_desired_location(self):
+        if self.desired_location is None:
+            return None
+        return self.desired_location.tolist()
+
+
+    def _serialize_attempted_location(self):
+        if self._attempted_desired_location is None:
+            return None
+        return self._attempted_desired_location.tolist()
+
+
+    def _serialize_neighbor_position(self):
+        return dict(self.neighbor_position)
+
+
+    def _serialize_neighbor_orientation(self):
+        return dict(self.neighbor_orientation)
+
+    def _build_log_entry(self):
+        entry = {
+            "time": datetime.datetime.now().strftime("%Y-%m-%d.%H%M%S"),
+            "my_name": self.my_name,
+            "mainClass": type(self).__name__,
+            "replayVersion": self._replay_version,
+        }
+
+        for key, source in self._log_field_map.items():
+            try:
+                if callable(source):
+                    value = source()
+                else:
+                    value = getattr(self, source, None)
+
+                handler = self._log_special_handlers.get(key)
+                if handler:
+                    value = handler(value)
+
+                entry[key] = value
+
+            except Exception as e:
+                self.get_logger().warning(
+                    f"{self.my_name} Failed to log '{key}': {e}"
+                )
+
+        return self.extend_log_entry(entry)
+
+    def extend_log_entry(self, entry: dict):
+        # Designed function to use to extend dictionary if map doesn't give functionality needed.
+        return entry
+
     def _log_recording(self):
-        '''
-        This will create a array of dictionaries for all vital variables
-
-        Thoughts. Save for set number of iterations and then write to a file.
-        After program finishes or crashes, save and zip
-        '''
-
-        if len(self._replay_dict) > self._log_dict_length: # This will take about 15 min by default
+        # --- Handle buffer overflow ---
+        if len(self._replay_dict) > self._log_dict_length:
             self._save_logger()
             self._replay_dict = []
 
         try:
-            if not self.logging_paused:
-                desired_location = self.desired_location
-                attempted_location = self._attempted_desired_location
-                if type(self.desired_location) != type(None): 
-                    desired_location = desired_location.tolist()
-                if type(attempted_location) != type(None):
-                    attempted_location = attempted_location.tolist()
-                neighbor_pos = {}
-                for name, neighbor in self.neighbor_position.items():
-                    neighbor_pos[name] = neighbor
+            if self.logging_paused:
+                return
 
-                neighbor_ori = {}
-                for name, neighbor in self.neighbor_orientation.items():
-                    neighbor_ori[name] = neighbor
+            entry = self._build_log_entry()
+            self._replay_dict.append(entry)
 
-                self._replay_dict.append({
-                    "time": datetime.datetime.now().strftime("%Y-%m-%d.%H%M%S"),
-                    "my_name": self.my_name,
-                    "mainClass": type(self).__name__,
-                    "replayVersion": 2,
-
-                    # Robot Conditions
-                    "robot_status": self.robot_status,
-                    "robot_ready": self.robot_ready,
-                    "position_started": self._position_started, 
-                    "neighbors_started": self._neighbors_started, 
-                    "lidar_started": self._lidar_started,
-                    "camera_started": self._camera_started,
-                    "camera_setup": self._camera_setup,
-                    "battery_received": self._battery_received,
-                    "wait_for_battery": self._wait_for_battery,
-                    "robot_moving": self.robot_moving,
-                    "desired_heading": self.desired_heading,
-                    "destination_reached": self.destination_reached,
-                    "motion_complete": self.motion_complete,
-                    "neighbors_complete": self.neighbors_complete,
-                    "movement_restricted": self._robot_restricted_movement,
-
-                    # LED Info
-                    "led_light_state": deepcopy(self.led_light_state),
-
-                    # Battery Info
-                    "battery_dict": deepcopy(self._battery_dict),
-
-                    # Avodidance Conditions
-                    "path_obstructed": self.path_obstructed,
-                    "path_obstructed_laser": self._path_obstructed_laser,
-                    "path_obstructed_neighbor": self.path_obstructed_neighbor,
-                    "laser_avoid_error": self.laser_avoid_error,
-
-                    # Goal Info
-                    "destination_tolerance": self._destination_tolerance,
-                    "angle_tolerance": self._angle_tolerance,
-                    "desired_location": desired_location,
-                    "attempted_desired_location": attempted_location,
-                    "desired_angle": self.desired_angle,
-            
-                    # Tracking positions
-                    "my_pose": deepcopy(self.pose),
-                    "neighbor_poses": deepcopy(self.neighbor_poses),
-                    "neighbor_posistion": deepcopy(neighbor_pos),
-                    "neighbor_orientation": deepcopy(neighbor_ori)
-                })
         except MemoryError:
-            self.get_logger().warning(f"Log replay overflowed!")
+            self.get_logger().warning(f"{self.my_name} Log replay overflowed!")
             self._save_logger()
         
     def _save_logger(self):
