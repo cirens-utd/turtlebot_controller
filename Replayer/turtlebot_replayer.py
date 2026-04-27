@@ -762,6 +762,10 @@ class ReplayVisualizer:
             self.trail.remove()
         self.trail_coords = []
 
+        for plugin in self.plugins:
+            if hasattr(plugin, "restart"):
+                plugin.restart(event)
+
         if type(self.ani.event_source) != type(None):
             self.ani.event_source.stop()
             self.set_slider(0)

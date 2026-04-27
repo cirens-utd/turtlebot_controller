@@ -1,3 +1,4 @@
+import matplotlib.pyplot as plt
 from scipy.spatial import Voronoi
 from shapely.geometry import Polygon, box, LineString, Point
 from turtlebot_replayer import ReplayVisualizer
@@ -23,13 +24,55 @@ class TukeyCenterPointPlugin:
                                 ]
         self.alpha = alpha
 
+        # setting up secondary window
+        self.title = "Tukey Graph"
+        self.size = (10,6) 
+        self.fig = None
+        self. ax = None
+        self.start_line_x = 0.02
+        self.start_line_y = 0.95
+        self.delta_line_x = 0.1
+        self.delta_line_y = 0.05
+        self.x_indent = 0.015
+        self.fontsize = 12
+
+        self.window = 500
+
         self.patch = None
         self.first_frame = True
         self.last_frame = -1
 
         self.centroid_points = {}
 
-        
+    def setup(self):
+        # Set up the plot
+        self.fig, self.ax = plt.subplots(figsize=self.size)  # (x, y) x inches wide and y inches tall
+        self.fig.subplots_adjust(left=0.35)           # leave 35% of area on left
+        self.ax.set_aspect('auto')
+
+        ## Information on Left
+        # Zero Line
+        line_num = 0
+        self.mode_label = self.fig.text(self.start_line_x - 0.01, self.start_line_y - self.delta_line_y*line_num, 'Tukey Mode: ', fontsize=self.fontsize, ha='left', va='top')
+        self.mode_text = self.fig.text(self.start_line_x + 0.11, self.start_line_y - self.delta_line_y*line_num, 'None', fontsize=self.fontsize, ha='left', va='top')
+
+        # First line
+        line_num = line_num + 1
+        self.trust_label = self.fig.text(self.start_line_x - 0.01, self.start_line_y - self.delta_line_y*line_num, 'Trust Mode: ', fontsize=self.fontsize, ha='left', va='top')
+        self.trust_text = self.fig.text(self.start_line_x + 0.11, self.start_line_y - self.delta_line_y*line_num, 'None', fontsize=self.fontsize, ha='left', va='top')
+
+        # # Time Graph
+        self.ax.set_ylim(0, 5)
+        self.ax.set_title(self.title)
+        self.ax.margins(y=0)
+
+        self.time_x = []
+        self.time_y = []
+
+        # self.time_line, = self.time_ax.plot([], [], color='blue')
+        self.time_line, = self.ax.plot([], [], color='blue')
+
+        plt.show(block=False)
 
 
     def update(self, viz, frame):
@@ -70,6 +113,42 @@ class TukeyCenterPointPlugin:
         self.draw_area(np.array(viz.data.safe_area[frame]), viz)
 
         viz.fig.canvas.draw_idle()
+
+        # draw second window
+        if self.fig is None:
+            self.setup()
+
+        self.mode_text.set_text(str(viz.data.safe_point_mode[frame]))
+        self.trust_text.set_text(str(viz.data.self_trust[frame]))
+
+        self.time_x.append(frame)
+        self.time_y.append(viz.data.neighbor_position[frame]['3'][0])
+        self.time_x = self.time_x[-1*self.window:]
+        self.time_y = self.time_y[-1*self.window:]
+
+        self.time_line.set_data(self.time_x, self.time_y)
+
+        # Rescale dynamically
+        # X axis
+        if frame > self.window:
+            self.ax.set_xlim(frame - self.window, frame)
+        else:
+            self.ax.set_xlim(0, self.window)
+        
+        # Y axis
+        if len(self.time_y) > 1:
+            ymin = min(self.time_y)
+            ymax = max(self.time_y)
+            
+            padding = 0.1 * (ymax - ymin + 1e-6)
+            self.ax.set_ylim(ymin - padding, ymax + padding)
+
+
+        self.fig.canvas.draw_idle()
+        self.fig.canvas.flush_events()
+
+        return self.time_line, self.mode_text, self.trust_text
+
 
     def contour_to_poly(self, contour):
         if contour is None or len(contour) < 3:
@@ -139,6 +218,12 @@ class TukeyCenterPointPlugin:
 
         viz.ax.add_patch(patch)
         self.patches = patch
+    
+    def restart(self, event):
+        self.ax.set_ylim(0, 5)
+
+        self.time_x = []
+        self.time_y = []
 
 def main():
     parser = argparse.ArgumentParser()
