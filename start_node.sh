@@ -26,7 +26,11 @@ other_robots="[$(echo "$@" | sed 's/ /,/g')]"
 
 #CPIH Experiements
 # Exp 1: 9 robot run 
-tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control CPIH.py --ros-args --params-file src/agent_control/config/CPIH/Network1.yaml -p robot.id:=$ROBOT_NUM -p robot.neighbors:=$other_robots -p logging.enabled:=true&> ./log.txt'"
+# tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control CPIH.py --ros-args --params-file src/agent_control/config/CPIH/Network1.yaml -p robot.id:=$ROBOT_NUM -p robot.neighbors:=$other_robots -p logging.enabled:=true&> ./log.txt'"
+
+
+# Vision Follow
+tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control aprilTagDetection.py --ros-args -p robot.id:=$ROBOT_NUM -p tag.follow:=true -p led.override:=true -p sensors.use_mocap:=False &> ./log.txt'"
 
 ## Concesus
 # tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control consensus.py --ros-args -p robot.id:=$ROBOT_NUM -p robot.neighbors:=$other_robots &> ./log.txt'"

@@ -26,15 +26,25 @@ import pdb
 class AprilTagDetectorNode(Agent):
 
     def __init__(self, node_name, reset_odom=False):
+        self.extra_param_update_map = {
+            "tag.follow": "follow_tag",
+            "tag.verbose": "tag_verbvose"
+        }
         super().__init__(node_name)
+
+        self.declare_parameter("tag.follow", False) 
+        self.follow_tag = self.get_parameter("tag.follow").value
+
+        self.declare_parameter("tag.verbose", False)
+        self.tag_verbvose = self.get_parameter("tag.verbose").value
 
         # self._min_angle = 0.1
 
         odom_topic = f"/{self.my_name}/odom"
         image_topic = f"/{self.my_name}/oakd/rgb/preview/image_raw"
         camera_topic = f"/{self.my_name}/oakd/rgb/preview/camera_info"
-        # self._camera_started = False
-        # self._camera_setup = False
+        self._camera_started = False
+        self._camera_setup = False
         self.fx, self.cx, self.fy, self.cy = None, None, None, None 
 
         # Setting Up Odometry information
@@ -269,6 +279,9 @@ class AprilTagDetectorNode(Agent):
                 cv2.waitKey(1)
 
             # loop through the tags
+            if self.follow_tag:
+                self.example_follow_tag(tags)
+
             for tag in tags:
                 tx, ty, tz = tag.pose_t.flatten()              # [ Right is postive , Down is Postive, Positive Forward]
                 x, y, z = tz*x_ratio, -tx, -ty                   # On Robot 3, the z needed offset 58.9% to be accurate. Left and right was good
@@ -352,9 +365,10 @@ class AprilTagDetectorNode(Agent):
                 move_z = 0.5
 
 
-            print(f"TagID: {tags[0].tag_id}")
-            print(f"Distance: {z}, Side: {x}")
-            print(f"Move: {move_x}, {move_z}")
+            if self.tag_verbvose:
+                print(f"TagID: {tags[0].tag_id}")
+                print(f"Distance: {z}, Side: {x}")
+                print(f"Move: {move_x}, {move_z}")
 
         
         self.move_robot_(move_x, move_z)
@@ -451,36 +465,38 @@ class AprilTagDetectorNode(Agent):
 
         '''
 
+        self.set_led_mode_("FINISHED")
 
+        if not self.follow_tag:
+            ### Vision Concenus####
+            # 'x': -0.644445846281644, 'y': 0.11759494681753993, 'z': 0.033320860385021155
+            # self.move_to_position([1.14, 0.0])
+            # self.move_to_position([1.6664, 0.5419])
+            # self.move_to_position([0.0,0.0])
 
-        # 'x': -0.644445846281644, 'y': 0.11759494681753993, 'z': 0.033320860385021155
-        # self.move_to_position([1.14, 0.0])
-        # self.move_to_position([1.6664, 0.5419])
-        # self.move_to_position([0.0,0.0])
+            if not self._test:
+                if not self.find_neighbors_vision():
+                    self._test = True
+            else:
+                total = 0
+                not_too_close = 1
+                distances = np.array([])
 
-        if not self._test:
-            if not self.find_neighbors_vision():
-                self._test = True
-        else:
-            total = 0
-            not_too_close = 1
-            distances = np.array([])
+                for name, neighbor in self.neighbor_position.items():
+                    difference = (np.array(neighbor) - np.array(self.position))/2
+                    distances = np.append(distances, np.linalg.norm(difference))
+                    if np.linalg.norm(difference) > not_too_close:
+                        weight = 1
+                    else:
+                        weight = 0
+                    total += weight * difference
+                
 
-            for name, neighbor in self.neighbor_position.items():
-                difference = (np.array(neighbor) - np.array(self.position))/2
-                distances = np.append(distances, np.linalg.norm(difference))
-                if np.linalg.norm(difference) > not_too_close:
-                    weight = 1
-                else:
-                    weight = 0
-                total += weight * difference
-            
+                self.move_direction(total)
 
-            self.move_direction(total)
-
-            if self.destination_reached:
-                self._test = False
-                self.get_logger().info(f"Completed Movement. Checking Neighbors")
+                if self.destination_reached:
+                    self._test = False
+                    self.get_logger().info(f"Completed Movement. Checking Neighbors")
 
         return
                 
@@ -506,7 +522,7 @@ def main(args=None):
         apriltag_detector_node = AprilTagDetectorNode("AprilTagDetector")
         rclpy.spin(apriltag_detector_node)
     except KeyboardInterrupt:
-        
+        traceback.print_exc()
     finally:
         if apriltag_detector_node:
             apriltag_detector_node.shutdown()
