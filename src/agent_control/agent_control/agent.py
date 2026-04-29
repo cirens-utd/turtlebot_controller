@@ -920,9 +920,10 @@ class Agent(Node):
             "blocked"   -   path obstructed 
         '''
         if value in self._robot_status_options:
-            if value != self.robot_status and not self.led_override:
+            if value != self.robot_status:
                 self.get_logger().info(f"{self.my_name}: Changed from {self.robot_status} to {value}")
-                self.set_led_mode_(value)
+                if not self.led_override:
+                    self.set_led_mode_(value)
             
             self._robot_status = value
 
@@ -1198,7 +1199,7 @@ class Agent(Node):
                     "w": pose.orientation.w
                 }
             },
-            "in_neighborhood": self.neighbor_poses[str(name)]['in_neighborhood']
+            "in_neighborhood": self.neighbor_poses[str(name)]['in_neighborhood'] if str(name) in self.neighbor_poses else self._neighborhood_default
         }
 
         if self.neighbor_poses[str(name)]['in_neighborhood']:
@@ -2225,7 +2226,7 @@ class Agent(Node):
             elif not self.desired_heading:
                     self.move_to_angle(self.start_heading)
             
-            if self.led_persistent:
+            if self.led_persistent and not self.led_override:
                 self.set_led_mode_(self.robot_status)
             return
         
