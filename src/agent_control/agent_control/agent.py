@@ -732,7 +732,8 @@ class Agent(Node):
         self.update_neighbor_position_(name, pose.header, pose.pose)
 
         orientation = pose.pose.orientation
-        neighbor_facing = self.get_angle_quad(orientation)
+        orientation_list = [orientation.x, orientation.y, orientation.z, orientation.w]
+        neighbor_facing = self.get_angle_quad(orientation_list)
 
         # x,y = pose.pose.position.x, pose.pose.position.y
         # self.neighbor_poses[str(name)] = {
@@ -1168,12 +1169,13 @@ class Agent(Node):
             }
         }
         orientation = pose.orientation
+        orientation_list = [orientation.x, orientation.y, orientation.z, orientation.w]
         x,y = pose.position.x, pose.position.y
         if offset:
             self.position = self.correct_position_(x,y, orientation)
         else:
             self.position =[x,y]
-        self.direction_heading = self.get_angle_quad(orientation)
+        self.direction_heading = self.get_angle_quad(orientation_list)
         self.quaternion = [orientation.x, orientation.y, orientation.z, orientation.w]
 
     def update_neighbor_position_(self, name, header, pose):
@@ -1276,7 +1278,7 @@ class Agent(Node):
         :param q: quaternion rotation from ROS msg
         :return: radians 
         """
-        return np.remainder((np.arctan2(2 * (q.w * q.z + q.x * q.y),1 - 2 * (q.y * q.y + q.z * q.z)) + np.pi) , 2 * np.pi)
+        return np.remainder((np.arctan2(2 * (q[3] * q[2] + q[0] * q[1]),1 - 2 * (q[1] * q[1] + q[2] * q[2])) + np.pi) , 2 * np.pi)
 
     def angle(self, x,y):
         """
