@@ -18,6 +18,7 @@ class TukeyContour:
         self.median_contour = np.array([])
         self.Xi = Xi
         self.mode = mode
+        self.max_depth = None
         if self.primal_points.shape[0] < 3:
             # Not enough points to form a contour
             return
@@ -69,7 +70,7 @@ class TukeyContour:
                         continue
                 elif self.mode == 2:
                     # ONLY include if one of the lines belongs to target_index
-                    if i != self.Xi and j != Self.Xi:
+                    if i != self.Xi and j != self.Xi:
                         continue
                 m1, c1 = dual_lines[i]
                 m2, c2 = dual_lines[j]
@@ -79,7 +80,7 @@ class TukeyContour:
                     dual_intersections.append((x, y))
 
         # 3. Calculate the depth of each intersection point
-        max_depth = 0
+        self.max_depth = 0
         intersections_with_depth = []
         for p in dual_intersections:
             px, py = p
@@ -87,15 +88,15 @@ class TukeyContour:
             lines_below = np.sum((dual_lines[:, 0] * px + dual_lines[:, 1]) < py - epsilon)
             depth = min(lines_above, lines_below) + 1 # Depth is 1-indexed
             intersections_with_depth.append({'point': p, 'depth': depth})
-            if depth > max_depth:
-                max_depth = depth
+            if depth > self.max_depth:
+                self.max_depth = depth
 
         if self.verbose:
-            print(f"Calculated depths. Maximum depth (k*) is {max_depth}.")
+            print(f"Calculated depths. Maximum depth (k*) is {self.max_depth}.")
 
         # 4. Iteratively find a non-empty contour, starting from max_depth
         final_contour_points = []
-        k = max_depth
+        k = self.max_depth
         while k > 0 and not final_contour_points:
             median_dual_vertices = [item['point'] for item in intersections_with_depth if item['depth'] >= k]
             
@@ -274,7 +275,14 @@ class SafePoint:
             region = None  # not enough points
             centroid = None
 
-        return centroid, region
+        depth = None
+        if centroid is not None:
+            depth = self.tukey_depth(
+                np.array([centroid.x, centroid.y]),
+                centers
+            )
+
+        return centroid, region, depth
 
     
     def _monotone_chain_convex_hull(self, points: np.ndarray):
@@ -299,3 +307,34 @@ class SafePoint:
     def _cross_product(self, p1, p2, p3):
         """Calculates the 2D cross product to determine orientation."""
         return (p2[0] - p1[0]) * (p3[1] - p1[1]) - (p2[1] - p1[1]) * (p3[0] - p1[0])
+
+    def tukey_depth(self, point, data):
+        """
+        Compute Tukey (halfspace) depth of a point.
+        data: (n,2) array
+        """
+        n = len(data)
+        min_halfspace = n
+
+        for i in range(n):
+            for j in range(i + 1, n):
+                left = 0
+                right = 0
+
+                for k in range(n):
+                    if k == i or k == j:
+                        continue
+
+                    cp = (
+                        (data[j][0] - data[i][0]) * (data[k][1] - data[i][1])
+                        - (data[j][1] - data[i][1]) * (data[k][0] - data[i][0])
+                    )
+
+                    if cp > 0:
+                        left += 1
+                    elif cp < 0:
+                        right += 1
+
+                min_halfspace = min(min_halfspace, left, right)
+
+        return min_halfspace + 1

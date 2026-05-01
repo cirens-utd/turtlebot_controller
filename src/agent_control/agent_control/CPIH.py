@@ -20,12 +20,14 @@ class CPIH(Agent):
         }
         self.extra_log_field_map = {
             'safe_area': '_safe_area',
+            'tukey_depth': '_tukey_depth',
             'self_trust': 'self_trust',
             'safe_point_mode': 'safe_point_mode',
             'imprecision': 'imprecision'
         }
         super().__init__(node_name)
         self._safe_area = []
+        self._tukey_depth = 0
 
         self.complete = False
 
@@ -136,11 +138,13 @@ class CPIH(Agent):
             if tc.median_contour.shape[0] > 0:
                 # Target is the centroid of the median contour
                 self._safe_area = tc.median_contour.tolist()
+                self._tukey_depth = tc.max_depth
                 
                 safepoint = np.mean(tc.median_contour, axis=0)
                 # self.get_logger().info(f"{self.my_name} Has a valid target: {safepoint}")
             else:
                 self._safe_area = []
+                self._tukey_depth = 0
                 safepoint = self.position
                 self.get_logger().info(f"{self.my_name} Does not have valid target.")
                 self.get_logger().info(f"{tc.median_contour} ")
@@ -150,9 +154,11 @@ class CPIH(Agent):
             sp = SafePoint()
             target = sp.CPIH_Safepoint(Bx, 0, self.position, mode=self.self_trust)
             self._safe_area = []
+            self._tukey_depth = 0
         elif self.safe_point_mode == 2:
             sp = SafePoint()
-            centroid, region = sp.CPIH_Fast_Safepoint(Bx, 0, self.position, mode=self.self_trust)
+            centroid, region, depth = sp.CPIH_Fast_Safepoint(Bx, 0, self.position, mode=self.self_trust)
+            self._tukey_depth = depth
 
             target = self.position
             if type(centroid) != type(None):
