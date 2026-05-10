@@ -12,13 +12,15 @@ class TukeyContour:
     Calculates the Tukey depth contour (median region) for a set of 2D points.
 
     """
-    def __init__(self, input_points: np.ndarray, Xi: np.array, mode: int = 1, verbose: bool = False):
+    def __init__(self, input_points: np.ndarray, Xi: int, centerpoint: bool = False, mode: int = 1, verbose: bool = False):
         self.primal_points = np.asarray(input_points)
         self.verbose = verbose
         self.median_contour = np.array([])
         self.Xi = Xi
         self.mode = mode
         self.max_depth = None
+        self.center_depth = None
+        self.centerpoint = centerpoint
         if self.primal_points.shape[0] < 3:
             # Not enough points to form a contour
             return
@@ -95,8 +97,13 @@ class TukeyContour:
             print(f"Calculated depths. Maximum depth (k*) is {self.max_depth}.")
 
         # 4. Iteratively find a non-empty contour, starting from max_depth
+        self.center_depth = np.ceil(len(self.primal_points)*1/3)
         final_contour_points = []
-        k = self.max_depth
+        if self.centerpoint:
+            k = self.center_depth
+        else:
+            k = self.max_depth
+
         while k > 0 and not final_contour_points:
             median_dual_vertices = [item['point'] for item in intersections_with_depth if item['depth'] >= k]
             
@@ -277,12 +284,13 @@ class SafePoint:
 
         depth = None
         if centroid is not None:
-            depth = self.tukey_depth(
+            tukey_depth = self.tukey_depth(
                 np.array([centroid.x, centroid.y]),
                 centers
             )
+        centerpoint_depth = np.ceil(n/3)
 
-        return centroid, region, depth
+        return centroid, region, tukey_depth, centerpoint_depth
 
     
     def _monotone_chain_convex_hull(self, points: np.ndarray):

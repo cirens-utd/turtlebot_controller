@@ -22,18 +22,26 @@ other_robots="[$(echo "$@" | sed 's/ /,/g')]"
 # tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control calibration.py --ros-args -p robot.id:=$ROBOT_NUM &> ./log.txt'"
 
 # # Adversary
-# tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control doNothing.py --ros-args --params-file src/agent_control/config/CPIH/Network1.yaml -p robot.id:=$ROBOT_NUM -p robot.neighbors:=$other_robots -p logging.enabled:=true&> ./log.txt'"
+# tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c \
+# 'ros2 run agent_control doNothing.py --ros-args \
+# --params-file src/agent_control/config/CPIH/BaseConfig.yaml \
+# -p robot.id:=$ROBOT_NUM -p robot.neighbors:=$other_robots -p logging.enabled:=true \
+# &> ./log.txt'"
 
 #CPIH Experiements
-# Exp 1: 9 robot run 
-# tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control CPIH.py --ros-args --params-file src/agent_control/config/CPIH/Network1.yaml -p robot.id:=$ROBOT_NUM -p robot.neighbors:=$other_robots -p logging.enabled:=true&> ./log.txt'"
+tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c \
+'ros2 run agent_control CPIH.py --ros-args --params-file src/agent_control/config/CPIH/BaseConfig.yaml \
+--params-file src/agent_control/config/CPIH/AdvesaryOne.yaml \
+-p robot.id:=$ROBOT_NUM -p robot.neighbors:=$other_robots \
+-p CPIH.self_trust:=1 -p CPIH.safe_point_mode:=1 -p CPIH.push_bad:=True \
+&> ./log.txt'"
 
 
-# Vision Follow
-tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control aprilTagDetection.py --ros-args -p robot.id:=$ROBOT_NUM -p tag.follow:=true -p led.override:=true -p sensors.use_mocap:=False &> ./log.txt'"
+# # Vision Follow
+# tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control aprilTagDetection.py --ros-args -p robot.id:=$ROBOT_NUM -p tag.follow:=true -p led.override:=true -p sensors.use_mocap:=False &> ./log.txt'"
 
 # # Concesus
-# tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control consensus.py --ros-args -p robot.id:=$ROBOT_NUM -p robot.neighbors:=$other_robots > ./log.txt'"
+# tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control consensus.py --ros-args -p robot.id:=$ROBOT_NUM -p robot.neighbors:=$other_robots &> ./log.txt'"
 # tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control consensus.py --ros-args -p robot.id:=$ROBOT_NUM -p robot.neighbors:=$other_robots -p logging.enabled:=true&> ./log.txt'"
 
 ## FollowMe

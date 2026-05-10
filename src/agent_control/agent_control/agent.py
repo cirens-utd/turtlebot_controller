@@ -2226,7 +2226,7 @@ class Agent(Node):
             elif self.robot_status != "READY":
                 self.robot_status = "READY"
             elif not self.desired_heading:
-                    self.move_to_angle(self.start_heading)
+                self.move_to_angle(self.start_heading)
             
             if self.led_persistent and not self.led_override:
                 self.set_led_mode_(self.robot_status)

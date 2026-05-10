@@ -15,7 +15,7 @@ import pdb
 class StartPoint(Agent):
     def __init__(self, node_name):
 
-        self._extra_param_update_map = {
+        self.extra_param_update_map = {
             "Start.positions": "start_positions",
             "Start.wait": "wait"
         }

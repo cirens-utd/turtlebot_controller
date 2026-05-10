@@ -21,6 +21,7 @@ class CPIH(Agent):
         self.extra_log_field_map = {
             'safe_area': '_safe_area',
             'tukey_depth': '_tukey_depth',
+            'center_depth': '_center_depth',
             'self_trust': 'self_trust',
             'safe_point_mode': 'safe_point_mode',
             'imprecision': 'imprecision'
@@ -28,13 +29,14 @@ class CPIH(Agent):
         super().__init__(node_name)
         self._safe_area = []
         self._tukey_depth = 0
+        self._center_depth = 0
 
         self.complete = False
 
         self.declare_parameter("CPIH.self_trust", 1)    # 0 - Self Distrust, 1 - normal Tukey, 2 = Self Trust
         self.self_trust = self.get_parameter("CPIH.self_trust").value
 
-        self.declare_parameter("CPIH.safe_point_mode", 0)    # 0 - Use Tukey Centroid, 1 - Use Safepoint, 2 - use fByzantine-safe point
+        self.declare_parameter("CPIH.safe_point_mode", 0)    # 0 - Centerpoint 1 - Use Tukey Centroid 2 - use fByzantine-safe point
         self.safe_point_mode = self.get_parameter("CPIH.safe_point_mode").value
 
         self.declare_parameter("CPIH.imprecision", 0.0)
@@ -59,7 +61,8 @@ class CPIH(Agent):
         self.update_neighbor_position_(name, pose.header, new_pose.pose)
 
         orientation = pose.pose.orientation
-        neighbor_facing = self.get_angle_quad(orientation)
+        orientation_list = [orientation.x, orientation.y, orientation.z, orientation.w]
+        neighbor_facing = self.get_angle_quad(orientation_list)
 
 
         # check if all have been found
@@ -127,10 +130,13 @@ class CPIH(Agent):
             i = i+1
         Bx = self.getImprecisionRegions(X,self.imprecision)
 
-        if self.safe_point_mode == 0:
+        if self.safe_point_mode == 0 or self.safe_point_mode == 1:
+            centerpoint = True
+            if self.safe_point_mode:
+                centerpoint = False
             # for neighbor in self.neighbor_poses:
             #    X[i] = np.array((self.neighbor_poses[neighbor].pose.position.x, self.neighbor_poses[neighbor].pose.position.y))
-            tc = TukeyContour(X, 0, mode=self.self_trust)
+            tc = TukeyContour(X, 0, centerpoint=centerpoint, mode=self.self_trust)
 
             '''
             This is finding the mean of the tukey median. This is the mean of the vertices of the deepest area in the set.
@@ -138,27 +144,30 @@ class CPIH(Agent):
             if tc.median_contour.shape[0] > 0:
                 # Target is the centroid of the median contour
                 self._safe_area = tc.median_contour.tolist()
-                self._tukey_depth = tc.max_depth
+                self._tukey_depth = float(tc.max_depth)
+                self._center_depth = float(tc.center_depth)
                 
                 safepoint = np.mean(tc.median_contour, axis=0)
                 # self.get_logger().info(f"{self.my_name} Has a valid target: {safepoint}")
             else:
                 self._safe_area = []
                 self._tukey_depth = 0
+                self._center_depth = 0
                 safepoint = self.position
                 self.get_logger().info(f"{self.my_name} Does not have valid target.")
                 self.get_logger().info(f"{tc.median_contour} ")
             target = safepoint
-        elif self.safe_point_mode == 1:
-            # This doesn't work....
-            sp = SafePoint()
-            target = sp.CPIH_Safepoint(Bx, 0, self.position, mode=self.self_trust)
-            self._safe_area = []
-            self._tukey_depth = 0
+        # elif self.safe_point_mode == 1:
+        #     # This doesn't work....
+        #     sp = SafePoint()
+        #     target = sp.CPIH_Safepoint(Bx, 0, self.position, mode=self.self_trust)
+        #     self._safe_area = []
+        #     self._tukey_depth = 0
         elif self.safe_point_mode == 2:
             sp = SafePoint()
-            centroid, region, depth = sp.CPIH_Fast_Safepoint(Bx, 0, self.position, mode=self.self_trust)
-            self._tukey_depth = depth
+            centroid, region, tukey_depth, centerpoint_depth = sp.CPIH_Fast_Safepoint(Bx, 0, self.position, mode=self.self_trust)
+            self._tukey_depth = float(tukey_depth)
+            self._center_depth = float(centerpoint_depth)
 
             target = self.position
             if type(centroid) != type(None):
@@ -182,6 +191,8 @@ class CPIH(Agent):
 
         if (np.linalg.norm(self.position-target)<0.3):
             self.complete = True
+
+        # pdb.set_trace()
         self.move_to_position(target)
 
 
@@ -192,6 +203,7 @@ def main(args=None):
 
     ## python3 CPIH.py -i 1 -n 1 2 3 -s --ros-args -p robot.neighborhood_mode:=global -p robot.neighborhood_global:=[1,1,0,1,0,1,0,1,1] -p robot.neighborhood_size:=3
     ## ros2 run agent_control CPIH.py --ros-args --params-file src/agent_control/config/CPIH/Network1.yaml -p robot.id:=1 -p robot.neighbors:=['1','2','3', '4'] -p logging.enabled:=true -p mode.sim:=true 
+    ## ros2 run agent_control CPIH.py --ros-args --params-file src/agent_control/config/CPIH/BaseConfig.yaml --params-file src/agent_control/config/CPIH/AdvesaryOne.yaml -p robot.id:=3 -p robot.neighbors:='[1,3,4,5,6,7,11,12,16]'
 
 
     my_robot = None 

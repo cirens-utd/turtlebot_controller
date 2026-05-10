@@ -29,7 +29,15 @@ ssh ${USER}@${pi_ip} << EOF
 
     source install/setup.bash 
     
-    ros2 run agent_control start_point.py --ros-args --params-file src/agent_control/config/CPIH/Network1.yaml -p robot.id:=$robot_num -p robot.neighbors:=$other_robots
-    # QE Start Points -s -2.7 -2.9 2.1 -3.7 1.7 -2.9 1.4 -3.7 -3.3 -3.4 -2.2 -3.4 -1 3.2 -.17 5 .91 2.9
+    ros2 run agent_control start_point.py --ros-args \
+      --params-file src/agent_control/config/CPIH/BaseConfig.yaml \
+      -p robot.id:=$robot_num -p robot.neighbors:=$other_robots
+    ### QE Start Points -s -2.7 -2.9 2.1 -3.7 1.7 -2.9 1.4 -3.7 -3.3 -3.4 -2.2 -3.4 -1 3.2 -.17 5 .91 2.9
     
 EOF
+
+
+    #   --params-file src/agent_control/config/CPIH/StartPositions/CircleStart.yaml \
+    #   --params-file src/agent_control/config/CPIH/StartPositions/ClusterStart.yaml \
+    #   --params-file src/agent_control/config/CPIH/StartPositions/RandomStart.yaml \
+    #   -p Start.positions:='[-2.5, 3.3]'
