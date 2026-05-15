@@ -65,6 +65,8 @@ If there are special conditions for this, you will need to create a function and
 TODO: Destination Tolerance not changing on the replay after reaching goal?
 How to update parameters if all the nodes have the same name???
 
+Added _robot_move_wait to pause movement by _ready_wait_delay. This time is saved in _robot_wait_time
+
 
 
 # Agent Controller Overview

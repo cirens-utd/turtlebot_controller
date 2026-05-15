@@ -25,6 +25,7 @@
         ]
       neighborhood_size: 9
       neighborhood_default: 0     # if outside the span, 1 means they are a neighbor and 0 means they are not
+      ready_wait_delay: 1
     
     mode:
       sim: false

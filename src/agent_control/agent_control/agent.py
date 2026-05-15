@@ -95,6 +95,8 @@ class Agent(Node):
         self._neighbors_ready = {}
         self.neighbor_poses = {}
 
+        self._robot_moving_wait = False
+        self._robot_moving_time = None
         self._robot_moving = False
         self._desired_heading = False
 
@@ -285,6 +287,7 @@ class Agent(Node):
         self.declare_parameter("robot.neighborhood_global", [1])
         self.declare_parameter("robot.neighborhood_size", 1)
         self.declare_parameter("robot.neighborhood_default", 1)
+        self.declare_parameter("robot.ready_wait_delay", 1)
 
         # --- Mode ---
         self.declare_parameter("mode.sim", False)
@@ -361,6 +364,7 @@ class Agent(Node):
         self.config_file = self.get_parameter("robot.config_file").value
         self._offset_x = self.get_parameter("robot.offset_x").value
         self._offset_y = self.get_parameter("robot.offset_y").value
+        self._ready_wait_delay = self.get_parameter("robot.ready_wait_delay").value
 
         # --- Neighborhood ---
         self._neighborhood_mode = self.get_parameter("robot.neighborhood_mode").value
@@ -782,8 +786,9 @@ class Agent(Node):
                         all_good = False
                         break
                 
-                if all_good:
-                    self.robot_moving = True
+                if all_good and not self._robot_moving_wait:
+                    self._robot_moving_wait = True
+                    self._robot_moving_time = datetime.datetime.now()
                     self.get_logger().info(f"{self.my_name} Sees all neighbors are ready.")
  
     def lidar_callback_(self, msg: LaserScan):
@@ -1548,9 +1553,13 @@ class Agent(Node):
                 # If not using neighbors, enable robot to move
                 if not self.robot_moving:
                     if not self._has_neighbors:
+                        self._robot_moving_wait = True
+                        self._robot_moving_time = datetime.datetime.now()
                         self.robot_moving = True
                         self.get_logger().info(f"{self.my_name} Doesn't have any neighbors.")
                     if not self._use_mocap:
+                        self._robot_moving_wait = True
+                        self._robot_moving_time = datetime.datetime.now()
                         self.robot_moving = True
                         self.get_logger().info(f"{self.my_name} (Not Using Mocab) Setting Robot_Moving")
         else:
@@ -2029,6 +2038,8 @@ class Agent(Node):
 
         if self.restart_start_position:
             self.robot_status = "STOPPED"
+            self._robot_moving_wait = False
+            self._robot_moving_time = None
             self._robot_moving = False
             self._robot_ready = False
             for key, value in self._neighbors_ready.items():
@@ -2059,6 +2070,7 @@ class Agent(Node):
             "battery_received": "_battery_received",
             "wait_for_battery": "_wait_for_battery",
             "robot_moving": "robot_moving",
+            "robot_moving_wait": "_robot_moving_wait",
             "desired_heading": "desired_heading",
             "destination_reached": "destination_reached",
             "motion_complete": "motion_complete",
@@ -2216,13 +2228,17 @@ class Agent(Node):
         if self.robot_ready:
 
             # wait for all neighbors to be running
-            if self.robot_moving:
-                if not self._controller_running:
-                    self._controller_running = True
-                    self.controller()
-                    self._controller_running = False
-                elif self._slip_warning:
-                    self.get_logger().warning(f"{self.my_name}: Controller loop attempted to start before previous iteration complete")
+            if self._robot_moving_wait:
+                if self.robot_moving:
+                    if not self._controller_running:
+                        self._controller_running = True
+                        self.controller()
+                        self._controller_running = False
+                    elif self._slip_warning:
+                        self.get_logger().warning(f"{self.my_name}: Controller loop attempted to start before previous iteration complete")
+                elif self._robot_moving_time + datetime.timedelta(seconds=self._ready_wait_delay) <= datetime.datetime.now():
+                    self.robot_moving = True
+
             elif self.robot_status != "READY":
                 self.robot_status = "READY"
             elif not self.desired_heading:

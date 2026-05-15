@@ -6,7 +6,7 @@ from agent_control.agent import Agent
 from geometry_msgs.msg import PoseStamped
 import argparse
 import datetime
-from agent_control.TukeyMedian import TukeyContour, SafePoint
+from agent_control.TukeyMedian import TukeyContour, SafePoint, SelfTukeyMed
 import traceback
 import pdb
 
@@ -79,7 +79,7 @@ class CPIH(Agent):
             if np.abs(neighbor_facing - test_angle) < self._angle_tolerance:
                 self._neighbors_ready[name] = True
             
-            if self.desired_heading:
+            if self.desired_heading and not self._robot_moving_wait:
                 all_good = True
                 for key, value in self._neighbors_ready.items():
                     if not value:
@@ -87,7 +87,8 @@ class CPIH(Agent):
                         break
                 
                 if all_good:
-                    self.robot_moving = True
+                    self._robot_moving_wait = True
+                    self._robot_moving_time = datetime.datetime.now()
                     self.get_logger().info(f"{self.my_name} Sees all neighbors are ready.")
 
     def getImprecisionRegions(self, X,imp):
@@ -136,27 +137,39 @@ class CPIH(Agent):
                 centerpoint = False
             # for neighbor in self.neighbor_poses:
             #    X[i] = np.array((self.neighbor_poses[neighbor].pose.position.x, self.neighbor_poses[neighbor].pose.position.y))
-            tc = TukeyContour(X, 0, centerpoint=centerpoint, mode=self.self_trust)
+            if self.self_trust < 2:
+                tc = TukeyContour(X, 0, centerpoint=centerpoint, mode=self.self_trust)
 
-            '''
-            This is finding the mean of the tukey median. This is the mean of the vertices of the deepest area in the set.
-            '''
-            if tc.median_contour.shape[0] > 0:
-                # Target is the centroid of the median contour
-                self._safe_area = tc.median_contour.tolist()
-                self._tukey_depth = float(tc.max_depth)
-                self._center_depth = float(tc.center_depth)
-                
-                safepoint = np.mean(tc.median_contour, axis=0)
-                # self.get_logger().info(f"{self.my_name} Has a valid target: {safepoint}")
+                '''
+                This is finding the mean of the tukey median. This is the mean of the vertices of the deepest area in the set.
+                '''
+                if tc.median_contour.shape[0] > 0:
+                    # Target is the centroid of the median contour
+                    self._safe_area = tc.median_contour.tolist()
+                    self._tukey_depth = float(tc.max_depth)
+                    self._center_depth = float(tc.center_depth)
+                    
+                    safepoint = np.mean(tc.median_contour, axis=0)
+                    # self.get_logger().info(f"{self.my_name} Has a valid target: {safepoint}")
+                else:
+                    self._safe_area = []
+                    self._tukey_depth = 0
+                    self._center_depth = 0
+                    safepoint = self.position
+                    self.get_logger().info(f"{self.my_name} Does not have valid target.")
+                    self.get_logger().info(f"{tc.median_contour} ")
+                target = safepoint
             else:
-                self._safe_area = []
-                self._tukey_depth = 0
-                self._center_depth = 0
-                safepoint = self.position
-                self.get_logger().info(f"{self.my_name} Does not have valid target.")
-                self.get_logger().info(f"{tc.median_contour} ")
-            target = safepoint
+                final_poly, tukey_depth, center_depth = ztukey = SelfTukeyMed(X, 0, centerpoint)
+                self._safe_area = final_poly.tolist()
+                self._tukey_depth = float(tukey_depth)
+                self._center_depth = float(center_depth)
+                if final_poly.shape[0] > 0:
+                    safepoint = np.mean(final_poly, axis = 0)
+                else:
+                    safepoint = self.position 
+                    self.get_logger().info(f"{self.my_name} Does not have a valid target.")
+                target = safepoint
         # elif self.safe_point_mode == 1:
         #     # This doesn't work....
         #     sp = SafePoint()
