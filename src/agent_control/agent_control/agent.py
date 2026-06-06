@@ -2228,7 +2228,8 @@ class Agent(Node):
         if self.robot_ready:
 
             # wait for all neighbors to be running
-            if self._robot_moving_wait:
+            # Allow for robot moving override to work
+            if self._robot_moving_wait or self.robot_moving:
                 if self.robot_moving:
                     if not self._controller_running:
                         self._controller_running = True
