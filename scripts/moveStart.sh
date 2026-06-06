@@ -27,11 +27,14 @@ ssh ${USER}@${pi_ip} << EOF
     # Launching Mocab
     ./start_mocap.sh
 
-    source install/setup.bash 
+    tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c \
+    'ros2 run agent_control start_point.py --ros-args \
+        --params-file src/agent_control/config/CPIH/BaseConfig.yaml \
+        --params-file src/agent_control/config/CPIH/StartPositions/CircleStart.yaml \
+        -p robot.id:=$robot_num -p robot.neighbors:=$other_robots'
+
+    tmux attach-session -t ros_session2
     
-    ros2 run agent_control start_point.py --ros-args \
-      --params-file src/agent_control/config/CPIH/BaseConfig.yaml \
-      -p robot.id:=$robot_num -p robot.neighbors:=$other_robots
     ### QE Start Points -s -2.7 -2.9 2.1 -3.7 1.7 -2.9 1.4 -3.7 -3.3 -3.4 -2.2 -3.4 -1 3.2 -.17 5 .91 2.9
     
 EOF
