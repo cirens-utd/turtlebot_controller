@@ -35,6 +35,8 @@ install(PROGRAMS
   agent_control/aprilTagDetection.py
   agent_control/CPIH.py
   agent_control/doNothing.py
+  agent_control/doRandom.py
+  agent_control/doDriveAway.py
   agent_control/testme.py
   DESTINATION lib/${PROJECT_NAME}
 )
