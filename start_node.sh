@@ -26,7 +26,7 @@ tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && b
 'ros2 run agent_control CPIH.py --ros-args --params-file src/agent_control/config/CPIH/BaseConfig.yaml \
 --params-file src/agent_control/config/CPIH/AdvesaryOne.yaml \
 -p robot.id:=$ROBOT_NUM -p robot.neighbors:=$other_robots \
--p CPIH.self_trust:=1 -p CPIH.safe_point_mode:=0 -p CPIH.push_bad:=True \
+-p CPIH.self_trust:=1 -p CPIH.safe_point_mode:=2 -p CPIH.push_bad:=True \
 &> ./log.txt'"
 
 # # Adversary - Do Nothing
