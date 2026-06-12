@@ -17,7 +17,8 @@ class StartPoint(Agent):
 
         self.extra_param_update_map = {
             "Start.positions": "start_positions",
-            "Start.wait": "wait"
+            "Start.wait": "wait",
+            "Start.complete_wait": "complete_wait"
         }
         super().__init__(node_name)
 
@@ -26,6 +27,9 @@ class StartPoint(Agent):
 
         self.declare_parameter("Start.wait", False)    # Overrides neighbor_walk_around
         self.wait = self.get_parameter("Start.wait").value
+
+        self.declare_parameter("Start.complete_wait", 15)    # number of seconds to be complete before killing program
+        self.complete_wait = self.get_parameter("Start.complete_wait").value
 
         if len(self.start_positions):
             start_point = None
@@ -66,7 +70,7 @@ class StartPoint(Agent):
         
         self.move_to_position(self.starting_point)
 
-        if self.motion_complete:
+        if self.motion_complete and datetime.datetime.now() >= self.motion_complete_time + datetime.timedelta(seconds=self.complete_wait):
             self.robot_status = "FINISHED"
             self.get_logger().info(f"My Neighbors: {self.neighbor_position}")
             self.shutdown()

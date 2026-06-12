@@ -259,6 +259,7 @@ class Agent(Node):
         self._desired_angle = None
         self._destination_reached = False
         self._motion_complete = False
+        self.motion_complete_time = None
         self._neighbors_complete = False
         self._in_motion_tolerance = self._destination_tolerance
         self._synce_state = 0           # State of this agent. 0 = not ready 1 = ready 2 = complete 4 = obstructed
@@ -953,6 +954,10 @@ class Agent(Node):
     @motion_complete.setter
     def motion_complete(self, value):
         self._motion_complete = bool(value)
+        if bool(value):
+            self.motion_complete_time = datetime.datetime.now()
+        else:
+            self.motion_complete_time = None
 
 
     @property
@@ -2030,6 +2035,7 @@ class Agent(Node):
         self._desired_location = None
         self._attempted_desired_location = None
         self._motion_complete = False
+        self.motion_complete_time = None
         self._destination_reached = False
         self._desired_heading = False
         self._neighbors_complete = False

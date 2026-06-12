@@ -67,6 +67,7 @@ How to update parameters if all the nodes have the same name???
 
 Added _robot_move_wait to pause movement by _ready_wait_delay. This time is saved in _robot_wait_time
 
+Added self.motion_complete_time in agent
 
 
 # Agent Controller Overview
