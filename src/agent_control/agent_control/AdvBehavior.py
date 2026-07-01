@@ -1,23 +1,19 @@
 
 #!/usr/bin/env python3
-
 import rclpy
 from agent_control.agent import Agent
 import numpy as np
 import traceback
 import pdb
 import numpy as np
-import numpy.matlib
 import matplotlib.pyplot as plt
 from shapely import Polygon,Point,MultiPoint,LineString
-
 from itertools import combinations
 
 class AdvBehavior(Agent):
     def __init__(self, node_name):
    
         super().__init__(node_name)
-
      
     class Line:
         def __init__(self,a,b,c, sign = 0):
@@ -144,11 +140,20 @@ class AdvBehavior(Agent):
         '''
         #Need to define these parameters
         X = []
-        Y=[] 
+        Y = []
+        
+        Y[0] = self.position
+        for name, neighbor in self.neighbor_position.items():
+            if int(name)< 10:
+                X.append(np.array(neighbor))
+            else:
+                Y.append(np.array(neighbor))
+       
         my_idx = 0
         boundary_lines, hull_lines = self.get_boundary_lines(X)
         line_pairs = list(combinations(np.arange(len(boundary_lines)),2))
         bisectors = []
+        best_dir = []
         for pair in line_pairs:
             bisectors.append(self.angle_bisectors(boundary_lines[pair[0]],boundary_lines[pair[1]]))
 
@@ -163,12 +168,14 @@ class AdvBehavior(Agent):
             if dist< best_dist:
                 best_targets = projected_targets
                 best_dist = dist
-       # for name, neighbor in self.neighbor_position.items():
-        #    difference = (np.array(neighbor) - np.array(self.position))/2
-         #   total +=  difference
-        my_target = best_targets[my_idx]-self.position
+                best_dir = np.array([-line.A,line.B])
+                best_dir = best_dir/np.linalg.norm(best_dir)
+        if best_dist<0.85:
+            for target in best_targets:
+                target+= 1.0*best_dir
+        my_target = best_targets[my_idx]
         #REPLACE WITH CORRECT FUNCTION
-        self.MOVETOPOINT(my_target)
+        self.move_to_position(my_target)
 
 
 def main(args=None):
