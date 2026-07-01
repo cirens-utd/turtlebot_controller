@@ -63,7 +63,7 @@ class AdvBehavior(Agent):
             bisectors.append(-b)
 
         return bisectors
-    def get_projected_pos(self,Y, target_line, hull_lines =[], buffer = 2.0):
+    def get_projected_pos(self,Y, target_line, hull_lines =[], buffer = 1.0):
         v = np.array([-target_line.A,target_line.B])
         vdir = v/np.linalg.norm(v)
         p = np.array([0, -target_line.C/target_line.B])
