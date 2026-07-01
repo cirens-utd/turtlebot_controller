@@ -141,15 +141,26 @@ class AdvBehavior(Agent):
         #Need to define these parameters
         X = []
         Y = []
+        AdversaryNeighorhood = np.array([11,12])
+        AttackNeighborhood = np.array([1,4,5,6])
         
-        Y[0] = self.position
-        for name, neighbor in self.neighbor_position.items():
-            if int(name)< 10:
-                X.append(np.array(neighbor))
-            else:
-                Y.append(np.array(neighbor))
-       
-        my_idx = 0
+        for name in AttackNeighborhood:
+            X.append(np.array([
+                self.neighbor_pose[name]['pose']['position']['x'],
+                self.neighbor_pose[name]['pose']['position']['y']]))
+
+        
+        for name in AdversaryNeighborhood:
+            Y.append(np.array([
+                self.neighbor_pose[name]['pose']['position']['x'],
+                self.neighbor_pose[name]['pose']['position']['y']])) 
+        
+        
+        my_idx = np.where(AdversaryNeighborhood == self.my_number)[0]
+        if len(my_idx)==0:
+            my_idx = -1
+        else:
+            my_idx = my_idx[0]
         boundary_lines, hull_lines = self.get_boundary_lines(X)
         line_pairs = list(combinations(np.arange(len(boundary_lines)),2))
         bisectors = []
@@ -173,9 +184,11 @@ class AdvBehavior(Agent):
         if best_dist<0.85:
             for target in best_targets:
                 target+= 1.0*best_dir
-        my_target = best_targets[my_idx]
-        #REPLACE WITH CORRECT FUNCTION
-        self.move_to_position(my_target)
+        if my_idx>=0:
+            my_target = best_targets[my_idx]
+            self.move_to_position(my_target)
+        else:
+            self.move_to_position(self.position)
 
 
 def main(args=None):
