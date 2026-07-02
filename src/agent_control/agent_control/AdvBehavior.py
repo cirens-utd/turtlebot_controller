@@ -1,19 +1,28 @@
-
 #!/usr/bin/env python3
+
 import rclpy
 from agent_control.agent import Agent
 import numpy as np
 import traceback
 import pdb
 import numpy as np
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 from shapely import Polygon,Point,MultiPoint,LineString
 from itertools import combinations
 
 class AdvBehavior(Agent):
     def __init__(self, node_name):
-   
+        ## Adding extra stuff to logging
+        # self.extra_log_field_map = {
+        #     'safe_area': '_safe_area',
+        #     'tukey_depth': '_tukey_depth',
+        #     'center_depth': '_center_depth',
+        #     'self_trust': 'self_trust',
+        #     'safe_point_mode': 'safe_point_mode',
+        #     'imprecision': 'imprecision'
+        # }
         super().__init__(node_name)
+        # self._safe_area = []
      
     class Line:
         def __init__(self,a,b,c, sign = 0):
@@ -141,19 +150,26 @@ class AdvBehavior(Agent):
         #Need to define these parameters
         X = []
         Y = []
-        AdversaryNeighorhood = np.array([11,12])
+        AdversaryNeighborhood = np.array([11,12])
         AttackNeighborhood = np.array([1,4,5,6])
         
         for name in AttackNeighborhood:
-            X.append(np.array([
-                self.neighbor_pose[name]['pose']['position']['x'],
-                self.neighbor_pose[name]['pose']['position']['y']]))
-
+            if str(name) in self.neighbor_poses:
+                X.append(np.array([
+                    self.neighbor_poses[str(name)]['pose']['position']['x'],
+                    self.neighbor_poses[str(name)]['pose']['position']['y']]))
+            else:
+                self.get_logger().warning(f"{self.my_name}: Cannot find position for neighbor {name}")
         
         for name in AdversaryNeighborhood:
-            Y.append(np.array([
-                self.neighbor_pose[name]['pose']['position']['x'],
-                self.neighbor_pose[name]['pose']['position']['y']])) 
+            if str(name) in self.neighbor_poses:
+                Y.append(np.array([
+                    self.neighbor_poses[str(name)]['pose']['position']['x'],
+                    self.neighbor_poses[str(name)]['pose']['position']['y']])) 
+            elif name == self.my_number:
+                Y.append(np.array(self.position))
+            else:
+                self.get_logger().warning(f"{self.my_name}: Cannot find position for neighbor {name}")
         
         
         my_idx = np.where(AdversaryNeighborhood == self.my_number)[0]
