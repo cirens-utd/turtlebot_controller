@@ -11,6 +11,7 @@
 /Replays/
 *.replay*
 *.*Replay*
-/Replayer/*.mpr
 /Config/
 *log.txt
+/Replayer/*.mpr
+/Replayer/*.json
