@@ -48,6 +48,11 @@ class AdvBehavior(Agent):
         B = x1 - x2
         C = x2*y1 - x1*y2
         return A, B, C
+    def side(self,A, B, C, p, eps=1e-10):
+        s = A*p[0] + B*p[1] + C
+        if abs(s) < eps:
+            return 0
+        return np.sign(s)
     def angle_bisectors(self,L1, L2):
 
         # line directions
