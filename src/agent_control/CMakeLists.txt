@@ -37,6 +37,7 @@ install(PROGRAMS
   agent_control/doNothing.py
   agent_control/doRandom.py
   agent_control/doDriveAway.py
+  agent_control/AdvBehavior.py
   agent_control/testme.py
   DESTINATION lib/${PROJECT_NAME}
 )

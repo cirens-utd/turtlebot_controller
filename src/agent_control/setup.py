@@ -26,6 +26,7 @@ setup(
             "calibration_node = agent_control.calibration:main",
             "coverage_node = agent_control.coverage:main",
             "CPIH_node = agent_control.CPIH:main"
+            "Adv_node = agent_control.AdvBehavior:main"
         ],
     },
 )

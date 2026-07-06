@@ -21,12 +21,20 @@ other_robots="[$(echo "$@" | sed 's/ /,/g')]"
 # # Calibration 
 # tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c 'ros2 run agent_control calibration.py --ros-args -p robot.id:=$ROBOT_NUM &> ./log.txt'"
 
-#CPIH Experiements
+# #CPIH Experiements
+# tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c \
+# 'ros2 run agent_control CPIH.py --ros-args --params-file src/agent_control/config/CPIH/BaseConfig.yaml \
+# --params-file src/agent_control/config/CPIH/AdvesaryThree.yaml \
+# -p robot.id:=$ROBOT_NUM -p robot.neighbors:=$other_robots \
+# -p CPIH.self_trust:=2 -p CPIH.safe_point_mode:=2 -p CPIH.push_bad:=True \
+# &> ./log.txt'"
+
+# Adversary - Tukey Stratigic
 tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c \
-'ros2 run agent_control CPIH.py --ros-args --params-file src/agent_control/config/CPIH/BaseConfig.yaml \
---params-file src/agent_control/config/CPIH/AdvesaryThree.yaml \
--p robot.id:=$ROBOT_NUM -p robot.neighbors:=$other_robots \
--p CPIH.self_trust:=2 -p CPIH.safe_point_mode:=2 -p CPIH.push_bad:=True \
+'ros2 run agent_control AdvBehavior.py --ros-args \
+--params-file src/agent_control/config/CPIH/BaseConfig.yaml \
+--params-file src/agent_control/config/CPIH/AdvesaryOne.yaml \
+-p robot.id:=$ROBOT_NUM -p robot.neighbors:=$other_robots -p logging.enabled:=true \
 &> ./log.txt'"
 
 # # Adversary - Do Nothing
