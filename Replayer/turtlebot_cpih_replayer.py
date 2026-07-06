@@ -67,10 +67,12 @@ class TukeyCenterPointPlugin:
         self.ax.margins(y=0)
 
         self.time_x = []
-        self.time_y = []
+        self.time_tukey_depth = []
+        self.time_center_depth = []
 
-        # self.time_line, = self.time_ax.plot([], [], color='blue')
-        self.time_line, = self.ax.plot([], [], color='blue')
+        self.time_line_tukey, = self.ax.plot([], [], color='blue', label='Tukey Depth')
+        self.time_line_center, = self.ax.plot([], [], color='red', label='Center Depth')
+        self.ax.legend(loc='upper right')
 
         plt.show(block=False)
 
@@ -122,11 +124,15 @@ class TukeyCenterPointPlugin:
         self.trust_text.set_text(str(viz.data.self_trust[frame]))
 
         self.time_x.append(frame)
-        self.time_y.append(viz.data.neighbor_position[frame]['3'][0])
-        self.time_x = self.time_x[-1*self.window:]
-        self.time_y = self.time_y[-1*self.window:]
+        self.time_tukey_depth.append(viz.data.tukey_depth[frame])
+        self.time_center_depth.append(viz.data.center_depth[frame])
 
-        self.time_line.set_data(self.time_x, self.time_y)
+        self.time_x = self.time_x[-1*self.window:]
+        self.time_tukey_depth = self.time_tukey_depth[-1*self.window:]
+        self.time_center_depth = self.time_center_depth[-1*self.window:]
+
+        self.time_line_tukey.set_data(self.time_x, self.time_tukey_depth)
+        self.time_line_center.set_data(self.time_x, self.time_center_depth)
 
         # Rescale dynamically
         # X axis
@@ -136,9 +142,9 @@ class TukeyCenterPointPlugin:
             self.ax.set_xlim(0, self.window)
         
         # Y axis
-        if len(self.time_y) > 1:
-            ymin = min(self.time_y)
-            ymax = max(self.time_y)
+        if len(self.time_tukey_depth) > 1:
+            ymin = min(min(self.time_tukey_depth, self.time_center_depth))
+            ymax = max(max(self.time_tukey_depth, self.time_center_depth))
             
             padding = 0.1 * (ymax - ymin + 1e-6)
             self.ax.set_ylim(ymin - padding, ymax + padding)
@@ -147,7 +153,7 @@ class TukeyCenterPointPlugin:
         self.fig.canvas.draw_idle()
         self.fig.canvas.flush_events()
 
-        return self.time_line, self.mode_text, self.trust_text
+        return self.time_line_tukey, self.mode_text, self.trust_text
 
 
     def contour_to_poly(self, contour):
@@ -223,7 +229,7 @@ class TukeyCenterPointPlugin:
         self.ax.set_ylim(0, 5)
 
         self.time_x = []
-        self.time_y = []
+        self.time_tukey_depth = []
 
 def main():
     parser = argparse.ArgumentParser()
@@ -237,6 +243,8 @@ def main():
 
     replayVisual = ReplayVisualizer(script_args.play, script_args.save, script_args.filename, script_args.beauty)
     replayVisual.replay_schema.add("safe_area")
+    replayVisual.replay_schema.add("tukey_depth")
+    replayVisual.replay_schema.add("center_depth")
     replayVisual.replay_schema.add("self_trust")
     replayVisual.replay_schema.add("safe_point_mode")
     replayVisual.replay_schema.add("imprecision")
