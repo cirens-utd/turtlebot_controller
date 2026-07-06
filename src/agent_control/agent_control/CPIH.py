@@ -160,7 +160,7 @@ class CPIH(Agent):
                     self.get_logger().info(f"{tc.median_contour} ")
                 target = safepoint
             else:
-                final_poly, tukey_depth, center_depth = ztukey = SelfTukeyMed(X, 0, centerpoint)
+                final_poly, tukey_depth, center_depth = SelfTukeyMed(X, 0, centerpoint)
                 self._safe_area = final_poly.tolist()
                 self._tukey_depth = float(tukey_depth)
                 self._center_depth = float(center_depth)
