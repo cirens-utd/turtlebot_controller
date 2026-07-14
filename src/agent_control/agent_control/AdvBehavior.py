@@ -44,7 +44,9 @@ class Wedge:
         self.apex = line_intersection(L1,L2)
         self.bisector = self.bisecting_line()
     def contains(self,p):
-        return self.L1.sign*(self.L1.A*p[0]+self.L1.B*p[1]+self.L1.C)>0 and self.L2.sign*(self.L2.A*p[0]+self.L2.B*p[1]+self.L2.C)>0
+        pos = self.L1.sign*(self.L1.A*p[0]+self.L1.B*p[1]+self.L1.C)>0 and self.L2.sign*(self.L2.A*p[0]+self.L2.B*p[1]+self.L2.C)>0
+        neg = -self.L1.sign*(self.L1.A*p[0]+self.L1.B*p[1]+self.L1.C)>0 and -self.L2.sign*(self.L2.A*p[0]+self.L2.B*p[1]+self.L2.C)>0
+        return pos or neg
     def bisecting_line(self):
         v1= np.array([self.sign1*self.L1.A, self.sign1*self.L1.B])
         v2 = np.array([self.sign2*self.L2.A, self.sign2*self.L2.B])
@@ -258,25 +260,39 @@ def get_boundary_lines(X):
                 total= total+side(A, B, C, point)
             if total != 0:
                 continue
-            else:
-                L = Line(A,B,C)
-                pair_pals = [p for p in pairs if p[0] not in pair or p[1] not in pair]
-                for pair_pal in pair_pals:
-                    A,B,C = line_coeffs(X[pair_pal[0]],X[pair_pal[1]])
-                    L2 = Line(A,B,C)
-                    total = 0
+            L = Line(A,B,C)
+            pair_pals = [p for p in pairs if p[0] not in pair or p[1] not in pair]
+            for pair_pal in pair_pals:
+                A,B,C = line_coeffs(X[pair_pal[0]],X[pair_pal[1]])
+                L2 = Line(A,B,C)
+                total = 0
+                for point in X:
+                    total+= L2.side(point)
+                if total == 0:
+                    L.sign = 1
+                    L2.sign = 1
+                    valid_test1 = True
                     for point in X:
-                        total+= L2.side(point)
-                    if total == 0:
+                        if L.side(point)>0 and L2.side(point)>0 or -L.side(point)>0 and -L2.side(point)>0:
+                            valid_test1 = False
+                    if valid_test1:                   
                         L.sign = 1
                         L2.sign = 1
-                        w1 = Wedge(L,L2)
-                        L.sign = -1
-                        w2 = Wedge(L,L2)
-                        boundary_wedges.append(w1)
-                        boundary_wedges.append(w2)
+                        w = Wedge(L,L2)
+                        boundary_wedges.append(w)
+    
                     else:
-                        continue
+                        valid_test1= True
+                        for point in X:
+                            if L.side(point)>0 and -L2.side(point)>0 or -L.side(point)>0 and L2.side(point)>0:
+                                valid_test1 = False
+                        if valid_test1:
+                            L.sign = 1
+                            L2.sign = -1
+                            w = Wedge(L,L2)
+                            boundary_wedges.append(w)               
+                else:
+                    continue
                 
     else: 
         for pair in pairs:
