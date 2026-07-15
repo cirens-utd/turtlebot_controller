@@ -373,7 +373,16 @@ class AdvBehavior(Agent):
         TargetNeighborhoodStates = []
         X = []
         Y = []
+        #TargetNeighborhoods should contain a list of the neighborhoods of normal agents.  It could be just the adjacency matrix. 
+        # What would then need to happen is that the adversaries identify vulnerable neighborhoods by comparing the ratio of normal to adversarial neighbors present
+        #in the neighborhood.  If there is only one, they just attack the one, if there are multiple, then they look for the best overlap. 
+        # TargetNeighborhoodStates should then be populated with a list of lists of the states of every neighborhood 
+        # TargetNeighborhood --- list of lists of indices.    
+        # TargetNeighborhoodStates --- list of lists of np.arrays (states) 
+        
+        
         TargetNeighborhoods = []
+        
         for name in NormalIndices:
             if str(name) in self.neighbor_poses:
                 X.append(np.array([
