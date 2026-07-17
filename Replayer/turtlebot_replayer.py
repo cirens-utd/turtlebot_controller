@@ -55,8 +55,16 @@ class ReplayVisualizer:
         self.data = DotDict(list)
         self._setup_extract_maps()
 
+        self.start_path = path.abspath(path.join(getcwd(), "..", "Replays"))
+
     def _setup_extract_maps(self):
         self.replay_schema = {
+            # --- Basic Information ---
+            "time",
+            "my_name",
+            "mainClass",
+            "replayVersion",
+            
             # --- robot state ---
             "robot_status",
             "robot_ready",
@@ -162,14 +170,13 @@ class ReplayVisualizer:
     def load_data(self):
         self.root = tk.Tk()
         self.root.withdraw()
-        start_path = path.abspath(path.join(getcwd(), "..", "Replays"))
         
-        if not path.exists(start_path):
-            start_path = path.abspath(path.join(getcwd(), "Replays"))
+        if not path.exists(self.start_path):
+            self.start_path = path.abspath(path.join(getcwd(), "Replays"))
 
         turtle_replay_file = filedialog.askopenfilename(
             title="Select Relay file",
-            initialdir=start_path,
+            initialdir=self.start_path,
             filetypes=[("Replay Files", "*.turtleReplay")]
         )
 
@@ -567,6 +574,11 @@ class ReplayVisualizer:
         return self.robot_marker_circle
 
     def update(self, frame):
+        ### Note: Plot is transformed
+        ###
+        ### The x and y coordinates are swapped before plotting.
+        ### The yaw angle is rotated by π (180°).
+
         frame = self.slider.val
 
         # update my position

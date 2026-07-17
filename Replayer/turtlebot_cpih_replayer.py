@@ -1,12 +1,17 @@
 import matplotlib.pyplot as plt
+from os import listdir, remove, rmdir, path, getcwd
 from scipy.spatial import Voronoi
 from shapely.geometry import Polygon, box, LineString, Point
+from itertools import permutations
 from turtlebot_replayer import ReplayVisualizer
-from TukeyMedian import TukeyContour, SafePoint
+from TukeyMedian import TukeyContour, SafePoint, SelfTukeyMed
+from draw_safepoint import plot_safepoint
 import numpy as np
 import matplotlib.patches as patches
 import argparse
 import pdb
+
+new_start_path = path.abspath(path.join(getcwd(), "..", "Replays","CPIH_Paper","AdversaryStatic"))
 
 class TukeyCenterPointPlugin:
     def __init__(self, color=None, alpha=0.25):
@@ -39,6 +44,7 @@ class TukeyCenterPointPlugin:
         self.window = 500
 
         self.patch = None
+        self.boundary_pts = []
         self.first_frame = True
         self.last_frame = -1
 
@@ -82,32 +88,44 @@ class TukeyCenterPointPlugin:
         if self.first_frame:
             self.first_frame = False
             print(f"Using Mode: {viz.data.safe_point_mode[0]} and Trust: {viz.data.self_trust[0]}")
+
+            # Finidng countour we should stay inside of. This excluded the adversary (My_number > 10)
+            my_number = int(viz.data.my_name[0][5:])
+            boundary_pts = []
+            if my_number < 10:
+                # This robot
+                boundary_pts.append([viz.data.x_vals[frame], viz.data.y_vals[frame]])
+
+                # # neighbors
+                # for _, pose in viz.data.neighbor_poses[frame].items():
+                #     if pose['in_neighborhood']:
+                #         boundary_pts.append([pose["x"], pose["y"]])
+                #     # else:
+                #     #     boundary_pts.append([pose["x"], pose["y"]])
+                for name, pose in viz.data.neighbor_position[frame].items():
+                    if int(name) < 10:
+                        boundary_pts.append(pose)
+
+                boundary_pts = np.array(boundary_pts)
+
+                best_order = None
+                best_area = -1
+
+                for order in permutations(range(len(boundary_pts))):
+                    poly = Polygon([boundary_pts[i] for i in order])
+
+                    if poly.is_valid and poly.area > best_area:
+                        best_area = poly.area
+                        best_order = order
+
+                best_order = list(best_order)
+
+                self.boundary_pts = np.array([boundary_pts[i] for i in best_order])
+
         # Only recompute if frame changed
         if frame == self.last_frame:
             return
         self.last_frame = frame
-
-        # -----------------------------
-        # 1. Collect points
-        # -----------------------------
-        pts = []
-
-        # robot
-        pts.append([viz.data.x_vals[frame], viz.data.y_vals[frame]])
-
-        # # neighbors
-        # for _, pose in viz.data.neighbor_poses[frame].items():
-        #     if pose['in_neighborhood']:
-        #         pts.append([pose["x"], pose["y"]])
-        #     # else:
-        #     #     pts.append([pose["x"], pose["y"]])
-        for _,pose in viz.data.neighbor_position[frame].items():
-            pts.append(pose)
-
-        pts = np.array(pts)
-
-        if len(pts) < 3:
-            return
 
         if not hasattr(self, "patches"):
             self.patches = None
@@ -149,12 +167,52 @@ class TukeyCenterPointPlugin:
             padding = 0.1 * (ymax - ymin + 1e-6)
             self.ax.set_ylim(ymin - padding, ymax + padding)
 
+        # if frame > 108:
+        #     self.my_testing(viz, frame)
 
         self.fig.canvas.draw_idle()
         self.fig.canvas.flush_events()
 
         return self.time_line_tukey, self.mode_text, self.trust_text
 
+    def my_testing(self, viz, frame):
+        X = np.zeros((len(viz.data.neighbor_position[frame])+1,2))
+        i = 1
+        X[0] = [viz.data.x_vals[frame], viz.data.y_vals[frame]]
+        for name, neighbor in viz.data.neighbor_position[frame].items():
+            X[i] = np.array(neighbor) 
+            # print("X[",i,"]: ",X[i])
+            i = i+1
+        Bx = self.getImprecisionRegions(X, viz.data.imprecision[frame])
+
+        centerpoint = True
+        tc = TukeyContour(X, 0, centerpoint=centerpoint, mode=viz.data.self_trust[frame])
+        # self._safe_area = tc.median_contour.tolist()
+        final_poly, tukey_depth, center_depth = SelfTukeyMed(X, 0, centerpoint)
+        # self._safe_area = final_poly.tolist()
+        sp = SafePoint()
+        centroid, region, tukey_depth, centerpoint_depth = sp.CPIH_Fast_Safepoint(Bx, 0, X[0], mode=viz.data.self_trust[frame])
+        # self._safe_area = np.array(region.exterior.coords).tolist()
+
+        # self.draw_area(np.array(viz.data.safe_area[frame]), viz)
+        plot_safepoint(
+            X,
+            Bx,
+            Xi=0,
+            centerpoint=centerpoint,
+            mode=viz.data.self_trust[frame]
+        )
+        pdb.set_trace()
+
+    def getImprecisionRegions(self, X,imp):
+        n = len(X)
+        Bx= np.zeros((n,4,2))
+        for i in range(len(X)):
+            Bx[i,0,:]= [X[i][0]-imp, X[i][1]+imp]
+            Bx[i,1,:]= [X[i][0]+imp, X[i][1]+imp]
+            Bx[i,2,:]= [X[i][0]+imp, X[i][1]-imp]
+            Bx[i,3,:]= [X[i][0]-imp, X[i][1]-imp]
+        return(Bx)
 
     def contour_to_poly(self, contour):
         if contour is None or len(contour) < 3:
@@ -224,6 +282,21 @@ class TukeyCenterPointPlugin:
 
         viz.ax.add_patch(patch)
         self.patches = patch
+
+        # adding interanl boundary area
+        if len(self.boundary_pts):
+            poly_xy = np.column_stack([self.boundary_pts[:, 1], self.boundary_pts[:, 0]])
+
+            patch = patches.Polygon(
+                poly_xy,
+                closed=True,
+                facecolor=self.colors[0 % len(self.colors)],
+                edgecolor="black",
+                linewidth=1.0,
+                alpha=self.alpha,
+                zorder=1
+            )
+            viz.ax.add_patch(patch)
     
     def restart(self, event):
         self.ax.set_ylim(0, 5)
@@ -242,6 +315,7 @@ def main():
     script_args = parser.parse_args()
 
     replayVisual = ReplayVisualizer(script_args.play, script_args.save, script_args.filename, script_args.beauty)
+    replayVisual.start_path = new_start_path
     replayVisual.replay_schema.add("safe_area")
     replayVisual.replay_schema.add("tukey_depth")
     replayVisual.replay_schema.add("center_depth")
