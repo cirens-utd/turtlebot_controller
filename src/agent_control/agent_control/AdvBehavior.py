@@ -12,17 +12,9 @@ from itertools import combinations
 
 class AdvBehavior(Agent):
     def __init__(self, node_name):
-        ## Adding extra stuff to logging
-        # self.extra_log_field_map = {
-        #     'safe_area': '_safe_area',
-        #     'tukey_depth': '_tukey_depth',
-        #     'center_depth': '_center_depth',
-        #     'self_trust': 'self_trust',
-        #     'safe_point_mode': 'safe_point_mode',
-        #     'imprecision': 'imprecision'
-        # }
+   
         super().__init__(node_name)
-        # self._safe_area = []
+
      
     class Line:
         def __init__(self,a,b,c, sign = 0):
@@ -48,8 +40,13 @@ class AdvBehavior(Agent):
         B = x1 - x2
         C = x2*y1 - x1*y2
         return A, B, C
+    def side(self,A, B, C, p, eps=1e-10):
+        s = A*p[0] + B*p[1] + C
+        if abs(s) < eps:
+            return 0
+        return np.sign(s)
     def angle_bisectors(self,L1, L2):
-
+        p = self.line_intersection(L1,L2)
         # line directions
         d1 = np.array([-L1.B, L1.A])
         d2 = np.array([-L2.B, L2.A])
@@ -63,12 +60,17 @@ class AdvBehavior(Agent):
                 continue
 
             b /= np.linalg.norm(b)
-
-            bisectors.append(b)
-            bisectors.append(-b)
+            p2 = p+b
+            p3 = p-b
+            A,B,C = self.line_coeffs(p,p2)
+            B1 = self.Line(A,B,C)
+            A,B,C = self.line_coeffs(p,p3)
+            B2 = self.Line(A,B,C)
+            bisectors.append(B1)
+            bisectors.append(B2)
 
         return bisectors
-    def get_projected_pos(self,Y, target_line, hull_lines =[], buffer = 1.0):
+    def get_projected_pos(self, Y, target_line, hull_lines =[], buffer = 2.0):
         v = np.array([-target_line.A,target_line.B])
         vdir = v/np.linalg.norm(v)
         p = np.array([0, -target_line.C/target_line.B])
@@ -78,6 +80,7 @@ class AdvBehavior(Agent):
         intersections = []
         first_val = 10000
         first_point = []
+        clean = False
         for y in Y:
             u = y-p
             t = np.dot(u,v)/np.dot(v,v)
@@ -85,23 +88,38 @@ class AdvBehavior(Agent):
                 first_val = t
                 first_point = y
             proj_positions.append(p+t*v)
+    
         for line in hull_lines:
-            intersect = self.line_intersection(target_line, line)
-            dist = np.linalg.norm(intersect-pos)
-            intersections.append([intersect, dist])
+            intersect = self.line_intersection(target_line, line)       
             i = 0
             for pos in proj_positions:
+                dist = np.linalg.norm(intersect-pos)
+                intersections.append([intersect, dist])
                 if  line.sign*(line.A*pos[0]+line.B*pos[1]+line.C)>0:
+                    #print("pos: ", pos[0],",",pos[1], " is on the right side of A: ", line.A," B: ", line.B, " C: ", line.C)
                     outside_hull[i] = 1
                 i+=1
-        if  sum(outside_hull) == 0:
+        if  sum(outside_hull) < m:
             intersections = sorted(intersections, key=lambda x: x[1])
-            for point, dist in intersections:
-                t_v = (point[0]-first_point[0])/vdir[0]
+            for i in range(len(intersections)):
+                t_v = (intersections[i][0][0]-first_point[0])/vdir[0]
+                dist = intersections[i][1]
                 if t_v>0:
-                    for pos in proj_positions:
-                        pos +=(dist+buffer)*vdir
-        return proj_positions
+                    clean = True
+                    for i in range(len(proj_positions)):
+                        proj_positions[i] = proj_positions[i]+(dist+buffer)*vdir
+                    break
+        else: 
+            clean = True
+  
+        if clean:
+            return proj_positions
+        else: 
+            badarray = []
+            for i in range(m):
+                badarray.append(np.array([-100000,-100000]))
+            return badarray
+       
     def get_boundary_lines(self,X):
         n = len(X)
         N = np.arange(n);
@@ -180,23 +198,23 @@ class AdvBehavior(Agent):
         boundary_lines, hull_lines = self.get_boundary_lines(X)
         line_pairs = list(combinations(np.arange(len(boundary_lines)),2))
         bisectors = []
-        best_dir = []
         for pair in line_pairs:
             bisectors.append(self.angle_bisectors(boundary_lines[pair[0]],boundary_lines[pair[1]]))
 
         best_targets = []
        
         best_dist = 1000000
-        for line in bisectors:
-            projected_targets = self.get_projected_pos(Y,line,hull_lines)
-            dist = 0
-            for i in range(len(Y)):
-                dist += np.linalg.norm(Y[i]-projected_targets[i])
-            if dist< best_dist:
-                best_targets = projected_targets
-                best_dist = dist
-                best_dir = np.array([-line.A,line.B])
-                best_dir = best_dir/np.linalg.norm(best_dir)
+        for line_list in bisectors:
+            for line in line_list:
+                projected_targets = self.get_projected_pos(Y,line,hull_lines)
+                dist = 0
+                for i in range(len(Y)):
+                    dist += np.linalg.norm(Y[i]-projected_targets[i])
+                if dist< best_dist:
+                    best_targets = projected_targets
+                    best_dist = dist
+                    best_dir = np.array([-line.A,line.B])
+                    best_dir = best_dir/np.linalg.norm(best_dir)
         if best_dist<0.85:
             for target in best_targets:
                 target+= 1.0*best_dir
@@ -205,6 +223,7 @@ class AdvBehavior(Agent):
             self.move_to_position(my_target)
         else:
             self.move_to_position(self.position)
+        
 
 
 def main(args=None):
