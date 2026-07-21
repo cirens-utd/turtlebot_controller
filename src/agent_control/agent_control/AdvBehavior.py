@@ -359,17 +359,42 @@ def get_boundary_lines(X):
         hull_lines.append(L)
  
     return boundary_wedges, hull_lines
+
 class AdvBehavior(Agent):
     def __init__(self, node_name):
    
         super().__init__(node_name)
   
+    def get_indices(self, robot_thresh=10, neighbor_thresh=2):
+        # self._my_neighbors is an array of all the neighbors I know about (Doesn't matter If I consider them in my neighborhood or not) [1,3,4,5,6,7,11,12,16]
+        self._my_neighbors = np.array(self._my_neighbors)
+        normal_indices = np.where(self._my_neighbors < robot_thresh)[0]
+        adversary_indecies = np.where(self._my_neighbors >= robot_thresh)[0]
+
+        # We are assuming that the neighborhood mode is global and that we can see the entire adjacency matrix
+        # self._neighborhood has the flatten version of the matrix and self._neighborhood_size has the size
+        full_matrix = np.array(self._neighborhood).reshape(self._neighborhood_size, self._neighborhood_size)
+        # Need to make sure each row is counting for its own index
+        np.fill_diagonal(full_matrix, 1)
+
+        # Lets find how many bad guys are in each row
+        bad_count= np.sum(full_matrix[:, adversary_indecies] == 1, axis = 1)
+        bad_row_index = np.where(bad_count >= neighbor_thresh)[0]
+
+        # Make sure these are not the rows of the bad agents
+        bad_row_index = bad_row_index[~np.isin(bad_row_index, adversary_indecies)]
+        bad_rows = full_matrix[bad_row_index]
+
+        return self._my_neighbors[normal_indices], self._my_neighbors[adversary_indecies], bad_rows[:, normal_indices]
    
     def controller(self):
 
        
-        AdversaryIndices = np.array([11,12,16])
-        NormalIndices = np.array([1,3,4,5,6,7,8,9])
+        # # We do not want his hard coded
+        # AdversaryIndices = np.array([11,12,16])
+        # NormalIndices = np.array([1,3,4,5,6,7,8,9])
+        NormalIndices, AdversaryIndices, TargetNeighborhoods = self.get_indices()
+
         TargetNeighborhoodStates = []
         X = []
         Y = []
@@ -379,9 +404,7 @@ class AdvBehavior(Agent):
         # TargetNeighborhoodStates should then be populated with a list of lists of the states of every neighborhood 
         # TargetNeighborhood --- list of lists of indices.    
         # TargetNeighborhoodStates --- list of lists of np.arrays (states) 
-        
-        
-        TargetNeighborhoods = []
+    
         
         for name in NormalIndices:
             if str(name) in self.neighbor_poses:
@@ -410,8 +433,15 @@ class AdvBehavior(Agent):
         
         for i in range(len(TargetNeighborhoods)):
             TargetNeighborhoodStates.append([])
-            for index in TargetNeighborhoods[i]:
-                TargetNeighborhoodStates[i].append(X[index])
+            for index, value in enumerate(TargetNeighborhoods[i]):
+                if value:
+                    TargetNeighborhoodStates[i].append(X[index])
+
+        self.get_logger().info(f"Neighbor Size = {len(TargetNeighborhoods)}")
+        self.get_logger().info(f"Neighbors = {TargetNeighborhoods}")
+        self.get_logger().info(f"************************")
+        self.get_logger().info(f"States = {TargetNeighborhoodStates}")
+
         # If there are multiple target neighborhoods (multiple neighborhoods with too many adversaries) do this       
         if len(TargetNeighborhoods)>1:
             wedge_sets = []
@@ -434,7 +464,7 @@ class AdvBehavior(Agent):
         
             best_dist = 1000000
             for wedge in boundary_wedges:
-                line = wedge.bisector()
+                line = wedge.bisector
                 projected_targets = get_projected_pos(Y,line,hull_lines)
                 dist = 0
                 for i in range(len(Y)):
