@@ -33,7 +33,7 @@ other_robots="[$(echo "$@" | sed 's/ /,/g')]"
 tmux new-session -d -s ros_session2 "cd $(pwd) && source install/setup.bash && bash -c \
 'ros2 run agent_control AdvBehavior.py --ros-args \
 --params-file src/agent_control/config/CPIH/BaseConfig.yaml \
---params-file src/agent_control/config/CPIH/AdvesaryOne.yaml \
+--params-file src/agent_control/config/CPIH/AdvesaryThree.yaml \
 -p robot.id:=$ROBOT_NUM -p robot.neighbors:=$other_robots -p logging.enabled:=true \
 &> ./log.txt'"
 
