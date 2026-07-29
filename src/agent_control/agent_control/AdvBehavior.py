@@ -437,13 +437,10 @@ class AdvBehavior(Agent):
                 if value:
                     TargetNeighborhoodStates[i].append(X[index])
 
-        self.get_logger().info(f"Neighbor Size = {len(TargetNeighborhoods)}")
-        self.get_logger().info(f"Neighbors = {TargetNeighborhoods}")
-        self.get_logger().info(f"************************")
-        self.get_logger().info(f"States = {TargetNeighborhoodStates}")
+       
 
-        # If there are multiple target neighborhoods (multiple neighborhoods with too many adversaries) do this       
-        if len(TargetNeighborhoods)>1:
+        # If there are one or  multiple target neighborhoods (multiple neighborhoods with too many adversaries) do this       
+        if len(TargetNeighborhoods)>0:
             wedge_sets = []
             for neighborhood in TargetNeighborhoodStates:
                 boundary_wedges, hull_lines = get_boundary_lines(neighborhood)
@@ -456,32 +453,12 @@ class AdvBehavior(Agent):
                 self.move_to_position(target)
             else: 
                 self.move_to_position(self.position)
+            # list of intersecting wedges
             good_wedges = best[2]
-        # If there is only one target neighborhood, do this
+        # If there is no target neighborhood
         else:
-            boundary_wedges, hull_lines = get_boundary_lines(TargetNeighborhoodStates[0])
-            best_targets = []
+            self.move_to_position(self.position)
         
-            best_dist = 1000000
-            for wedge in boundary_wedges:
-                line = wedge.bisector
-                projected_targets = get_projected_pos(Y,line,hull_lines)
-                dist = 0
-                for i in range(len(Y)):
-                    dist += np.linalg.norm(Y[i]-projected_targets[i])
-                if dist< best_dist:
-                    best_targets = projected_targets
-                    best_dist = dist
-                    best_dir = np.array([-line.A,line.B])
-                    best_dir = best_dir/np.linalg.norm(best_dir)
-            if best_dist<0.85:
-                for target in best_targets:
-                    target+= 1.0*best_dir
-            if my_idx>=0:
-                my_target = best_targets[my_idx]
-                self.move_to_position(my_target)
-            else:
-                self.move_to_position(self.position)
         
 
 def main(args=None):
