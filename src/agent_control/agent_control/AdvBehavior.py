@@ -103,7 +103,9 @@ def colorful_selection(p, wedge_sets):
                 chosen.append((i, j, w))
                 break               
     return chosen
-def max_color_selection(wedge_sets, X, BIG=1000.0):
+def max_color_selection(wedge_sets, X, Y, previous_target=None, BIG=1000.0, alpha=3.0, beta=8.0):
+    # alpha is how important it is to stay near most of the neighbors
+    # beta is how important it is to not change targets
     segments = []
     for wedges in wedge_sets:
         for w in wedges:
@@ -120,6 +122,8 @@ def max_color_selection(wedge_sets, X, BIG=1000.0):
     faces = list(polygonize(unary_union(segments)))
 
     best = None  # (k, point, selection)
+    best_score = -np.inf
+
     for f in faces:
         p = f.representative_point()
         if hull.contains(p):
@@ -127,8 +131,30 @@ def max_color_selection(wedge_sets, X, BIG=1000.0):
         pt = (p.x, p.y)
         selection = colorful_selection(pt, wedge_sets)
         k = len(selection)
-        if best is None or k > best[0]:
-            best = (k, pt, selection)
+
+        ### Majority distance
+        dists = sorted(np.linalg.norm(np.array(pt) - y) for y in Y)
+
+        majority = len(Y)//2 + 1
+
+        majority_distance = sum(dists[:majority])
+
+        ### Target Penalty
+        if previous_target is None:
+            jump = 0.0
+        else:
+            jump = np.linalg.norm(np.array(pt) - previous_target)
+
+        ### Final Score
+        score = (
+            100*k
+            - alpha*majority_distance
+            - beta*jump
+        )
+
+        if best is None or score > best_score:
+            best_score = score
+            best = (k, pt, selection, score)
 
     return best  
 
@@ -364,6 +390,9 @@ class AdvBehavior(Agent):
     def __init__(self, node_name):
    
         super().__init__(node_name)
+
+        self.last_target = None
+        self.last_score = -np.inf
   
     def get_indices(self, robot_thresh=10, neighbor_thresh=2):
         # self._my_neighbors is an array of all the neighbors I know about (Doesn't matter If I consider them in my neighborhood or not) [1,3,4,5,6,7,11,12,16]
@@ -446,10 +475,28 @@ class AdvBehavior(Agent):
                 boundary_wedges, hull_lines = get_boundary_lines(neighborhood)
                 wedge_sets.append(boundary_wedges)
 
-            best = max_color_selection(wedge_sets, X, BIG = 10)
+            best = max_color_selection(wedge_sets, X, Y, previous_target=self.last_target, BIG = 10)
             num_compromised = best[0]
-            target = best[1]
+            target = np.array(best[1])
+            good_wedges = best[2]
+            best_score = best[3]
             if len(target)>0:
+
+                # adding a "sticky" factor to not allow switching of targets easily
+                SWITCH_MARGIN = 15.0      
+                if self.last_target is not None:
+                    jump = np.linalg.norm(target - self.last_target)
+                    if jump > 2.0:
+                        # Is it really that much better?
+                        if best_score < self.last_score + SWITCH_MARGIN:
+                            # Keep chasing the old target
+                            target = self.last_target.copy()
+                            best_score = self.last_score
+                        else:
+                            self.get_logger().info(f"Jump Margin was met. Old score: {self.last_score} New Score: {best_score} ({best_score - self.last_score})")
+
+                self.last_target = target.copy()
+                self.last_score = best_score
                 self.move_to_position(target)
             else: 
                 self.move_to_position(self.position)
