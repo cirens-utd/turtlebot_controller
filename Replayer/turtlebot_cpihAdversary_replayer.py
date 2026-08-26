@@ -56,40 +56,42 @@ class TukeyCenterPointAdversaryPlugin:
         self.ax.set_aspect('auto')
 
         ## Information on Left
+        indent = 0.21
+
         # Zero Line
         line_num = 0
         self.score_label = self.fig.text(self.start_line_x - 0.01, self.start_line_y - self.delta_line_y*line_num, 'Score: ', fontsize=self.fontsize, ha='left', va='top')
-        self.score_text = self.fig.text(self.start_line_x + 0.11, self.start_line_y - self.delta_line_y*line_num, 'None', fontsize=self.fontsize, ha='left', va='top')
+        self.score_text = self.fig.text(self.start_line_x + indent, self.start_line_y - self.delta_line_y*line_num, 'None', fontsize=self.fontsize, ha='left', va='top')
 
         # First line
         line_num = line_num + 1
         self.lastScore_label = self.fig.text(self.start_line_x - 0.01, self.start_line_y - self.delta_line_y*line_num, 'Last Score: ', fontsize=self.fontsize, ha='left', va='top')
-        self.lastScore_text = self.fig.text(self.start_line_x + 0.11, self.start_line_y - self.delta_line_y*line_num, 'None', fontsize=self.fontsize, ha='left', va='top')
+        self.lastScore_text = self.fig.text(self.start_line_x + indent, self.start_line_y - self.delta_line_y*line_num, 'None', fontsize=self.fontsize, ha='left', va='top')
 
         # Second line
         line_num = line_num + 1
         self.target_label = self.fig.text(self.start_line_x - 0.01, self.start_line_y - self.delta_line_y*line_num, 'Target: ', fontsize=self.fontsize, ha='left', va='top')
-        self.target_text = self.fig.text(self.start_line_x + 0.11, self.start_line_y - self.delta_line_y*line_num, 'None', fontsize=self.fontsize, ha='left', va='top')
+        self.target_text = self.fig.text(self.start_line_x + indent, self.start_line_y - self.delta_line_y*line_num, 'None', fontsize=self.fontsize, ha='left', va='top')
 
         # Third line
         line_num = line_num + 1
         self.lastTarget_label = self.fig.text(self.start_line_x - 0.01, self.start_line_y - self.delta_line_y*line_num, 'Last Target: ', fontsize=self.fontsize, ha='left', va='top')
-        self.lastTarget_text = self.fig.text(self.start_line_x + 0.11, self.start_line_y - self.delta_line_y*line_num, 'None', fontsize=self.fontsize, ha='left', va='top')
+        self.lastTarget_text = self.fig.text(self.start_line_x + indent, self.start_line_y - self.delta_line_y*line_num, 'None', fontsize=self.fontsize, ha='left', va='top')
 
         # Forth line
         line_num = line_num + 1
         self.jumpBlocked_label = self.fig.text(self.start_line_x - 0.01, self.start_line_y - self.delta_line_y*line_num, 'Jump Blocked: ', fontsize=self.fontsize, ha='left', va='top')
-        self.jumpBlocked_text = self.fig.text(self.start_line_x + 0.11, self.start_line_y - self.delta_line_y*line_num, 'None', fontsize=self.fontsize, ha='left', va='top')
+        self.jumpBlocked_text = self.fig.text(self.start_line_x + indent, self.start_line_y - self.delta_line_y*line_num, 'None', fontsize=self.fontsize, ha='left', va='top')
 
         # Fifth line
         line_num = line_num + 1
         self.attackNumber_label = self.fig.text(self.start_line_x - 0.01, self.start_line_y - self.delta_line_y*line_num, 'NeighborsAttacked: ', fontsize=self.fontsize, ha='left', va='top')
-        self.attackNumber_text = self.fig.text(self.start_line_x + 0.11, self.start_line_y - self.delta_line_y*line_num, 'None', fontsize=self.fontsize, ha='left', va='top')
+        self.attackNumber_text = self.fig.text(self.start_line_x + indent, self.start_line_y - self.delta_line_y*line_num, 'None', fontsize=self.fontsize, ha='left', va='top')
 
         # Sixth line
         line_num = line_num + 1
         self.big_label = self.fig.text(self.start_line_x - 0.01, self.start_line_y - self.delta_line_y*line_num, 'BIG: ', fontsize=self.fontsize, ha='left', va='top')
-        self.big_text = self.fig.text(self.start_line_x + 0.11, self.start_line_y - self.delta_line_y*line_num, 'None', fontsize=self.fontsize, ha='left', va='top')
+        self.big_text = self.fig.text(self.start_line_x + indent, self.start_line_y - self.delta_line_y*line_num, 'None', fontsize=self.fontsize, ha='left', va='top')
 
         # # Time Graph
         self.ax.set_ylim(0, 5)
@@ -117,7 +119,7 @@ class TukeyCenterPointAdversaryPlugin:
             self.patches = None
 
         self.draw_area(np.array(viz.data.hull_poly[frame]), viz)
-        self.draw_lines(np.array(viz.data.wedge_set_lines[frame]), vix.data.big_box[frame], viz)
+        self.draw_lines(np.array(viz.data.wedge_set_lines[frame]), viz.data.big_box[frame], viz)
         # Draw Target
         # Draw Apex Values
 
@@ -127,10 +129,10 @@ class TukeyCenterPointAdversaryPlugin:
         if self.fig is None:
             self.setup()
 
-        self.score_text.set_text(str(viz.data.score[frame]))
-        self.lastScore_text.set_text(str(viz.data.last_score[frame]))
-        self.target_text.set_text(str(viz.data.target[frame]))
-        self.lastTarget_text.set_text(str(viz.data.last_target[frame]))
+        self.score_text.set_text(str(np.round(viz.data.score[frame], 2)))
+        self.lastScore_text.set_text(str(np.round(viz.data.last_score[frame],2)))
+        self.target_text.set_text(str(np.round(np.array(viz.data.target[frame]), 2)))
+        self.lastTarget_text.set_text(str(np.round(np.array(viz.data.last_target[frame]), 2)))
         self.jumpBlocked_text.set_text(str(viz.data.jump_blocked[frame]))
         self.attackNumber_text.set_text(str(viz.data.num_compromised[frame]))
         self.big_text.set_text(str(viz.data.big_box[frame]))
@@ -167,7 +169,7 @@ class TukeyCenterPointAdversaryPlugin:
         self.fig.canvas.draw_idle()
         self.fig.canvas.flush_events()
 
-        return self.time_line_tukey, self.mode_text, self.trust_text
+        return self.score_text
 
     def draw_area(self, contour, viz):
 
@@ -176,7 +178,7 @@ class TukeyCenterPointAdversaryPlugin:
             self.patches.remove()
             self.patches = None
 
-        if contour is None or len(contour) < 3:
+        if type(contour) == type(None) or len(contour) < 3:
             return
 
         poly_xy = np.column_stack([contour[:, 1], contour[:, 0]])
