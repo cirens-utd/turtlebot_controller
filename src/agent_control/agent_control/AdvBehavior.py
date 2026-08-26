@@ -78,6 +78,7 @@ class Wedge:
         hull1.sign = -(np.sign(hull1.A*self.apex[0]+hull1.B*self.apex[1]+hull1.C))
         hull2.sign = -hull1.sign
         return hull1,hull2
+
 def clip_line_to_box(A, B, C, BIG):
     pts = []
     for x in (-BIG, BIG):
@@ -121,11 +122,12 @@ def max_color_selection(wedge_sets, X, Y, previous_target=None, BIG=1000.0, alph
 
     faces = list(polygonize(unary_union(segments)))
 
-    best = None  # (k, point, selection)
+    best = None  # (k, point, selection, hull)
     best_score = -np.inf
 
     for f in faces:
-        p = f.representative_point()
+        p = f.centroid
+        # p = f.representative_point()
         if hull.contains(p):
             continue
         pt = (p.x, p.y)
@@ -147,14 +149,14 @@ def max_color_selection(wedge_sets, X, Y, previous_target=None, BIG=1000.0, alph
 
         ### Final Score
         score = (
-            100*k
+            10*k*BIG
             - alpha*majority_distance
             - beta*jump
         )
 
         if best is None or score > best_score:
             best_score = score
-            best = (k, pt, selection, score)
+            best = (k, pt, selection, score, hull)
 
     return best  
 
@@ -273,7 +275,7 @@ def get_boundary_lines(X):
     n = len(X)
     N = np.arange(n);
     even = n%2 == 0
-    pairs = list(combinations(N,2));
+    pairs = list(combinations(N,2))
 
     boundary_lines = []
     boundary_wedges = []
@@ -388,11 +390,56 @@ def get_boundary_lines(X):
 
 class AdvBehavior(Agent):
     def __init__(self, node_name):
+        self.extra_param_update_map = {
+            "Adv.BIG": "big_box"
+        }
+        self.extra_log_field_map = {
+            'target': 'target',
+            'score': 'score',
+            'last_target': 'last_target',
+            'last_score': 'last_score',
+            'num_compromised': 'num_compromised',
+            'targetNeighborhoods': 'targetNeighborhoods',
+            'targetNeighborhoodStates': 'targetNeighborhoodStates',
+            'wedge_set_lines': 'wedge_set_lines',
+            'wedge_set_apex': 'wedge_set_apex',
+            'hull_poly': 'hull_poly',
+            'jump_blocked': 'jump_blocked',
+            'big_box': 'big_box'
+        }
    
         super().__init__(node_name)
 
+        self.target = None
+        self.score = None
         self.last_target = None
         self.last_score = -np.inf
+        self.num_compromised = None
+
+        self.targetNeighborhoods = []
+        self.targetNeighborhoodStates = []
+
+        self.wedge_set_lines = None
+            '''
+            [ # For each neighbor hood
+                [
+                    [A, B, C],  # Line Ax + By + C = 0
+                    [A, B, C]
+                ]
+            ]
+            '''
+        self.wedge_set_apex = None
+            '''
+            [ # For Each Neighbor Hood
+                [x, y], Apex of 1st
+            ]
+            '''
+
+        self.hull_poly = None
+        self.jump_blocked = False
+
+        self.declare_parameter("Adv.BIG", 10)    
+        self.big_box = self.get_parameter("Adv.BIG").value
   
     def get_indices(self, robot_thresh=10, neighbor_thresh=2):
         # self._my_neighbors is an array of all the neighbors I know about (Doesn't matter If I consider them in my neighborhood or not) [1,3,4,5,6,7,11,12,16]
@@ -415,24 +462,42 @@ class AdvBehavior(Agent):
         bad_rows = full_matrix[bad_row_index]
 
         return self._my_neighbors[normal_indices], self._my_neighbors[adversary_indecies], bad_rows[:, normal_indices]
-   
+
+    def save_replay_info(self, wedge_sets, hull):
+        self.wedge_set_lines = []
+        self.wedge_set_apex = []
+        for set_idx, wedges in enumerate(wedge_sets):
+            self.wedge_set_lines.append([])
+            self.wedge_set_apex.append([])
+            for wedge_idx, w in enumerate(wedges):
+                # Plot the two wedge boundary lines
+                self.wedge_set_lines[set_idx].append([])
+                self.wedge_set_apex[set_idx].append([w.apex])
+                for line_idx, L in enumerate((w.L1, w.L2)):
+                    self.wedge_set_lines[set_idx][wedge_idx].append([L.A, L.B, L.C]) 
+
+        self.hull_poly = np.array(hull.exterior.xy).tolist()
+        self.wedge_set_apex = np.array(self.wedge_set_apex).tolist()
+        self.wedge_set_lines = np.array(self.wedge_set_lines).tolist()
+        self.targetNeighborhoods = np.array(self.targetNeighborhoods).tolist()
+        self.TargetNeighborhoodStates = np.array(self.TargetNeighborhoodStates).tolist()
+
     def controller(self):
 
        
         # # We do not want his hard coded
         # AdversaryIndices = np.array([11,12,16])
         # NormalIndices = np.array([1,3,4,5,6,7,8,9])
-        NormalIndices, AdversaryIndices, TargetNeighborhoods = self.get_indices()
+        NormalIndices, AdversaryIndices, self.targetNeighborhoods = self.get_indices()
 
-        TargetNeighborhoodStates = []
         X = []
         Y = []
-        #TargetNeighborhoods should contain a list of the neighborhoods of normal agents.  It could be just the adjacency matrix. 
+        #self.targetNeighborhoods should contain a list of the neighborhoods of normal agents.  It could be just the adjacency matrix. 
         # What would then need to happen is that the adversaries identify vulnerable neighborhoods by comparing the ratio of normal to adversarial neighbors present
         #in the neighborhood.  If there is only one, they just attack the one, if there are multiple, then they look for the best overlap. 
-        # TargetNeighborhoodStates should then be populated with a list of lists of the states of every neighborhood 
+        # self.targetNeighborhoodStates should then be populated with a list of lists of the states of every neighborhood 
         # TargetNeighborhood --- list of lists of indices.    
-        # TargetNeighborhoodStates --- list of lists of np.arrays (states) 
+        # self.targetNeighborhoodStates --- list of lists of np.arrays (states) 
     
         
         for name in NormalIndices:
@@ -460,48 +525,52 @@ class AdvBehavior(Agent):
         else:
             my_idx = my_idx[0]
         
-        for i in range(len(TargetNeighborhoods)):
-            TargetNeighborhoodStates.append([])
-            for index, value in enumerate(TargetNeighborhoods[i]):
+        for i in range(len(self.targetNeighborhoods)):
+            self.targetNeighborhoodStates.append([])
+            for index, value in enumerate(self.targetNeighborhoods[i]):
                 if value:
-                    TargetNeighborhoodStates[i].append(X[index])
-
-       
+                    self.targetNeighborhoodStates[i].append(X[index])
 
         # If there are one or  multiple target neighborhoods (multiple neighborhoods with too many adversaries) do this       
-        if len(TargetNeighborhoods)>0:
+        if len(self.targetNeighborhoods)>0:
             wedge_sets = []
-            for neighborhood in TargetNeighborhoodStates:
+            for neighborhood in self.targetNeighborhoodStates:
                 boundary_wedges, hull_lines = get_boundary_lines(neighborhood)
                 wedge_sets.append(boundary_wedges)
 
-            best = max_color_selection(wedge_sets, X, Y, previous_target=self.last_target, BIG = 10)
-            num_compromised = best[0]
+            best = max_color_selection(wedge_sets, X, Y, previous_target=self.last_target, BIG = self.big_box)
+            self.num_compromised = best[0]
             target = np.array(best[1])
             good_wedges = best[2]
-            best_score = best[3]
-            if len(target)>0:
+            self.score = best[3]
+            hull = best[4]
+
+            self.save_replay_info(wedge_sets, hull)
+            self.target = target.copy()
+            
+            if len(self.target)>0:
 
                 # adding a "sticky" factor to not allow switching of targets easily
                 SWITCH_MARGIN = 15.0      
                 if self.last_target is not None:
-                    jump = np.linalg.norm(target - self.last_target)
+                    jump = np.linalg.norm(self.target - self.last_target)
                     if jump > 2.0:
                         # Is it really that much better?
-                        if best_score < self.last_score + SWITCH_MARGIN:
+                        if self.score < self.last_score + SWITCH_MARGIN:
                             # Keep chasing the old target
                             target = self.last_target.copy()
-                            best_score = self.last_score
+                            self.score = self.last_score
+                            self.jump_blocked = True
                         else:
                             self.get_logger().info(f"Jump Margin was met. Old score: {self.last_score} New Score: {best_score} ({best_score - self.last_score})")
+                    else:
+                        self.jump_blocked = False
 
                 self.last_target = target.copy()
-                self.last_score = best_score
+                self.last_score = self.score
                 self.move_to_position(target)
             else: 
                 self.move_to_position(self.position)
-            # list of intersecting wedges
-            good_wedges = best[2]
         # If there is no target neighborhood
         else:
             self.move_to_position(self.position)
