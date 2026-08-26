@@ -374,6 +374,7 @@ def get_boundary_lines(X):
     poly = Polygon(X)
     hull = poly.convex_hull
     centroid = np.array((hull.centroid.x,hull.centroid.y))
+
     hull = np.array(hull.exterior.coords)
     
     for i in range(len(hull)-1):
@@ -396,7 +397,7 @@ class AdvBehavior(Agent):
         self.extra_log_field_map = {
             'target': 'target',
             'score': 'score',
-            'last_target': 'last_target',
+            'last_target': 'last_target_replay',
             'last_score': 'last_score',
             'num_compromised': 'num_compromised',
             'targetNeighborhoods': 'targetNeighborhoods',
@@ -413,6 +414,7 @@ class AdvBehavior(Agent):
         self.target = None
         self.score = None
         self.last_target = None
+        self.last_target_replay = None
         self.last_score = -np.inf
         self.num_compromised = None
 
@@ -420,20 +422,20 @@ class AdvBehavior(Agent):
         self.targetNeighborhoodStates = []
 
         self.wedge_set_lines = None
-            '''
-            [ # For each neighbor hood
-                [
-                    [A, B, C],  # Line Ax + By + C = 0
-                    [A, B, C]
-                ]
-            ]
-            '''
+        # '''
+        # [ # For each neighbor hood
+        #     [
+        #         [A, B, C],  # Line Ax + By + C = 0
+        #         [A, B, C]
+        #     ]
+        # ]
+        # '''
         self.wedge_set_apex = None
-            '''
-            [ # For Each Neighbor Hood
-                [x, y], Apex of 1st
-            ]
-            '''
+        # '''
+        # [ # For Each Neighbor Hood
+        #     [x, y], Apex of 1st
+        # ]
+        # '''
 
         self.hull_poly = None
         self.jump_blocked = False
@@ -480,7 +482,7 @@ class AdvBehavior(Agent):
         self.wedge_set_apex = np.array(self.wedge_set_apex).tolist()
         self.wedge_set_lines = np.array(self.wedge_set_lines).tolist()
         self.targetNeighborhoods = np.array(self.targetNeighborhoods).tolist()
-        self.TargetNeighborhoodStates = np.array(self.TargetNeighborhoodStates).tolist()
+        self.targetNeighborhoodStates = np.array(self.targetNeighborhoodStates).tolist()
 
     def controller(self):
 
@@ -492,6 +494,7 @@ class AdvBehavior(Agent):
 
         X = []
         Y = []
+        self.targetNeighborhoodStates = []
         #self.targetNeighborhoods should contain a list of the neighborhoods of normal agents.  It could be just the adjacency matrix. 
         # What would then need to happen is that the adversaries identify vulnerable neighborhoods by comparing the ratio of normal to adversarial neighbors present
         #in the neighborhood.  If there is only one, they just attack the one, if there are multiple, then they look for the best overlap. 
@@ -546,14 +549,14 @@ class AdvBehavior(Agent):
             hull = best[4]
 
             self.save_replay_info(wedge_sets, hull)
-            self.target = target.copy()
+            self.target = target.copy().tolist()
             
             if len(self.target)>0:
 
                 # adding a "sticky" factor to not allow switching of targets easily
                 SWITCH_MARGIN = 15.0      
                 if self.last_target is not None:
-                    jump = np.linalg.norm(self.target - self.last_target)
+                    jump = np.linalg.norm(target - self.last_target)
                     if jump > 2.0:
                         # Is it really that much better?
                         if self.score < self.last_score + SWITCH_MARGIN:
@@ -567,6 +570,7 @@ class AdvBehavior(Agent):
                         self.jump_blocked = False
 
                 self.last_target = target.copy()
+                self.last_target_replay = self.last_target.tolist()
                 self.last_score = self.score
                 self.move_to_position(target)
             else: 
