@@ -42,7 +42,7 @@ class TukeyCenterPointAdversaryPlugin:
 
         self.window = 500
 
-        self.patch = None
+        self.patches = None
         self.boundary_pts = []
         self.first_frame = True
         self.last_frame = -1
@@ -115,10 +115,7 @@ class TukeyCenterPointAdversaryPlugin:
             return
         self.last_frame = frame
 
-        if not hasattr(self, "patches"):
-            self.patches = None
-
-        self.draw_area(np.array(viz.data.hull_poly[frame]), viz)
+        self.draw_hull_area(np.array(viz.data.hull_poly[frame]), viz)
         self.draw_lines(np.array(viz.data.wedge_set_lines[frame]), viz.data.big_box[frame], viz)
         # Draw Target
         # Draw Apex Values
@@ -129,13 +126,14 @@ class TukeyCenterPointAdversaryPlugin:
         if self.fig is None:
             self.setup()
 
-        self.score_text.set_text(str(np.round(viz.data.score[frame], 2)))
-        self.lastScore_text.set_text(str(np.round(viz.data.last_score[frame],2)))
-        self.target_text.set_text(str(np.round(np.array(viz.data.target[frame]), 2)))
-        self.lastTarget_text.set_text(str(np.round(np.array(viz.data.last_target[frame]), 2)))
-        self.jumpBlocked_text.set_text(str(viz.data.jump_blocked[frame]))
-        self.attackNumber_text.set_text(str(viz.data.num_compromised[frame]))
-        self.big_text.set_text(str(viz.data.big_box[frame]))
+        if viz.data.score[frame] is not None:
+            self.score_text.set_text(str(np.round(viz.data.score[frame], 2)))
+            self.lastScore_text.set_text(str(np.round(viz.data.last_score[frame],2)))
+            self.target_text.set_text(str(np.round(np.array(viz.data.target[frame]), 2)))
+            self.lastTarget_text.set_text(str(np.round(np.array(viz.data.last_target[frame]), 2)))
+            self.jumpBlocked_text.set_text(str(viz.data.jump_blocked[frame]))
+            self.attackNumber_text.set_text(str(viz.data.num_compromised[frame]))
+            self.big_text.set_text(str(viz.data.big_box[frame]))
 
         # self.time_x.append(frame)
         # self.time_tukey_depth.append(viz.data.tukey_depth[frame])
@@ -171,17 +169,17 @@ class TukeyCenterPointAdversaryPlugin:
 
         return self.score_text
 
-    def draw_area(self, contour, viz):
+    def draw_hull_area(self, contour, viz):
 
         # remove old patch
         if self.patches is not None:
             self.patches.remove()
             self.patches = None
-
-        if type(contour) == type(None) or len(contour) < 3:
+            
+        if contour.ndim == 0 and contour.item() is None:
             return
-
-        poly_xy = np.column_stack([contour[:, 1], contour[:, 0]])
+        
+        poly_xy = np.column_stack([contour[1], contour[0]])
 
         patch = patches.Polygon(
             poly_xy,
@@ -196,13 +194,50 @@ class TukeyCenterPointAdversaryPlugin:
         viz.ax.add_patch(patch)
         self.patches = patch
     
+    def clip_line_to_box(self, A, B, C, BIG):
+        pts = []
+        for x in (-BIG, BIG):
+            if abs(B) > 1e-12:
+                y = -(A*x + C)/B
+                if -BIG-1e-9 <= y <= BIG+1e-9: pts.append((x, y))
+        for y in (-BIG, BIG):
+            if abs(A) > 1e-12:
+                x = -(B*y + C)/A
+                if -BIG-1e-9 <= x <= BIG+1e-9: pts.append((x, y))
+        uniq = []
+        for q in pts:
+            if not any(abs(q[0]-r[0])<1e-7 and abs(q[1]-r[1])<1e-7 for r in uniq):
+                uniq.append(q)
+        return LineString(uniq[:2]) if len(uniq) >= 2 else None
+
     def draw_lines(self, line_set, big, viz):
         # line_set = [
         #     [
-        #         [x,y],
-        #         [x,y]
+        #         [
+        #           A, B, C
+        #         ]
         #     ]
         # ]
+        if line_set.ndim == 0 and line_set.item() is None:
+            return
+
+        for set_idx, wedgeset in enumerate(line_set):
+            for wedge_index, wedge in enumerate(wedgeset):
+                for line in wedge:
+                    seg = self.clip_line_to_box(line[0], line[1], line[2], big)
+
+                    if seg is not None:
+                        x, y = seg.xy
+
+                        viz.ax.plot(
+                            x, y,
+                            color=self.colors[set_idx],
+                            linewidth=2,
+                            alpha=0.8,
+                            label="Wedge boundary"
+                        )
+
+        # pdb.set_trace()
         return
 
     def restart(self, event):
