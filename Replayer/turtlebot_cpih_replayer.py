@@ -43,7 +43,7 @@ class TukeyCenterPointPlugin:
 
         self.window = 500
 
-        self.patch = None
+        self.patches = None
         self.boundary_pts = []
         self.first_frame = True
         self.last_frame = -1
@@ -126,9 +126,6 @@ class TukeyCenterPointPlugin:
         if frame == self.last_frame:
             return
         self.last_frame = frame
-
-        if not hasattr(self, "patches"):
-            self.patches = None
 
         self.draw_area(np.array(viz.data.safe_area[frame]), viz)
 
