@@ -474,7 +474,7 @@ class AdvBehavior(Agent):
             for wedge_idx, w in enumerate(wedges):
                 # Plot the two wedge boundary lines
                 self.wedge_set_lines[set_idx].append([])
-                self.wedge_set_apex[set_idx].append([w.apex])
+                self.wedge_set_apex[set_idx].append(w.apex)
                 for line_idx, L in enumerate((w.L1, w.L2)):
                     self.wedge_set_lines[set_idx][wedge_idx].append([L.A, L.B, L.C]) 
 
