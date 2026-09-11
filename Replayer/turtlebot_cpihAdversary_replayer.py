@@ -43,6 +43,8 @@ class TukeyCenterPointAdversaryPlugin:
         self.window = 500
 
         self.patches = None
+        self.wedge_patch = []
+        self.points_patch = []
         self.boundary_pts = []
         self.first_frame = True
         self.last_frame = -1
@@ -116,9 +118,9 @@ class TukeyCenterPointAdversaryPlugin:
         self.last_frame = frame
 
         self.draw_hull_area(np.array(viz.data.hull_poly[frame]), viz)
-        self.draw_lines(np.array(viz.data.wedge_set_lines[frame]), viz.data.big_box[frame], viz)
-        # Draw Target
-        # Draw Apex Values
+        self.draw_wedges(np.array(viz.data.wedge_set_lines[frame]), viz.data.big_box[frame], viz)
+        self.draw_apex(np.array(viz.data.wedge_set_apex[frame]), viz)
+        self.draw_target(np.array(viz.data.target[frame]), viz)
 
         viz.fig.canvas.draw_idle()
 
@@ -210,7 +212,7 @@ class TukeyCenterPointAdversaryPlugin:
                 uniq.append(q)
         return LineString(uniq[:2]) if len(uniq) >= 2 else None
 
-    def draw_lines(self, line_set, big, viz):
+    def draw_wedges(self, line_set, big, viz):
         # line_set = [
         #     [
         #         [
@@ -221,23 +223,95 @@ class TukeyCenterPointAdversaryPlugin:
         if line_set.ndim == 0 and line_set.item() is None:
             return
 
+        for line in self.wedge_patch:
+            line.remove()
+        self.wedge_patch = []
+
         for set_idx, wedgeset in enumerate(line_set):
             for wedge_index, wedge in enumerate(wedgeset):
+                segments = []
+
+                # Each wedge has two boundary lines
                 for line in wedge:
-                    seg = self.clip_line_to_box(line[0], line[1], line[2], big)
+                    seg = self.clip_line_to_box(
+                        line[0], line[1], line[2], big
+                    )
 
                     if seg is not None:
                         x, y = seg.xy
 
-                        viz.ax.plot(
-                            x, y,
+                        # Your plot uses y as x-axis and x as y-axis
+                        segments.append((y, x))
+
+                        # Plot boundary
+                        plotted_line = viz.ax.plot(
+                            y, x,
                             color=self.colors[set_idx],
                             linewidth=2,
                             alpha=0.8,
                             label="Wedge boundary"
                         )
 
-        # pdb.set_trace()
+                        self.wedge_patch.append(plotted_line[0])
+
+                # Shade between the two boundaries
+                if len(segments) == 2:
+                    (x1, y1), (x2, y2) = segments
+
+                    plotted_area = viz.ax.fill(
+                        [x1[0], x1[1], x2[1], x2[0]],
+                        [y1[0], y1[1], y2[1], y2[0]],
+                        color=self.colors[set_idx],
+                        alpha=0.2
+                    )
+                self.wedge_patch.append(plotted_area[0])
+                
+        return
+
+    def draw_apex(self, apex, viz):
+
+        for point in self.points_patch:
+            point.remove()
+        self.points_patch = []
+
+        if apex.ndim == 0 and apex.item() is None:
+            return
+
+        ##########################################################################
+        ## Error in test script apex is nexted one to far need to remove the [0]## 
+        ##########################################################################
+        for set_idx, apex_sets in enumerate(apex):
+            for wedge_idx, apex_points in enumerate(apex_sets):
+                points = viz.ax.scatter(
+                    apex_points[0][1],
+                    apex_points[0][0],
+                    color='purple',
+                    marker='o',
+                    s=30,
+                    zorder=100
+                )
+
+                self.points_patch.append(points)
+        return
+
+    def draw_target(self, target, viz):
+        for point in self.points_patch:
+            point.remove()
+        self.points_patch = []
+
+        if target.ndim == 0 and target.item() is None:
+            return
+        
+        points = viz.ax.scatter(
+            target[1],
+            target[0],
+            color='black',
+            marker='x',
+            s=50,
+            zorder=100
+        )
+
+        self.points_patch.append(points)
         return
 
     def restart(self, event):
@@ -245,6 +319,18 @@ class TukeyCenterPointAdversaryPlugin:
 
         self.time_x = []
         self.time_tukey_depth = []
+
+        if self.patches is not None:
+            self.patches.remove()
+            self.patches = None
+
+        for line in self.wedge_patch:
+            line.remove()
+        self.wedge_patch = []
+
+        for point in self.points_patch:
+            point.remove()
+        self.points_patch = []
 
 def main():
     parser = argparse.ArgumentParser()
@@ -271,7 +357,10 @@ def main():
     replayVisual.replay_schema.add("jump_blocked")
     replayVisual.replay_schema.add("big_box")
     replayVisual.frame_rate = 10    # 10 frames is "Real Time"
-    # replayVisual.xmin = -110
+    # replayVisual.xmax = 20
+    # replayVisual.xmin = -20
+    # replayVisual.ymax = 20
+    # replayVisual.ymin = -20
     replayVisual.load_data()
     replayVisual.setup()
 
