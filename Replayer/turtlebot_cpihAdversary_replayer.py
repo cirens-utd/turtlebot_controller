@@ -118,8 +118,8 @@ class TukeyCenterPointAdversaryPlugin:
         self.last_frame = frame
 
         self.draw_hull_area(np.array(viz.data.hull_poly[frame]), viz)
-        self.draw_wedges(np.array(viz.data.wedge_set_lines[frame]), viz.data.big_box[frame], viz)
-        self.draw_apex(np.array(viz.data.wedge_set_apex[frame]), viz)
+        self.draw_wedges(viz.data.wedge_set_lines[frame], viz.data.big_box[frame], viz)
+        self.draw_apex(viz.data.wedge_set_apex[frame], viz)
         self.draw_target(np.array(viz.data.target[frame]), viz)
 
         viz.fig.canvas.draw_idle()
@@ -220,7 +220,7 @@ class TukeyCenterPointAdversaryPlugin:
         #         ]
         #     ]
         # ]
-        if line_set.ndim == 0 and line_set.item() is None:
+        if line_set is None:
             return
 
         for line in self.wedge_patch:
@@ -274,7 +274,7 @@ class TukeyCenterPointAdversaryPlugin:
             point.remove()
         self.points_patch = []
 
-        if apex.ndim == 0 and apex.item() is None:
+        if apex is None:
             return
 
         ##########################################################################
@@ -283,8 +283,8 @@ class TukeyCenterPointAdversaryPlugin:
         for set_idx, apex_sets in enumerate(apex):
             for wedge_idx, apex_points in enumerate(apex_sets):
                 points = viz.ax.scatter(
-                    apex_points[0][1],
-                    apex_points[0][0],
+                    apex_points[1],
+                    apex_points[0],
                     color='purple',
                     marker='o',
                     s=30,
