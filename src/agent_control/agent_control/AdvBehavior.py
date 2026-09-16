@@ -42,21 +42,37 @@ class Wedge:
         self.sign1 = L1.sign
         self.sign2 = L2.sign
         self.apex = line_intersection(L1,L2)
-        self.bisector = self.bisecting_line()
+        self.bisector_direction = self.bisecting_direction()
+    
     def contains(self,p):
         pos = self.L1.sign*(self.L1.A*p[0]+self.L1.B*p[1]+self.L1.C)>0 and self.L2.sign*(self.L2.A*p[0]+self.L2.B*p[1]+self.L2.C)>0
         neg = -self.L1.sign*(self.L1.A*p[0]+self.L1.B*p[1]+self.L1.C)>0 and -self.L2.sign*(self.L2.A*p[0]+self.L2.B*p[1]+self.L2.C)>0
         return pos or neg
-    def bisecting_line(self):
-        v1= np.array([self.sign1*self.L1.A, self.sign1*self.L1.B])
-        v2 = np.array([self.sign2*self.L2.A, self.sign2*self.L2.B])
-        v = v1+v2
-        m = v[1]/v[0]
-        b = self.apex[1]-m*self.apex[0]
-        A = -m
-        B = 1
-        C = -b
-        return(Line(A,B,C))
+    
+    def bisecting_direction(self):
+        """
+        Returns a unit vector pointing from the apex into the wedge.
+        """
+
+        v1 = np.array([
+            self.sign1 * self.L1.A,
+            self.sign1 * self.L1.B
+        ], dtype=float)
+
+        v2 = np.array([
+            self.sign2 * self.L2.A,
+            self.sign2 * self.L2.B
+        ], dtype=float)
+
+        v = v1 + v2
+        norm = np.linalg.norm(v)
+
+        if norm < EPS:
+            return None
+
+        return v / norm
+
+
     def get_hull_lines(self):
         L1p1 = self.L1.p1
         L1p2 = self.L1.p2
@@ -95,8 +111,140 @@ def clip_line_to_box(A, B, C, BIG):
             uniq.append(q)
     return LineString(uniq[:2]) if len(uniq) >= 2 else None
 
+def bisector_target(wedge, BIG, distance=None):
+
+    apex = np.asarray(wedge.apex, dtype=float)
+    direction = wedge.bisector_direction
+
+    if direction is None:
+        return None
+
+    # User explicitly requested a distance.
+    if distance is not None:
+        return apex + distance * direction
+
+    # Otherwise find where the ray hits the BIG box.
+    dx, dy = direction
+    x0, y0 = apex
+
+    candidates = []
+
+    if abs(dx) > EPS:
+        t = (BIG - x0) / dx
+        if t > EPS:
+            y = y0 + t * dy
+            if -BIG - EPS <= y <= BIG + EPS:
+                candidates.append(t)
+
+    if abs(dx) > EPS:
+        t = (-BIG - x0) / dx
+        if t > EPS:
+            y = y0 + t * dy
+            if -BIG - EPS <= y <= BIG + EPS:
+                candidates.append(t)
+
+    if abs(dy) > EPS:
+        t = (BIG - y0) / dy
+        if t > EPS:
+            x = x0 + t * dx
+            if -BIG - EPS <= x <= BIG + EPS:
+                candidates.append(t)
+
+    if abs(dy) > EPS:
+        t = (-BIG - y0) / dy
+        if t > EPS:
+            x = x0 + t * dx
+            if -BIG - EPS <= x <= BIG + EPS:
+                candidates.append(t)
+
+    if not candidates:
+        return None
+
+    # Smallest positive t = first boundary encountered
+    t = min(candidates)
+
+    return apex + t * direction
+
+def face_contains_point(face, p):
+    """
+    Returns True if point p is inside or on the boundary of the face.
+    """
+    return face.covers(Point(p))
+
+
+def face_bisector_target(face, center, BIG, distance=None):
+    """
+    Treat the direction from `center` to the center of the face as
+    the face's bisector direction.
+
+    If distance is None:
+        return the point where the ray hits the BIG box.
+
+    Otherwise:
+        return center + distance * direction.
+    """
+
+    center = np.asarray(center, dtype=float)
+
+    # representative_point() is guaranteed to be inside the polygon.
+    face_point = face.representative_point()
+    face_center = np.array([
+        face_point.x,
+        face_point.y
+    ], dtype=float)
+
+    direction = face_center - center
+    norm = np.linalg.norm(direction)
+
+    if norm < EPS:
+        return None
+
+    direction /= norm
+
+    # User explicitly requested a distance.
+    if distance is not None:
+        return center + distance * direction
+
+    # Otherwise find where the ray hits the BIG box.
+    dx, dy = direction
+    x0, y0 = center
+
+    candidates = []
+
+    if abs(dx) > EPS:
+        t = (BIG - x0) / dx
+        if t > EPS:
+            y = y0 + t * dy
+            if -BIG - EPS <= y <= BIG + EPS:
+                candidates.append(t)
+
+        t = (-BIG - x0) / dx
+        if t > EPS:
+            y = y0 + t * dy
+            if -BIG - EPS <= y <= BIG + EPS:
+                candidates.append(t)
+
+    if abs(dy) > EPS:
+        t = (BIG - y0) / dy
+        if t > EPS:
+            x = x0 + t * dx
+            if -BIG - EPS <= x <= BIG + EPS:
+                candidates.append(t)
+
+        t = (-BIG - y0) / dy
+        if t > EPS:
+            x = x0 + t * dx
+            if -BIG - EPS <= x <= BIG + EPS:
+                candidates.append(t)
+
+    if not candidates:
+        return None
+
+    t = min(candidates)
+
+    return center + t * direction
+
 def colorful_selection(p, wedge_sets):
- 
     chosen = []
     for i, wedges in enumerate(wedge_sets):
         for j, w in enumerate(wedges):
@@ -104,10 +252,14 @@ def colorful_selection(p, wedge_sets):
                 chosen.append((i, j, w))
                 break               
     return chosen
-def max_color_selection(wedge_sets, X, Y, previous_target=None, BIG=1000.0, alpha=3.0, beta=8.0):
-    # alpha is how important it is to stay near most of the neighbors
-    # beta is how important it is to not change targets
+
+def max_color_selection(wedge_sets, X, Y, previous_target=None, BIG=10.0, alpha=3.0, beta=8.0, gamma=100.0, bisector_distance=None, self=None):
+    # alpha = importance of staying near most neighbors
+    # beta  = importance of not changing targets
+    # gamma = importance of avoiding the hull
+
     segments = []
+
     for wedges in wedge_sets:
         for w in wedges:
             for L in (w.L1, w.L2):
@@ -115,50 +267,150 @@ def max_color_selection(wedge_sets, X, Y, previous_target=None, BIG=1000.0, alph
                 if seg is not None:
                     segments.append(seg)
 
-    box  = Polygon([(-BIG,-BIG),(BIG,-BIG),(BIG,BIG),(-BIG,BIG)])
+    box = Polygon([
+        (-BIG, -BIG),
+        (BIG, -BIG),
+        (BIG, BIG),
+        (-BIG, BIG)
+    ])
+
     hull = Polygon(X).convex_hull
+
     segments.append(hull.exterior)
     segments.append(box.exterior)
 
     faces = list(polygonize(unary_union(segments)))
 
-    best = None  # (k, point, selection, hull)
-    best_score = -np.inf
+    if len(faces) == 0:
+        return None
 
-    for f in faces:
-        p = f.centroid
-        # p = f.representative_point()
-        if hull.contains(p):
+    hull_centroid = np.array([
+        hull.centroid.x,
+        hull.centroid.y
+    ], dtype=float)
+
+    face_candidates = []
+
+    for face in faces:
+
+        if face.is_empty:
             continue
-        pt = (p.x, p.y)
-        selection = colorful_selection(pt, wedge_sets)
-        k = len(selection)
 
-        ### Majority distance
-        dists = sorted(np.linalg.norm(np.array(pt) - y) for y in Y)
+        representative = face.representative_point()
 
-        majority = len(Y)//2 + 1
+        face_point = np.array([
+            representative.x,
+            representative.y
+        ], dtype=float)
 
-        majority_distance = sum(dists[:majority])
+        selection = colorful_selection(
+            face_point,
+            wedge_sets
+        )
 
-        ### Target Penalty
+        if len(selection) == 0:
+            continue
+
+        target = face_bisector_target(
+            face,
+            hull_centroid,
+            BIG=BIG,
+            distance=bisector_distance
+        )
+
+        if target is None:
+            continue
+
+        target = np.asarray(target, dtype=float)
+
+        # Don't allow target inside formation hull.
+        if hull.contains(Point(target)):
+            continue
+
+        target_selection = colorful_selection(
+            (target[0], target[1]),
+            wedge_sets
+        )
+
+        k = len(target_selection)
+
+        if k == 0:
+            continue
+
+        # Penalize for being farther away from starting position
+        dists = sorted(np.linalg.norm(target - y) for y in Y)
+
+        majority = len(Y) // 2 + 1
+        majority = min(majority, len(dists))
+
+        if majority > 0:
+            majority_distance = sum(dists[:majority])
+        else:
+            majority_distance = 0.0
+
+        # Penalize changeing zones
         if previous_target is None:
             jump = 0.0
         else:
-            jump = np.linalg.norm(np.array(pt) - previous_target)
+            jump = np.linalg.norm(target - np.asarray(previous_target))
 
-        ### Final Score
+        center_distance = np.linalg.norm(target - hull_centroid)
+
+        # Penalize going through the hull of the formation
+        hull_interstection_distance = 0
+        for y in Y:
+            path = LineString([
+                tuple(y),
+                tuple(target)
+            ])
+
+            intersection = path.intersection(hull)
+
+            if intersection.is_empty:
+                hull_crossing_distance = 0.0
+            else:
+                hull_crossing_distance = intersection.length
+            hull_interstection_distance += hull_crossing_distance
+
         score = (
-            10*k*BIG
-            - alpha*majority_distance
-            - beta*jump
+            10 * k * BIG
+            - alpha * majority_distance
+            - beta * jump
+            - gamma * hull_interstection_distance
         )
 
-        if best is None or score > best_score:
-            best_score = score
-            best = (k, pt, selection, score, hull)
+        face_candidates.append({
+            "face": face,
+            "face_point": face_point,
+            "selection": selection,
+            "target": target,
+            "target_selection": target_selection,
+            "k": k,
+            "majority_distance": majority_distance,
+            "jump": jump,
+            "center_distance": center_distance,
+            "score": score
+        })
 
-    return best  
+        self.get_logger().info(f"*" * 50)
+        self.get_logger().info(f"{face_candidates[-1]}")
+        self.get_logger().info(f"*" * 50)
+    self.get_logger().info("#" * 50)
+    if len(face_candidates) == 0:
+        return None
+
+    selected_face = max(
+        face_candidates,
+        key=lambda candidate: candidate["score"]
+    )
+
+    return (
+        selected_face["k"],
+        tuple(selected_face["target"]),
+        selected_face["target_selection"],
+        selected_face["score"],
+        hull
+    )
 
 
 def dist_to_line(pt, line):
@@ -392,7 +644,8 @@ def get_boundary_lines(X):
 class AdvBehavior(Agent):
     def __init__(self, node_name):
         self.extra_param_update_map = {
-            "Adv.BIG": "big_box"
+            "Adv.BIG": "big_box",
+            "Adv.BisectorDistance": "bisector_distance"
         }
         self.extra_log_field_map = {
             'target': 'target',
@@ -442,6 +695,11 @@ class AdvBehavior(Agent):
 
         self.declare_parameter("Adv.BIG", 10)    
         self.big_box = self.get_parameter("Adv.BIG").value
+
+        self.declare_parameter("Adv.BisectorDistance", -1.0)
+        self.bisector_distance = self.get_parameter("Adv.BisectorDistance").value
+        if self.bisector_distance < 0:
+            self.bisector_distance = None
   
     def get_indices(self, robot_thresh=10, neighbor_thresh=2):
         # self._my_neighbors is an array of all the neighbors I know about (Doesn't matter If I consider them in my neighborhood or not) [1,3,4,5,6,7,11,12,16]
@@ -474,16 +732,16 @@ class AdvBehavior(Agent):
             for wedge_idx, w in enumerate(wedges):
                 # Plot the two wedge boundary lines
                 self.wedge_set_lines[set_idx].append([])
-                self.wedge_set_apex[set_idx].append(w.apex)
+                self.wedge_set_apex[set_idx].append([w.apex[0], w.apex[1]])
                 for line_idx, L in enumerate((w.L1, w.L2)):
                     self.wedge_set_lines[set_idx][wedge_idx].append([L.A, L.B, L.C]) 
 
         self.hull_poly = np.array(hull.exterior.xy).tolist()
-        self.wedge_set_apex = np.array(self.wedge_set_apex).tolist()
-        self.wedge_set_lines = np.array(self.wedge_set_lines).tolist()
+        self.wedge_set_apex = self.wedge_set_apex
+        self.wedge_set_lines = self.wedge_set_lines
         self.targetNeighborhoods = np.array(self.targetNeighborhoods).tolist()
         self.targetNeighborhoodStates = np.array(self.targetNeighborhoodStates).tolist()
-
+        
     def controller(self):
 
        
@@ -541,7 +799,13 @@ class AdvBehavior(Agent):
                 boundary_wedges, hull_lines = get_boundary_lines(neighborhood)
                 wedge_sets.append(boundary_wedges)
 
-            best = max_color_selection(wedge_sets, X, Y, previous_target=self.last_target, BIG = self.big_box)
+            best = max_color_selection(wedge_sets, X, Y, previous_target=self.last_target, BIG=self.big_box, bisector_distance=self.bisector_distance, self=self)
+            
+            if best is None:
+                self.get_logger().warning(f"{self.my_name}: No valid bisector target found.")
+                self.move_to_position(self.position)
+                return
+
             self.num_compromised = best[0]
             target = np.array(best[1])
             good_wedges = best[2]
@@ -563,9 +827,11 @@ class AdvBehavior(Agent):
                             # Keep chasing the old target
                             target = self.last_target.copy()
                             self.score = self.last_score
+                            self.get_logger().info(f"Jump Margin was met and we decided NOT to Jump. Old score: {self.last_score} New Score: {self.score} ({self.score - self.last_score})")
                             self.jump_blocked = True
                         else:
-                            self.get_logger().info(f"Jump Margin was met. Old score: {self.last_score} New Score: {best_score} ({best_score - self.last_score})")
+                            self.get_logger().info(f"Jump Margin was met and we decided to Jump. Old score: {self.last_score} New Score: {self.score} ({self.score - self.last_score})")
+                            self.jump_blocked = False
                     else:
                         self.jump_blocked = False
 
