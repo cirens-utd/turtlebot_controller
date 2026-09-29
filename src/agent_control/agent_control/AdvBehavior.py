@@ -36,13 +36,57 @@ class Line:
         return np.sign(s)
 
 class Wedge:
-    def __init__(self, L1,L2):
+    def __init__(self, L1, L2, X=None):
         self.L1 = L1
         self.L2 = L2
         self.sign1 = L1.sign
         self.sign2 = L2.sign
         self.apex = line_intersection(L1,L2)
         self.bisector_direction = self.bisecting_direction()
+
+        # Robot classification
+        self.robots_inside = []
+        self.robots_outside = []
+        self.robots_online = []
+
+        if X is not None:
+            self.classify_robots_(X)
+
+    def classify_robots_(self, X, eps=1e-10):
+
+        self.robots_inside = []
+        self.robots_outside = []
+        self.robots_online = []
+
+        for i, point in enumerate(X):
+
+            s1 = (
+                self.L1.A * point[0]
+                + self.L1.B * point[1]
+                + self.L1.C
+            )
+
+            s2 = (
+                self.L2.A * point[0]
+                + self.L2.B * point[1]
+                + self.L2.C
+            )
+
+            # Robot lies on either boundary
+            if abs(s1) < eps or abs(s2) < eps:
+                self.robots_online.append(i)
+
+            # Robot lies strictly inside selected wedge
+            elif (
+                self.L1.sign * s1 > eps
+                and
+                self.L2.sign * s2 > eps
+            ):
+                self.robots_inside.append(i)
+
+            # Otherwise it is outside
+            else:
+                self.robots_outside.append(i)
     
     def contains(self,p):
         pos = self.L1.sign*(self.L1.A*p[0]+self.L1.B*p[1]+self.L1.C)>0 and self.L2.sign*(self.L2.A*p[0]+self.L2.B*p[1]+self.L2.C)>0
@@ -71,7 +115,6 @@ class Wedge:
             return None
 
         return v / norm
-
 
     def get_hull_lines(self):
         L1p1 = self.L1.p1
@@ -170,7 +213,6 @@ def face_contains_point(face, p):
     Returns True if point p is inside or on the boundary of the face.
     """
     return face.covers(Point(p))
-
 
 def face_bisector_target(face, center, BIG, distance=None):
     """
@@ -412,7 +454,6 @@ def max_color_selection(wedge_sets, X, Y, previous_target=None, BIG=10.0, alpha=
         hull
     )
 
-
 def dist_to_line(pt, line):
     return abs(line.A*pt[0] + line.B*pt[1] + line.C)
 
@@ -523,122 +564,292 @@ def get_projected_pos( Y, target_line, hull_lines =[], buffer = 2.0):
     else: 
         return []
 
-def get_boundary_lines(X):
+def line_balance_info(L, X, eps=1e-10):
+    """
+    Analyze how line L partitions the robots.
+
+    Returns:
+        on_line  = number of robots lying on the line
+        positive = number of robots strictly on the + side
+        negative = number of robots strictly on the - side
+        balanced = whether the two sides differ by at most 1
+    """
+
+    on_line = 0
+    positive = 0
+    negative = 0
+
+    for point in X:
+        s = L.A * point[0] + L.B * point[1] + L.C
+
+        if abs(s) < eps:
+            on_line += 1
+
+        elif s > 0:
+            positive += 1
+
+        else:
+            negative += 1
+
+    balanced = abs(positive - negative) <= 1
+
+    return on_line, positive, negative, balanced
+
+def is_almost_balanced_line(L, X):
+    on_line, positive, negative, balanced = line_balance_info(L, X)
+
+    return balanced
+
+def get_unique_candidate_lines(X, eps=1e-10):
+    """
+    Generate unique geometric lines determined by pairs of robots.
+
+    Multiple robot pairs may lie on the same geometric line.
+    This function collapses those duplicates.
+    """
+
     n = len(X)
-    N = np.arange(n);
-    even = n%2 == 0
-    pairs = list(combinations(N,2))
+    pairs = list(combinations(range(n), 2))
 
-    boundary_lines = []
+    unique_lines = []
+
+    for i, j in pairs:
+
+        A, B, C = line_coeffs(X[i], X[j])
+
+        L = Line(
+            A,
+            B,
+            C,
+            p1=X[i],
+            p2=X[j]
+        )
+
+        # ------------------------------------------
+        # Check whether this geometric line is
+        # already represented.
+        # ------------------------------------------
+
+        duplicate = False
+
+        for existing in unique_lines:
+
+            # Because Line normalizes A and B, compare
+            # normalized coefficients.
+            if (
+                abs(L.A - existing.A) < eps
+                and
+                abs(L.B - existing.B) < eps
+                and
+                abs(L.C - existing.C) < eps
+            ):
+                duplicate = True
+                break
+
+            # Same line can also have all coefficients
+            # negated depending on point ordering.
+            if (
+                abs(L.A + existing.A) < eps
+                and
+                abs(L.B + existing.B) < eps
+                and
+                abs(L.C + existing.C) < eps
+            ):
+                duplicate = True
+                break
+
+        if not duplicate:
+            unique_lines.append(L)
+
+    return unique_lines
+
+def wedge_contains_robot(L1, L2, point, eps=1e-10):
+    """
+    Return True if point lies strictly inside the wedge
+    defined by the positive sides of L1 and L2.
+
+    Points lying exactly on either boundary are not considered
+    to be inside the wedge.
+    """
+
+    s1 = L1.A * point[0] + L1.B * point[1] + L1.C
+    s2 = L2.A * point[0] + L2.B * point[1] + L2.C
+
+    return (L1.sign * s1 > eps) and (L2.sign * s2 > eps)
+
+def wedge_is_empty(L1, L2, X, eps=1e-10):
+    """
+    Return True if no robot lies strictly inside the wedge.
+    """
+
+    for point in X:
+        if wedge_contains_robot(L1, L2, point, eps):
+            return False
+
+    return True
+
+def get_boundary_lines(X):
+    """
+    Find pairs of approximately balanced boundary lines.
+
+    A valid boundary line:
+        - passes through at least 2 robots
+        - may pass through 3, 4, ... robots
+        - ignores robots lying on the line
+        - divides the remaining robots as evenly as possible
+
+    Therefore:
+        even number off-line -> exact split
+        odd number off-line  -> difference of exactly 1 allowed
+        Wedges will be in pairs, Both side need to be empty to be valid
+    """
+
+    # ==========================================
+    # Generate unique geometric lines
+    # ==========================================
+
+    candidate_lines = get_unique_candidate_lines(X)
+
+    # ==========================================
+    # Keep only balanced lines
+    # ==========================================
+
+    balanced_lines = []
+
+    for L in candidate_lines:
+
+        on_line, positive, negative, balanced = \
+            line_balance_info(L, X)
+
+        if not balanced:
+            continue
+
+        # A valid boundary line must contain
+        # at least two robots.
+        if on_line < 2:
+            continue
+
+        L.on_line_count = on_line
+        L.positive_count = positive
+        L.negative_count = negative
+
+        balanced_lines.append(L)
+
+    # ==========================================
+    # Create wedges from pairs of valid lines
+    # ==========================================
+
     boundary_wedges = []
-    hull_lines = []
-    if even:
-        for pair in pairs:
-            A, B, C = line_coeffs(X[pair[0]], X[pair[1]])
-            total = 0
-            for point in X:
-                total= total+side(A, B, C, point)
-            if total != 0:
-                continue
-            L = Line(A,B,C)
-            pair_pals = [p for p in pairs if p[0] not in pair or p[1] not in pair]
-            for pair_pal in pair_pals:
-                A,B,C = line_coeffs(X[pair_pal[0]],X[pair_pal[1]])
-                L2 = Line(A,B,C)
-                total = 0
-                for point in X:
-                    total+= L2.side(point)
-                if total == 0:
-                    L.sign = 1
-                    L2.sign = 1
-                    valid_test1 = True
-                    for point in X:
-                        if L.side(point)>0 and L2.side(point)>0 or -L.side(point)>0 and -L2.side(point)>0:
-                            valid_test1 = False
-                    if valid_test1:                   
-                        L.sign = 1
-                        L2.sign = 1
-                        w = Wedge(L,L2)
-                        boundary_wedges.append(w)
-    
-                    else:
-                        valid_test1= True
-                        for point in X:
-                            if L.side(point)>0 and -L2.side(point)>0 or -L.side(point)>0 and L2.side(point)>0:
-                                valid_test1 = False
-                        if valid_test1:
-                            L.sign = 1
-                            L2.sign = -1
-                            w = Wedge(L,L2)
-                            boundary_wedges.append(w)               
-                else:
-                    continue
-                
-    else: 
-        for pair in pairs:
-            A, B, C = line_coeffs(X[pair[0]], X[pair[1]])
-            L1 = Line(A,B,C)
-            total = 0
-            for point in X:
-                total = total+L1.side(point)
-            if np.abs(total)>1:
-                continue
-            
-            L1.p1 = X[pair[0]]
-            L1.p2 = X[pair[1]]
-            pair_pals = [p for p in pairs if p[0] not in pair and p[1] not in pair]
-            for pair_pal in pair_pals:
-                A,B,C = line_coeffs(X[pair_pal[0]],X[pair_pal[1]])
-                L2 = Line(A,B,C)
-                total =0
-                for point in X:
-                    total = total+L2.side(point)
-                if np.abs(total)>1:
-                    
-                    continue
-                L2.p1 = X[pair_pal[0]]
-                L2.p2 = X[pair_pal[1]]
-                valid_test1 = True
-                for point in X:
-                    if L1.side(point)>0 and L2.side(point)>0 or -L1.side(point)>0 and -L2.side(point)>0:
-                        valid_test1 = False
-                if valid_test1:
-                    p = line_intersection(L1,L2)
-                    if np.dot(p-L1.p1, p-L1.p2)<0 and np.dot(p-L2.p1,p-L2.p2)<0:
-                        L1.sign = 1
-                        L2.sign = 1
-                        w = Wedge(L1,L2)
-                        boundary_wedges.append(w)
 
-                else:
-                    valid_test1= True
-                    for point in X:
-                        if L1.side(point)>0 and -L2.side(point)>0 or -L1.side(point)>0 and L2.side(point)>0:
-                            valid_test1 = False
-                    if valid_test1:
-                        p = line_intersection(L1,L2)
-                        if np.dot(p-L1.p1, p-L1.p2)<0 and np.dot(p-L2.p1,p-L2.p2)<0:
-                            L1.sign = 1
-                            L2.sign = -1
-                            w = Wedge(L1,L2)
-                            boundary_wedges.append(w)
-    
+    for i in range(len(balanced_lines)):
+
+        L1 = balanced_lines[i]
+
+        for j in range(i + 1, len(balanced_lines)):
+
+            L2 = balanced_lines[j]
+
+            # --------------------------------------
+            # Don't use identical geometric lines
+            # --------------------------------------
+
+            if (
+                abs(L1.A - L2.A) < EPS
+                and
+                abs(L1.B - L2.B) < EPS
+                and
+                abs(L1.C - L2.C) < EPS
+            ):
+                continue
+
+            # --------------------------------------
+            # Don't use parallel lines
+            # --------------------------------------
+
+            D = L1.A * L2.B - L1.B * L2.A
+
+            if abs(D) < EPS:
+                continue
+
+            # ======================================
+            # Try all four sign combinations
+            # ======================================
+
+            sign_combinations = [
+                ((1, 1), (-1, -1)),
+                ((1, -1), (-1, 1),)
+            ]
+
+            for (sign1, sign2), (opp_sign1, opp_sign2) in sign_combinations:
+
+                test_L1 = Line(
+                    L1.A,
+                    L1.B,
+                    L1.C,
+                    sign=sign1
+                )
+
+                test_L2 = Line(
+                    L2.A,
+                    L2.B,
+                    L2.C,
+                    sign=sign2
+                )
+
+                opposite_L1 = Line(
+                    L1.A,
+                    L1.B,
+                    L1.C,
+                    sign=opp_sign1
+                )
+
+                opposite_L2 = Line(
+                    L2.A,
+                    L2.B,
+                    L2.C,
+                    sign=opp_sign2
+                )
+
+                if not wedge_is_empty(test_L1, test_L2, X):
+                    continue
+
+                if not wedge_is_empty(opposite_L1, opposite_L2, X):
+                    continue
+
+                boundary_wedges.append(
+                    Wedge(
+                        test_L1,
+                        test_L2,
+                        X
+                    )
+                )
+
+                boundary_wedges.append(
+                    Wedge(
+                        opposite_L1,
+                        opposite_L2,
+                        X
+                    )
+                )
+
+    # Finding the Hull Information
+    hull_lines = []
+
     poly = Polygon(X)
     hull = poly.convex_hull
-    centroid = np.array((hull.centroid.x,hull.centroid.y))
-
-    hull = np.array(hull.exterior.coords)
+    centroid = np.array((hull.centroid.x, hull.centroid.y))
+    hull_coords = np.array(hull.exterior.coords)
     
-    for i in range(len(hull)-1):
-        j = i+1
-        A,B,C = line_coeffs(hull[i],hull[j])
-        L = Line(A,B,C)
-        if centroid[0]*A+centroid[1]*B+C>0:
+    for i in range(len(hull_coords) - 1):
+        j = i + 1
+        A, B, C = line_coeffs(hull_coords[i], hull_coords[j])
+        L = Line(A, B, C)
+        if centroid[0] * A + centroid[1] * B + C > 0:
             L.sign = -1
         else:
             L.sign = 1
         hull_lines.append(L)
- 
+
     return boundary_wedges, hull_lines
 
 class AdvBehavior(Agent):
