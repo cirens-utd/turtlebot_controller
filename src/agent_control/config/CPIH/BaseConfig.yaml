@@ -61,7 +61,7 @@
 
     restricted_area:
       enabled: true
-      x_min: -2.9
+      x_min: -3.5
       x_max: 2.9
       y_min: -5.0
       y_max: 4.0
@@ -102,4 +102,4 @@
       wait: True
 
     Adv:
-      BIG: 10
+      BIG: [-3.5, 2.9, -5.0, 4.0]

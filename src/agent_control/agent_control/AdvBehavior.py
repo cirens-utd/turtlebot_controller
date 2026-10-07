@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import rclpy
+from rclpy.parameter import Parameter
 from agent_control.agent import Agent
 import numpy as np
 import traceback
@@ -34,6 +35,15 @@ class Line:
         if abs(s) < eps:
             return 0
         return np.sign(s)
+    
+    def line_coeffs(self, p1, p2):
+        x1, y1 = p1
+        x2, y2 = p2
+        A = y2 - y1
+        B = x1 - x2
+        C = x2*y1 - x1*y2
+        return A, B, C
+
 
 class Wedge:
     def __init__(self, L1, L2, X=None):
@@ -138,23 +148,23 @@ class Wedge:
         hull2.sign = -hull1.sign
         return hull1,hull2
 
-def clip_line_to_box(A, B, C, BIG):
+def clip_line_to_box(A, B, C, BIG=[-10.0,10,-10,10]):
     pts = []
-    for x in (-BIG, BIG):
+    for x in (BIG[0], BIG[1]):
         if abs(B) > 1e-12:
             y = -(A*x + C)/B
-            if -BIG-1e-9 <= y <= BIG+1e-9: pts.append((x, y))
-    for y in (-BIG, BIG):
+            if BIG[2]-1e-9 <= y <= BIG[3]+1e-9: pts.append((x, y))
+    for y in (BIG[2], BIG[3]):
         if abs(A) > 1e-12:
             x = -(B*y + C)/A
-            if -BIG-1e-9 <= x <= BIG+1e-9: pts.append((x, y))
+            if BIG[0]-1e-9 <= x <= BIG[1]+1e-9: pts.append((x, y))
     uniq = []
     for q in pts:
         if not any(abs(q[0]-r[0])<1e-7 and abs(q[1]-r[1])<1e-7 for r in uniq):
             uniq.append(q)
     return LineString(uniq[:2]) if len(uniq) >= 2 else None
 
-def bisector_target(wedge, BIG, distance=None):
+def bisector_target(wedge, BIG=[-10.0,10,-10,10], distance=None):
 
     apex = np.asarray(wedge.apex, dtype=float)
     direction = wedge.bisector_direction
@@ -173,31 +183,31 @@ def bisector_target(wedge, BIG, distance=None):
     candidates = []
 
     if abs(dx) > EPS:
-        t = (BIG - x0) / dx
+        t = (BIG[1] - x0) / dx
         if t > EPS:
             y = y0 + t * dy
-            if -BIG - EPS <= y <= BIG + EPS:
+            if BIG[2] - EPS <= y <= BIG[3] + EPS:
                 candidates.append(t)
 
     if abs(dx) > EPS:
-        t = (-BIG - x0) / dx
+        t = (BIG[0] - x0) / dx
         if t > EPS:
             y = y0 + t * dy
-            if -BIG - EPS <= y <= BIG + EPS:
+            if BIG[2] - EPS <= y <= BIG[3] + EPS:
                 candidates.append(t)
 
     if abs(dy) > EPS:
-        t = (BIG - y0) / dy
+        t = (BIG[3] - y0) / dy
         if t > EPS:
             x = x0 + t * dx
-            if -BIG - EPS <= x <= BIG + EPS:
+            if BIG[0] - EPS <= x <= BIG[1] + EPS:
                 candidates.append(t)
 
     if abs(dy) > EPS:
-        t = (-BIG - y0) / dy
+        t = (BIG[2] - y0) / dy
         if t > EPS:
             x = x0 + t * dx
-            if -BIG - EPS <= x <= BIG + EPS:
+            if BIG[0] - EPS <= x <= BIG[1] + EPS:
                 candidates.append(t)
 
     if not candidates:
@@ -214,7 +224,7 @@ def face_contains_point(face, p):
     """
     return face.covers(Point(p))
 
-def face_bisector_target(face, center, BIG, distance=None):
+def face_bisector_target(face, center, BIG=[-10.0,10,-10,10], distance=None):
     """
     Treat the direction from `center` to the center of the face as
     the face's bisector direction.
@@ -254,29 +264,29 @@ def face_bisector_target(face, center, BIG, distance=None):
     candidates = []
 
     if abs(dx) > EPS:
-        t = (BIG - x0) / dx
+        t = (BIG[1] - x0) / dx
         if t > EPS:
             y = y0 + t * dy
-            if -BIG - EPS <= y <= BIG + EPS:
+            if BIG[2] - EPS <= y <= BIG[3] + EPS:
                 candidates.append(t)
 
-        t = (-BIG - x0) / dx
+        t = (BIG[0] - x0) / dx
         if t > EPS:
             y = y0 + t * dy
-            if -BIG - EPS <= y <= BIG + EPS:
+            if BIG[2] - EPS <= y <= BIG[3] + EPS:
                 candidates.append(t)
 
     if abs(dy) > EPS:
-        t = (BIG - y0) / dy
+        t = (BIG[3] - y0) / dy
         if t > EPS:
             x = x0 + t * dx
-            if -BIG - EPS <= x <= BIG + EPS:
+            if BIG[0] - EPS <= x <= BIG[1] + EPS:
                 candidates.append(t)
 
-        t = (-BIG - y0) / dy
+        t = (BIG[2] - y0) / dy
         if t > EPS:
             x = x0 + t * dx
-            if -BIG - EPS <= x <= BIG + EPS:
+            if BIG[0] - EPS <= x <= BIG[1] + EPS:
                 candidates.append(t)
 
     if not candidates:
@@ -295,7 +305,7 @@ def colorful_selection(p, wedge_sets):
                 break               
     return chosen
 
-def max_color_selection(wedge_sets, X, Y, previous_target=None, BIG=10.0, alpha=3.0, beta=8.0, gamma=100.0, bisector_distance=None, self=None):
+def max_color_selection(wedge_sets, X, Y, previous_target=None, BIG=[-10.0,10,-10,10], alpha=3.0, beta=8.0, gamma=100.0, bisector_distance=None):
     # alpha = importance of staying near most neighbors
     # beta  = importance of not changing targets
     # gamma = importance of avoiding the hull
@@ -309,16 +319,18 @@ def max_color_selection(wedge_sets, X, Y, previous_target=None, BIG=10.0, alpha=
                 if seg is not None:
                     segments.append(seg)
 
+    xmin, xmax, ymin, ymax = BIG
+
     box = Polygon([
-        (-BIG, -BIG),
-        (BIG, -BIG),
-        (BIG, BIG),
-        (-BIG, BIG)
+        (xmin, ymin),
+        (xmax, ymin),
+        (xmax, ymax),
+        (xmin, ymax)
     ])
 
     hull = Polygon(X).convex_hull
 
-    segments.append(hull.exterior)
+    # segments.append(hull.exterior)
     segments.append(box.exterior)
 
     faces = list(polygonize(unary_union(segments)))
@@ -335,7 +347,7 @@ def max_color_selection(wedge_sets, X, Y, previous_target=None, BIG=10.0, alpha=
 
     for face in faces:
 
-        if face.is_empty:
+        if face.is_empty or not face.touches(box.boundary):
             continue
 
         representative = face.representative_point()
@@ -415,7 +427,7 @@ def max_color_selection(wedge_sets, X, Y, previous_target=None, BIG=10.0, alpha=
             hull_interstection_distance += hull_crossing_distance
 
         score = (
-            10 * k * BIG
+            10 * k 
             - alpha * majority_distance
             - beta * jump
             - gamma * hull_interstection_distance
@@ -434,10 +446,6 @@ def max_color_selection(wedge_sets, X, Y, previous_target=None, BIG=10.0, alpha=
             "score": score
         })
 
-        self.get_logger().info(f"*" * 50)
-        self.get_logger().info(f"{face_candidates[-1]}")
-        self.get_logger().info(f"*" * 50)
-    self.get_logger().info("#" * 50)
     if len(face_candidates) == 0:
         return None
 
@@ -451,7 +459,8 @@ def max_color_selection(wedge_sets, X, Y, previous_target=None, BIG=10.0, alpha=
         tuple(selected_face["target"]),
         selected_face["target_selection"],
         selected_face["score"],
-        hull
+        hull,
+        face_candidates
     )
 
 def dist_to_line(pt, line):
@@ -479,32 +488,6 @@ def side(A, B, C, p, eps=1e-10):
     if abs(s) < eps:
         return 0
     return np.sign(s)
-
-def angle_bisectors(L1, L2):
-    p = self.line_intersection(L1,L2)
-    # line directions
-    d1 = np.array([-L1.B, L1.A])
-    d2 = np.array([-L2.B, L2.A])
-
-    d1 /= np.linalg.norm(d1)
-    d2 /= np.linalg.norm(d2)
-    bisectors = []
-    for b in (d1+d2, d1-d2):
-
-        if np.linalg.norm(b) < 1e-10:
-            continue
-
-        b /= np.linalg.norm(b)
-        p2 = p+b
-        p3 = p-b
-        A,B,C = self.line_coeffs(p,p2)
-        B1 = self.Line(A,B,C)
-        A,B,C = self.line_coeffs(p,p3)
-        B2 = self.Line(A,B,C)
-        bisectors.append(B1)
-        bisectors.append(B2)
-
-    return bisectors
 
 def get_projected_pos( Y, target_line, hull_lines =[], buffer = 2.0):
     '''
@@ -904,8 +887,9 @@ class AdvBehavior(Agent):
         self.hull_poly = None
         self.jump_blocked = False
 
-        self.declare_parameter("Adv.BIG", 10)    
-        self.big_box = self.get_parameter("Adv.BIG").value
+        self.declare_parameter("Adv.BIG", [-10.0, 10.0, -10.0, 10.0])    
+        self.big_box = self.get_parameter("Adv.BIG").value if self.get_parameter_or("Adv.BIG", None).type_ != Parameter.Type.NOT_SET else []
+        self.big_box = self.big_box
 
         self.declare_parameter("Adv.BisectorDistance", -1.0)
         self.bisector_distance = self.get_parameter("Adv.BisectorDistance").value
@@ -943,9 +927,9 @@ class AdvBehavior(Agent):
             for wedge_idx, w in enumerate(wedges):
                 # Plot the two wedge boundary lines
                 self.wedge_set_lines[set_idx].append([])
-                self.wedge_set_apex[set_idx].append([w.apex[0], w.apex[1]])
+                self.wedge_set_apex[set_idx].append([float(w.apex[0]), float(w.apex[1])])
                 for line_idx, L in enumerate((w.L1, w.L2)):
-                    self.wedge_set_lines[set_idx][wedge_idx].append([L.A, L.B, L.C]) 
+                    self.wedge_set_lines[set_idx][wedge_idx].append([float(L.A), float(L.B), float(L.C)]) 
 
         self.hull_poly = np.array(hull.exterior.xy).tolist()
         self.wedge_set_apex = self.wedge_set_apex
@@ -960,6 +944,7 @@ class AdvBehavior(Agent):
         # AdversaryIndices = np.array([11,12,16])
         # NormalIndices = np.array([1,3,4,5,6,7,8,9])
         NormalIndices, AdversaryIndices, self.targetNeighborhoods = self.get_indices()
+        self.targetNeighborhoods = self.targetNeighborhoods.tolist()
 
         X = []
         Y = []
@@ -990,18 +975,11 @@ class AdvBehavior(Agent):
             else:
                 self.get_logger().warning(f"{self.my_name}: Cannot find position for neighbor {name}")
         
-        
-        my_idx = np.where(AdversaryIndices == self.my_number)[0]
-        if len(my_idx)==0:
-            my_idx = -1
-        else:
-            my_idx = my_idx[0]
-        
         for i in range(len(self.targetNeighborhoods)):
             self.targetNeighborhoodStates.append([])
             for index, value in enumerate(self.targetNeighborhoods[i]):
                 if value:
-                    self.targetNeighborhoodStates[i].append(X[index])
+                    self.targetNeighborhoodStates[i].append(X[index].tolist())
 
         # If there are one or  multiple target neighborhoods (multiple neighborhoods with too many adversaries) do this       
         if len(self.targetNeighborhoods)>0:
@@ -1010,17 +988,24 @@ class AdvBehavior(Agent):
                 boundary_wedges, hull_lines = get_boundary_lines(neighborhood)
                 wedge_sets.append(boundary_wedges)
 
-            best = max_color_selection(wedge_sets, X, Y, previous_target=self.last_target, BIG=self.big_box, bisector_distance=self.bisector_distance, self=self)
+            best = max_color_selection(wedge_sets, X, Y, previous_target=self.last_target, BIG=self.big_box, bisector_distance=self.bisector_distance)
             
             if best is None:
                 self.get_logger().warning(f"{self.my_name}: No valid bisector target found.")
                 self.move_to_position(self.position)
+                
+                self.target = None
+                self.score = None
+                self.last_target = None
+                self.last_target_replay = None
+                self.last_score = -np.inf
+                self.num_compromised = None
                 return
 
-            self.num_compromised = best[0]
+            self.num_compromised = int(best[0])
             target = np.array(best[1])
             good_wedges = best[2]
-            self.score = best[3]
+            self.score = float(best[3])
             hull = best[4]
 
             self.save_replay_info(wedge_sets, hull)
@@ -1051,6 +1036,7 @@ class AdvBehavior(Agent):
                 self.last_score = self.score
                 self.move_to_position(target)
             else: 
+                self.get_logger().warning(f"{self.my_name}: ERROR - Target had length of 0")
                 self.move_to_position(self.position)
         # If there is no target neighborhood
         else:

@@ -224,7 +224,11 @@ class TukeyCenterPointAdversaryPlugin:
             return
 
         for line in self.wedge_patch:
-            line.remove()
+            try:
+                line.remove()
+            except:
+                print("*" * 50)
+                print(line)
         self.wedge_patch = []
 
         for set_idx, wedgeset in enumerate(line_set):
