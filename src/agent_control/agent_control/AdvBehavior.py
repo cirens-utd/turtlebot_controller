@@ -6,7 +6,7 @@ import numpy as np
 import traceback
 import pdb
 import numpy as np
-from shapely import Polygon,Point,MultiPoint,LineString
+from shapely import Polygon, Point, MultiPoint, LineString, MultiLineString
 from shapely.ops import polygonize, unary_union
 from itertools import combinations
 
@@ -224,77 +224,52 @@ def face_contains_point(face, p):
     """
     return face.covers(Point(p))
 
-def face_bisector_target(face, center, BIG=[-10.0,10,-10,10], distance=None):
+def boundary_midpoint(face, BIG):
     """
-    Treat the direction from `center` to the center of the face as
-    the face's bisector direction.
-
-    If distance is None:
-        return the point where the ray hits the BIG box.
-
-    Otherwise:
-        return center + distance * direction.
+    Returns midpoint of the portion of the face
+    touching the BIG [xmin, xmax, ymin, ymax].
     """
 
-    center = np.asarray(center, dtype=float)
+    xmin, xmax, ymin, ymax = BIG
 
-    # representative_point() is guaranteed to be inside the polygon.
-    face_point = face.representative_point()
-    face_center = np.array([
-        face_point.x,
-        face_point.y
-    ], dtype=float)
+    box = Polygon([
+        (xmin, ymin),
+        (xmax, ymin),
+        (xmax, ymax),
+        (xmin, ymax)
+    ])
 
-    direction = face_center - center
-    norm = np.linalg.norm(direction)
+    boundary_piece = face.boundary.intersection(box.boundary)
 
-    if norm < EPS:
+    if boundary_piece.is_empty:
         return None
 
-    direction /= norm
+    # Single boundary segment
+    if boundary_piece.geom_type == "LineString":
 
-    # User explicitly requested a distance.
-    if distance is not None:
-        return center + distance * direction
+        coords = list(boundary_piece.coords)
 
-    # Otherwise find where the ray hits the BIG box.
-    dx, dy = direction
-    x0, y0 = center
+        p1 = np.array(coords[0])
+        p2 = np.array(coords[-1])
 
-    candidates = []
+        return 0.5 * (p1 + p2)
 
-    if abs(dx) > EPS:
-        t = (BIG[1] - x0) / dx
-        if t > EPS:
-            y = y0 + t * dy
-            if BIG[2] - EPS <= y <= BIG[3] + EPS:
-                candidates.append(t)
+    # Multiple boundary segments
+    elif boundary_piece.geom_type == "MultiLineString":
 
-        t = (BIG[0] - x0) / dx
-        if t > EPS:
-            y = y0 + t * dy
-            if BIG[2] - EPS <= y <= BIG[3] + EPS:
-                candidates.append(t)
+        longest = max(
+            boundary_piece.geoms,
+            key=lambda g: g.length
+        )
 
-    if abs(dy) > EPS:
-        t = (BIG[3] - y0) / dy
-        if t > EPS:
-            x = x0 + t * dx
-            if BIG[0] - EPS <= x <= BIG[1] + EPS:
-                candidates.append(t)
+        coords = list(longest.coords)
 
-        t = (BIG[2] - y0) / dy
-        if t > EPS:
-            x = x0 + t * dx
-            if BIG[0] - EPS <= x <= BIG[1] + EPS:
-                candidates.append(t)
+        p1 = np.array(coords[0])
+        p2 = np.array(coords[-1])
 
-    if not candidates:
-        return None
+        return 0.5 * (p1 + p2)
 
-    t = min(candidates)
-
-    return center + t * direction
+    return None
 
 def colorful_selection(p, wedge_sets):
     chosen = []
@@ -305,7 +280,7 @@ def colorful_selection(p, wedge_sets):
                 break               
     return chosen
 
-def max_color_selection(wedge_sets, X, Y, previous_target=None, BIG=[-10.0,10,-10,10], alpha=3.0, beta=8.0, gamma=100.0, bisector_distance=None):
+def max_color_selection(wedge_sets, X, Y, previous_target=None, BIG=[-10.0,10,-10,10], alpha=5.0, beta=8.0, gamma=100.0, bisector_distance=None):
     # alpha = importance of staying near most neighbors
     # beta  = importance of not changing targets
     # gamma = importance of avoiding the hull
@@ -365,12 +340,7 @@ def max_color_selection(wedge_sets, X, Y, previous_target=None, BIG=[-10.0,10,-1
         if len(selection) == 0:
             continue
 
-        target = face_bisector_target(
-            face,
-            hull_centroid,
-            BIG=BIG,
-            distance=bisector_distance
-        )
+        target = boundary_midpoint(face, BIG)
 
         if target is None:
             continue
@@ -427,7 +397,7 @@ def max_color_selection(wedge_sets, X, Y, previous_target=None, BIG=[-10.0,10,-1
             hull_interstection_distance += hull_crossing_distance
 
         score = (
-            10 * k 
+            100 * k 
             - alpha * majority_distance
             - beta * jump
             - gamma * hull_interstection_distance
@@ -442,6 +412,10 @@ def max_color_selection(wedge_sets, X, Y, previous_target=None, BIG=[-10.0,10,-1
             "k": k,
             "majority_distance": majority_distance,
             "jump": jump,
+            "hull_interstection_distance": hull_interstection_distance,
+            'alpha': alpha,
+            'beta': beta,
+            'gamma': gamma,
             "center_distance": center_distance,
             "score": score
         })
