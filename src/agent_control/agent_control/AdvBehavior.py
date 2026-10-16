@@ -224,6 +224,48 @@ def face_contains_point(face, p):
     """
     return face.covers(Point(p))
 
+def interior_vertex_center(face, BIG, tol=1e-8):
+
+    xmin, xmax, ymin, ymax = BIG
+
+    verts = np.array(face.exterior.coords[:-1])
+
+    interior = []
+
+    for x, y in verts:
+
+        on_boundary = (
+            abs(x - xmin) < tol or
+            abs(x - xmax) < tol or
+            abs(y - ymin) < tol or
+            abs(y - ymax) < tol
+        )
+
+        if not on_boundary:
+            interior.append([x, y])
+
+    if len(interior) == 0:
+        # Find a face edge not lying on the box boundary
+        coords = list(face.exterior.coords)
+
+        for i in range(len(coords) - 1):
+
+            p1 = np.array(coords[i])
+            p2 = np.array(coords[i + 1])
+
+            on_boundary = (
+                (abs(p1[0] - xmin) < 1e-8 and abs(p2[0] - xmin) < 1e-8) or
+                (abs(p1[0] - xmax) < 1e-8 and abs(p2[0] - xmax) < 1e-8) or
+                (abs(p1[1] - ymin) < 1e-8 and abs(p2[1] - ymin) < 1e-8) or
+                (abs(p1[1] - ymax) < 1e-8 and abs(p2[1] - ymax) < 1e-8)
+            )
+
+            if not on_boundary:
+                return 0.5 * (p1 + p2)
+            return None
+
+    return np.mean(interior, axis=0)
+       
 def boundary_midpoint(face, BIG):
     """
     Returns midpoint of the portion of the face
@@ -244,32 +286,43 @@ def boundary_midpoint(face, BIG):
     if boundary_piece.is_empty:
         return None
 
-    # Single boundary segment
+    # Convert to a list of segments
     if boundary_piece.geom_type == "LineString":
-
         coords = list(boundary_piece.coords)
-
         p1 = np.array(coords[0])
         p2 = np.array(coords[-1])
-
         return 0.5 * (p1 + p2)
 
-    # Multiple boundary segments
     elif boundary_piece.geom_type == "MultiLineString":
+        segments = list(boundary_piece.geoms)
 
-        longest = max(
-            boundary_piece.geoms,
-            key=lambda g: g.length
-        )
+    else:
+        return None
 
-        coords = list(longest.coords)
+    center = interior_vertex_center(face, BIG)
+
+    if center is None:
+        return None
+
+    best_midpoint = None
+    best_distance = -np.inf
+
+    for seg in segments:
+
+        coords = list(seg.coords)
 
         p1 = np.array(coords[0])
         p2 = np.array(coords[-1])
 
-        return 0.5 * (p1 + p2)
+        midpoint = 0.5 * (p1 + p2)
 
-    return None
+        distance = np.linalg.norm(midpoint - center)
+
+        if distance > best_distance:
+            best_distance = distance
+            best_midpoint = midpoint
+
+    return best_midpoint
 
 def colorful_selection(p, wedge_sets):
     chosen = []
