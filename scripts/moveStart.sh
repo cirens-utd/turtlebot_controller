@@ -32,7 +32,6 @@ ssh ${USER}@${pi_ip} << EOF
     tmux new-session -d -s ros_session2 "cd $pi_wrk_space && source install/setup.bash && bash -c \
     'ros2 run agent_control start_point.py --ros-args \
         --params-file src/agent_control/config/CPIH/BaseConfig.yaml \
-        --params-file src/agent_control/config/CPIH/StartPositions/CircleStart.yaml \
         -p robot.id:=$robot_num -p robot.neighbors:=$other_robots'"
 
     tmux attach-session -t ros_session2
@@ -42,7 +41,7 @@ ssh ${USER}@${pi_ip} << EOF
 EOF
 
 
-    #   --params-file src/agent_control/config/CPIH/StartPositions/CircleStart.yaml \
-    #   --params-file src/agent_control/config/CPIH/StartPositions/ClusterStart.yaml \
-    #   --params-file src/agent_control/config/CPIH/StartPositions/RandomStart.yaml \
+    #   --params-file src/agent_control/config/CPIH/StartPositions/9_CircleStart.yaml \
+    #   --params-file src/agent_control/config/CPIH/StartPositions/9_ClusterStart.yaml \
+    #   --params-file src/agent_control/config/CPIH/StartPositions/9_RandomStart.yaml \
     #   -p Start.positions:='[-2.5, 3.3]'
