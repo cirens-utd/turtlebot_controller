@@ -218,6 +218,8 @@ def main(args=None):
     ## ros2 run agent_control CPIH.py --ros-args --params-file src/agent_control/config/CPIH/Network1.yaml -p robot.id:=1 -p robot.neighbors:=['1','2','3', '4'] -p logging.enabled:=true -p mode.sim:=true 
     ## ros2 run agent_control CPIH.py --ros-args --params-file src/agent_control/config/CPIH/BaseConfig.yaml --params-file src/agent_control/config/CPIH/AdvesaryOne.yaml -p robot.id:=3 -p robot.neighbors:='[1,3,4,5,6,7,11,12,16]'
 
+    ## ./remote_launch.sh stop 1 3 4 5 6 7 11 12 16
+    ## ./remote_launch.sh stop 1 3 4 5 6 7 8 9 11 12 13 16
 
     my_robot = None 
 
@@ -238,6 +240,7 @@ if __name__ == '__main__':
 
 '''
 To Do:
-Do sync move? - in agent file
-Make a concenses example
+Update the tukey depth to be correct and live
+Update logging for any time we end up choosing self.position (need to check inside centerpoint)
+
 '''
