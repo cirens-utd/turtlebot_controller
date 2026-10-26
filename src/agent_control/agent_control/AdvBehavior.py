@@ -223,50 +223,8 @@ def face_contains_point(face, p):
     Returns True if point p is inside or on the boundary of the face.
     """
     return face.covers(Point(p))
-
-def interior_vertex_center(face, BIG, tol=1e-8):
-
-    xmin, xmax, ymin, ymax = BIG
-
-    verts = np.array(face.exterior.coords[:-1])
-
-    interior = []
-
-    for x, y in verts:
-
-        on_boundary = (
-            abs(x - xmin) < tol or
-            abs(x - xmax) < tol or
-            abs(y - ymin) < tol or
-            abs(y - ymax) < tol
-        )
-
-        if not on_boundary:
-            interior.append([x, y])
-
-    if len(interior) == 0:
-        # Find a face edge not lying on the box boundary
-        coords = list(face.exterior.coords)
-
-        for i in range(len(coords) - 1):
-
-            p1 = np.array(coords[i])
-            p2 = np.array(coords[i + 1])
-
-            on_boundary = (
-                (abs(p1[0] - xmin) < 1e-8 and abs(p2[0] - xmin) < 1e-8) or
-                (abs(p1[0] - xmax) < 1e-8 and abs(p2[0] - xmax) < 1e-8) or
-                (abs(p1[1] - ymin) < 1e-8 and abs(p2[1] - ymin) < 1e-8) or
-                (abs(p1[1] - ymax) < 1e-8 and abs(p2[1] - ymax) < 1e-8)
-            )
-
-            if not on_boundary:
-                return 0.5 * (p1 + p2)
-            return None
-
-    return np.mean(interior, axis=0)
-       
-def boundary_midpoint(face, BIG):
+      
+def boundary_midpoint(face, BIG, center=None):
     """
     Returns midpoint of the portion of the face
     touching the BIG [xmin, xmax, ymin, ymax].
@@ -298,8 +256,6 @@ def boundary_midpoint(face, BIG):
 
     else:
         return None
-
-    center = interior_vertex_center(face, BIG)
 
     if center is None:
         return None
@@ -393,7 +349,7 @@ def max_color_selection(wedge_sets, X, Y, previous_target=None, BIG=[-10.0,10,-1
         if len(selection) == 0:
             continue
 
-        target = boundary_midpoint(face, BIG)
+        target = boundary_midpoint(face, BIG, hull_centroid)
 
         if target is None:
             continue
