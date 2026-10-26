@@ -24,5 +24,5 @@ ssh ${USER}@${pi_ip} << EOF
 
     source install/setup.bash 
     
-    ros2 run agent_control calibration.py -i $robot_num
+    ros2 run agent_control calibration.py --ros-args -p robot.id:=$robot_num
 EOF
