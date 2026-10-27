@@ -44,4 +44,7 @@ EOF
     #   --params-file src/agent_control/config/CPIH/StartPositions/9_CircleStart.yaml \
     #   --params-file src/agent_control/config/CPIH/StartPositions/9_ClusterStart.yaml \
     #   --params-file src/agent_control/config/CPIH/StartPositions/9_RandomStart.yaml \
+    #   --params-file src/agent_control/config/CPIH/StartPositions/12_CircleStart.yaml \
+    #   --params-file src/agent_control/config/CPIH/StartPositions/12_ClusterStart.yaml \
+    #   --params-file src/agent_control/config/CPIH/StartPositions/12_RandomStart.yaml \
     #   -p Start.positions:='[-2.5, 3.3]'
