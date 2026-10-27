@@ -6,7 +6,7 @@ from agent_control.agent import Agent
 from geometry_msgs.msg import PoseStamped
 import argparse
 import datetime
-from agent_control.TukeyMedian import TukeyContour, SafePoint, SelfTukeyMed
+from agent_control.TukeyMedian import TukeyContour, SafePoint
 import traceback
 import pdb
 
@@ -20,6 +20,7 @@ class CPIH(Agent):
         }
         self.extra_log_field_map = {
             'safe_area': '_safe_area',
+            'used_depth': '_used_depth',
             'tukey_depth': '_tukey_depth',
             'center_depth': '_center_depth',
             'self_trust': 'self_trust',
@@ -30,6 +31,7 @@ class CPIH(Agent):
         self._safe_area = []
         self._tukey_depth = 0
         self._center_depth = 0
+        self._used_depth = 0
 
         self.complete = False
 
@@ -137,54 +139,42 @@ class CPIH(Agent):
                 centerpoint = False
             # for neighbor in self.neighbor_poses:
             #    X[i] = np.array((self.neighbor_poses[neighbor].pose.position.x, self.neighbor_poses[neighbor].pose.position.y))
-            if self.self_trust < 2:
-                tc = TukeyContour(X, 0, centerpoint=centerpoint, mode=self.self_trust)
+        
+            tc = TukeyContour(X, 0, centerpoint=centerpoint, mode=self.self_trust)
 
-                '''
-                This is finding the mean of the tukey median. This is the mean of the vertices of the deepest area in the set.
-                '''
-                if tc.median_contour.shape[0] > 0:
-                    # Target is the centroid of the median contour
-                    self._safe_area = tc.median_contour.tolist()
-                    self._tukey_depth = float(tc.max_depth)
-                    self._center_depth = float(tc.center_depth)
-                    
-                    safepoint = np.mean(tc.median_contour, axis=0)
-                    # self.get_logger().info(f"{self.my_name} Has a valid target: {safepoint}")
-                else:
-                    self._safe_area = []
-                    self._tukey_depth = 0
-                    self._center_depth = 0
-                    safepoint = self.position
-                    self.get_logger().info(f"{self.my_name} Does not have valid target.")
-                    self.get_logger().info(f"{tc.median_contour} ")
-                target = safepoint
+            '''
+            This is finding the mean of the tukey median. This is the mean of the vertices of the deepest area in the set.
+            '''
+            if tc.median_contour.shape[0] > 0:
+                # Target is the centroid of the median contour
+                self._safe_area = tc.median_contour.tolist()
+                self._used_depth = float(tc.used_depth)
+                self._tukey_depth = float(tc.tukey_depth)
+                self._center_depth = float(tc.center_depth)
+                
+                safepoint = np.mean(tc.median_contour, axis=0)
+                # self.get_logger().info(f"{self.my_name} Has a valid target: {safepoint}")
             else:
-                final_poly, tukey_depth, center_depth = SelfTukeyMed(X, 0, centerpoint)
-                self._safe_area = final_poly.tolist()
-                self._tukey_depth = float(tukey_depth)
-                self._center_depth = float(center_depth)
-                if final_poly.shape[0] > 0:
-                    safepoint = np.mean(final_poly, axis = 0)
-                else:
-                    safepoint = self.position 
-                    self.get_logger().info(f"{self.my_name} Does not have a valid target.")
-                target = safepoint
-        # elif self.safe_point_mode == 1:
-        #     # This doesn't work....
-        #     sp = SafePoint()
-        #     target = sp.CPIH_Safepoint(Bx, 0, self.position, mode=self.self_trust)
-        #     self._safe_area = []
-        #     self._tukey_depth = 0
+                self._safe_area = []
+                self._used_depth = 0
+                self._tukey_depth = 0
+                self._center_depth = 0
+                safepoint = self.position
+                self.get_logger().info(f"{self.my_name} did not have valid target for Tukey Calculations.")
+                self.get_logger().info(f"{tc.median_contour} ")
+            target = safepoint
+            
         elif self.safe_point_mode == 2:
             sp = SafePoint()
             centroid, region, tukey_depth, centerpoint_depth = sp.CPIH_Fast_Safepoint(Bx, 0, self.position, mode=self.self_trust)
             self._tukey_depth = float(tukey_depth)
             self._center_depth = float(centerpoint_depth)
 
-            target = self.position
             if type(centroid) != type(None):
                 target = np.array([centroid.x, centroid.y])
+            else:
+                target = self.position
+                self.get_logger().info(f"{self.my_name} did not have valid target for safe_point.")
 
             if  region is None or region.is_empty:
                 self._safe_area = []
@@ -240,7 +230,8 @@ if __name__ == '__main__':
 
 '''
 To Do:
-Update the tukey depth to be correct and live
-Update logging for any time we end up choosing self.position (need to check inside centerpoint)
+Done -> Update the tukey depth to be correct and live
+Done -> Update logging for any time we end up choosing self.position (need to check inside centerpoint)
+Should I modify the cut_poly in TukeyMedian to match what we did in AdvBehavior?
 
 '''

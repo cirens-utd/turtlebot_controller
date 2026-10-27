@@ -4,6 +4,55 @@ from shapely import Polygon,Point,MultiPoint,LineString
 
 from itertools import combinations
 from shapely.ops import unary_union
+
+def clip_polygon(poly, a, b, c, d=0):
+            new_poly = []
+            if len(poly) == 0: return new_poly
+            
+            # d=1: Intersect with line ax+by+c=0
+            if d == 1:
+                for j in range(len(poly)):
+                    p_curr = poly[j]
+                    p_next = poly[(j + 1) % len(poly)]
+                    
+                    val_curr = a * p_curr[0] + b * p_curr[1] + c
+                    val_next = a * p_next[0] + b * p_next[1] + c
+                    
+                    # If point is on the line, keep it
+                    if abs(val_curr) <= 1e-9:
+                        new_poly.append(p_curr)
+                        
+                    # If edge crosses the line (strict crossing), add intersection
+                    if (val_curr < -1e-9 and val_next > 1e-9) or \
+                       (val_curr > 1e-9 and val_next < -1e-9):
+                        denom = val_curr - val_next
+                        if abs(denom) > 1e-12:
+                            t = val_curr / denom
+                            inter_p = p_curr + t * (p_next - p_curr)
+                            new_poly.append(inter_p)
+                return np.array(new_poly)
+
+            # d=0: Clip against halfspace ax+by+c <= 0
+            else:
+                for j in range(len(poly)):
+                    p_curr = poly[j]
+                    p_next = poly[(j + 1) % len(poly)]
+                    
+                    val_curr = a * p_curr[0] + b * p_curr[1] + c
+                    val_next = a * p_next[0] + b * p_next[1] + c
+                    
+                    # Keep points inside
+                    if val_curr <= 1e-9:
+                        new_poly.append(p_curr)
+                    # Add intersection if crossing boundary
+                    if (val_curr <= 1e-9 and val_next > 1e-9) or (val_curr > 1e-9 and val_next <= 1e-9):
+                        denom = val_curr - val_next
+                        if abs(denom) > 1e-12:
+                            t = val_curr / denom
+                            inter_p = p_curr + t * (p_next - p_curr)
+                            new_poly.append(inter_p)
+                return np.array(new_poly)
+
 def ZTukeyMed(X, i, specK = -1):
     """
     X: nx2 matrix 
@@ -19,6 +68,10 @@ def ZTukeyMed(X, i, specK = -1):
     
     indices = range(n)
     epsilon = 1e-9
+
+    center_depth = np.ceil(len(X)*1/3)
+    tukey_depth_found = False
+    tukey_depth = 0
     
     # Compute all k-levels
     for idx1, idx2 in combinations(indices, 2):
@@ -76,64 +129,19 @@ def ZTukeyMed(X, i, specK = -1):
 
     # find median depth
     max_k = max(item[0] for item in candidate_constraints)
-    if specK>0:
-        max_k = specK-1
+
+    if specK > 0:
+        set_k = specK-1
+    else:
+        set_k = max_k
+
     median_found = False
     final_poly = np.array([]) 
-
     while (not median_found) and (max_k >= 0):
         active_constraints = [item for item in candidate_constraints if item[0] <= max_k]
         
         inf = 1e9
         poly = np.array([[-inf, -inf], [inf, -inf], [inf, inf], [-inf, inf]])
-        
-        def clip_polygon(poly, a, b, c, d):
-            new_poly = []
-            if len(poly) == 0: return new_poly
-            
-            # d=1: Intersect with line ax+by+c=0
-            if d == 1:
-                for j in range(len(poly)):
-                    p_curr = poly[j]
-                    p_next = poly[(j + 1) % len(poly)]
-                    
-                    val_curr = a * p_curr[0] + b * p_curr[1] + c
-                    val_next = a * p_next[0] + b * p_next[1] + c
-                    
-                    # If point is on the line, keep it
-                    if abs(val_curr) <= 1e-9:
-                        new_poly.append(p_curr)
-                        
-                    # If edge crosses the line (strict crossing), add intersection
-                    if (val_curr < -1e-9 and val_next > 1e-9) or \
-                       (val_curr > 1e-9 and val_next < -1e-9):
-                        denom = val_curr - val_next
-                        if abs(denom) > 1e-12:
-                            t = val_curr / denom
-                            inter_p = p_curr + t * (p_next - p_curr)
-                            new_poly.append(inter_p)
-                return np.array(new_poly)
-
-            # d=0: Clip against halfspace ax+by+c <= 0
-            else:
-                for j in range(len(poly)):
-                    p_curr = poly[j]
-                    p_next = poly[(j + 1) % len(poly)]
-                    
-                    val_curr = a * p_curr[0] + b * p_curr[1] + c
-                    val_next = a * p_next[0] + b * p_next[1] + c
-                    
-                    # Keep points inside
-                    if val_curr <= 1e-9:
-                        new_poly.append(p_curr)
-                    # Add intersection if crossing boundary
-                    if (val_curr <= 1e-9 and val_next > 1e-9) or (val_curr > 1e-9 and val_next <= 1e-9):
-                        denom = val_curr - val_next
-                        if abs(denom) > 1e-12:
-                            t = val_curr / denom
-                            inter_p = p_curr + t * (p_next - p_curr)
-                            new_poly.append(inter_p)
-                return np.array(new_poly)
     
         # Apply constraints
         for _, a, b, c, d in active_constraints:
@@ -151,15 +159,23 @@ def ZTukeyMed(X, i, specK = -1):
             is_singular = (width < 1e-6) and (height < 1e-6)
             
             if not is_singular:
-                median_found = True
-                final_poly = poly
+                if not tukey_depth_found:
+                    tukey_depth_found = True
+                    tukey_depth = max_k + 1
+
+                if max_k <= set_k:
+                    median_found = True
+                    final_poly = poly
+                else:
+                    max_k = set_k
             else:
                 max_k -= 1
         else:
             max_k -= 1
     
-    return max_k+1, final_poly
-def TukeyMed(X,specK = -1):
+    return max_k+1, center_depth, tukey_depth, final_poly
+
+def TukeyMed(X, specK = -1):
     """
     X: nx2 matrix
     """
@@ -169,6 +185,10 @@ def TukeyMed(X,specK = -1):
     
     indices = range(n)
     epsilon = 1e-9
+
+    center_depth = np.ceil(len(X)*1/3)
+    tukey_depth_found = False
+    tukey_depth = 0
     
     # 1. Loop through all pairs
     for idx1, idx2 in combinations(indices, 2):
@@ -212,10 +232,14 @@ def TukeyMed(X,specK = -1):
 
     # 4. Find the highest k
     max_k = max(item[0] for item in candidate_constraints)
-    if specK>0:
-        max_k = specK-1
+    if specK > 0:
+        set_k = specK-1
+    else:
+        set_k = max_k
+
     median_found = False
-    while (not median_found):
+    final_poly = np.array([]) 
+    while (not median_found) and (max_k >= 0):
     # Filter constraints for this max k
         active_constraints = [item for item in candidate_constraints if item[0] == max_k]
         
@@ -223,36 +247,23 @@ def TukeyMed(X,specK = -1):
         inf = 1e9
         poly = np.array([[-inf, -inf], [inf, -inf], [inf, inf], [-inf, inf]])
         
-        def clip_polygon(poly, a, b, c):
-            new_poly = []
-            if len(poly) == 0: return new_poly
-            
-            for j in range(len(poly)):
-                p_curr = poly[j]
-                p_next = poly[(j + 1) % len(poly)]
-                
-                val_curr = a * p_curr[0] + b * p_curr[1] + c
-                val_next = a * p_next[0] + b * p_next[1] + c
-                
-                if val_curr <= 1e-9:
-                    new_poly.append(p_curr)
-                
-                if (val_curr <= 1e-9 and val_next > 1e-9) or (val_curr > 1e-9 and val_next <= 1e-9):
-                    denom = val_curr - val_next
-                    if abs(denom) > 1e-12:
-                        t = val_curr / denom
-                        inter_p = p_curr + t * (p_next - p_curr)
-                        new_poly.append(inter_p)
-            return np.array(new_poly)
     
         for _, a, b, c in active_constraints:
             poly = clip_polygon(poly, a, b, c)
         if len(poly) > 0:
-            median_found = True
+            if not tukey_depth_found:
+                tukey_depth_found = True
+                tukey_depth = max_k + 1
+
+            if max_k <= set_k:
+                median_found = True
+                final_poly = poly
+            else:
+                max_k = set_k
         else:
             max_k = max_k-1
        
-    return max_k+1,poly
+    return max_k+1, center_depth, tukey_depth, final_poly
 
 class TukeyContour:
     """
@@ -265,8 +276,9 @@ class TukeyContour:
         self.median_contour = np.array([])
         self.Xi = Xi
         self.mode = mode
-        self.max_depth = None
+        self.tukey_depth = None
         self.center_depth = None
+        self.used_depth = None
         self.centerpoint = centerpoint
         if self.primal_points.shape[0] < 3:
             # Not enough points to form a contour
@@ -314,20 +326,21 @@ class TukeyContour:
         if self.mode == 0:
             X = np.delete(X,self.Xi,axis = 0)
             if self.centerpoint:
-                max_depth, final_contour_points = TukeyMed(X, specK = k)
+                used_depth, center_depth, tukey_depth, final_contour_points = TukeyMed(X, specK = k)
             else: 
-                max_depth, final_contour_points = TukeyMed(X)
+                used_depth, center_depth, tukey_depth, final_contour_points = TukeyMed(X)
         if self.mode == 1:
             if self.centerpoint:
-                max_depth, final_contour_points = TukeyMed(X, specK = k)
+                used_depth, center_depth, tukey_depth, final_contour_points = TukeyMed(X, specK = k)
             else: 
-                max_depth, final_contour_points = TukeyMed(X)
+                used_depth, center_depth, tukey_depth, final_contour_points = TukeyMed(X)
         if self.mode == 2:
             if self.centerpoint:
-                max_depth, final_contour_points = ZTukeyMed(X,self.Xi,specK = k)
+                used_depth, center_depth, tukey_depth, final_contour_points = ZTukeyMed(X,self.Xi,specK = k)
             else:
-                max_depth,final_contour_points = ZTukeyMed(X,self.Xi)
-        self.max_depth = max_depth
+                used_depth, center_depth, tukey_depth, final_contour_points = ZTukeyMed(X,self.Xi)
+        self.used_depth = used_depth
+        self.tukey_depth = tukey_depth
         self.median_contour = np.array(final_contour_points)
 
 class SafePoint:
@@ -561,51 +574,4 @@ class SafePoint:
 
         return min_halfspace + 1
 
-def clip_polygon(poly, a, b, c, d):
-    new_poly = []
-    if len(poly) == 0: return new_poly
-    
-
-    if d == 1:
-        for j in range(len(poly)):
-            p_curr = poly[j]
-            p_next = poly[(j + 1) % len(poly)]
-            
-            val_curr = a * p_curr[0] + b * p_curr[1] + c
-            val_next = a * p_next[0] + b * p_next[1] + c
-            
-            # If point is on the line, keep it
-            if abs(val_curr) <= 1e-9:
-                new_poly.append(p_curr)
-                
-            # If edge crosses the line  add intersection
-            if (val_curr < -1e-9 and val_next > 1e-9) or \
-                (val_curr > 1e-9 and val_next < -1e-9):
-                denom = val_curr - val_next
-                if abs(denom) > 1e-12:
-                    t = val_curr / denom
-                    inter_p = p_curr + t * (p_next - p_curr)
-                    new_poly.append(inter_p)
-        return np.array(new_poly)
-
-    
-    else:
-        for j in range(len(poly)):
-            p_curr = poly[j]
-            p_next = poly[(j + 1) % len(poly)]
-            
-            val_curr = a * p_curr[0] + b * p_curr[1] + c
-            val_next = a * p_next[0] + b * p_next[1] + c
-            
-            # Keep points inside
-            if val_curr <= 1e-9:
-                new_poly.append(p_curr)
-            # Add intersection if crossing boundary
-            if (val_curr <= 1e-9 and val_next > 1e-9) or (val_curr > 1e-9 and val_next <= 1e-9):
-                denom = val_curr - val_next
-                if abs(denom) > 1e-12:
-                    t = val_curr / denom
-                    inter_p = p_curr + t * (p_next - p_curr)
-                    new_poly.append(inter_p)
-        return np.array(new_poly)
         
