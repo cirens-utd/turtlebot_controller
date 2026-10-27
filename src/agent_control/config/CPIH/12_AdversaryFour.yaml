@@ -1,0 +1,27 @@
+/**:
+  ros__parameters:
+    robot:
+      neighborhood_mode: "global" 
+      neighborhood_global: [
+        0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0
+        ]
+      neighborhood_size: 12
+      neighborhood_default: 0     # if outside the span, 1 means they are a neighbor and 0 means they are not
+
+    logging:
+      enabled: true
+
+    neighbor:
+      avoid: true
+      walk_around: false
