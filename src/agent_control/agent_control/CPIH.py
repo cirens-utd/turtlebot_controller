@@ -56,8 +56,9 @@ class CPIH(Agent):
         # Make bad guys go to the moon
         new_pose = pose
         if self.push_bad and int(name) > 10:
-            # new_pose.pose.position.x = (np.abs(pose.pose.position.x) + 100 ) * np.abs(pose.pose.position.x)/pose.pose.position.x
             new_pose.pose.position.x = pose.pose.position.x
+            # new_pose.pose.position.y = pose.pose.position.y
+            # new_pose.pose.position.x = (np.abs(pose.pose.position.x) + 100 ) * np.abs(pose.pose.position.x)/pose.pose.position.x
             new_pose.pose.position.y = (np.abs(pose.pose.position.y) + 100 ) * np.abs(pose.pose.position.y)/pose.pose.position.y
 
         self.update_neighbor_position_(name, pose.header, new_pose.pose)
