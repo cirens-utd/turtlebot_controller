@@ -32,6 +32,7 @@ ssh ${USER}@${pi_ip} << EOF
     tmux new-session -d -s ros_session2 "cd $pi_wrk_space && source install/setup.bash && bash -c \
     'ros2 run agent_control start_point.py --ros-args \
         --params-file src/agent_control/config/CPIH/BaseConfig.yaml \
+        --params-file src/agent_control/config/CPIH/StartPositions/12_CircleStart.yaml \
         -p robot.id:=$robot_num -p robot.neighbors:=$other_robots'"
 
     tmux attach-session -t ros_session2
