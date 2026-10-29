@@ -509,15 +509,15 @@ class SafePoint:
             region = Polygon(hull_pts)
             centroid = region.centroid
 
-        tukey_depth = None
-        if centroid is not None:
-            tukey_depth = self.tukey_depth(
-                np.array([centroid.x, centroid.y]),
-                centers
-            )
-        centerpoint_depth = np.ceil(n/3)
+        # tukey_depth = None
+        # if centroid is not None:
+        #     tukey_depth = self.tukey_depth(
+        #         np.array([centroid.x, centroid.y]),
+        #         centers
+        #     )
+        # centerpoint_depth = np.ceil(n/3)
 
-        return centroid, region, tukey_depth, centerpoint_depth
+        return centroid, region#, tukey_depth, centerpoint_depth
 
     
     def _monotone_chain_convex_hull(self, points: np.ndarray):

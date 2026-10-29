@@ -167,9 +167,20 @@ class CPIH(Agent):
             
         elif self.safe_point_mode == 2:
             sp = SafePoint()
-            centroid, region, tukey_depth, centerpoint_depth = sp.CPIH_Fast_Safepoint(Bx, 0, self.position, mode=self.self_trust)
-            self._tukey_depth = float(tukey_depth)
-            self._center_depth = float(centerpoint_depth)
+            centroid, region = sp.CPIH_Fast_Safepoint(Bx, 0, self.position, mode=self.self_trust)
+            
+            # Get centerpoint depth and tukey depth
+            tc = TukeyContour(X, 0, centerpoint=False, mode=self.self_trust)
+
+            if tc.median_contour.shape[0] > 0:
+                self._used_depth = 0.0
+                self._tukey_depth = float(tc.tukey_depth)
+                self._center_depth = float(tc.center_depth)
+            else:
+                self._used_depth = 0
+                self._tukey_depth = 0
+                self._center_depth = 0
+                self.get_logger().info(f"{self.my_name} did not have valid Depth Calculations.")
 
             if type(centroid) != type(None):
                 target = np.array([centroid.x, centroid.y])
