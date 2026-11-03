@@ -283,6 +283,7 @@ class Agent(Node):
         self.declare_parameter("robot.config_file", "turtlebot_global_config.yaml")
         self.declare_parameter("robot.offset_x", 0.0)
         self.declare_parameter("robot.offset_y", 0.0)
+        self.declare_parameter("robot.offset_heading", 0.0)
         self.declare_parameter("robot.neighborhood_mode", 'local')
         self.declare_parameter("robot.neighborhood_local", [1])
         self.declare_parameter("robot.neighborhood_global", [1])
@@ -365,6 +366,7 @@ class Agent(Node):
         self.config_file = self.get_parameter("robot.config_file").value
         self._offset_x = self.get_parameter("robot.offset_x").value
         self._offset_y = self.get_parameter("robot.offset_y").value
+        self._offset_heading = self.get_parameter("robot.offset_heading").value
         self._ready_wait_delay = self.get_parameter("robot.ready_wait_delay").value
 
         # --- Neighborhood ---
@@ -419,7 +421,7 @@ class Agent(Node):
         self._angle_tolerance = self.get_parameter("motion.angle_tolerance").value
         self._at_goal_historisis = self.get_parameter("motion.at_goal_historisis").value                    # how far way you need to be from your goal before you start moving again
         self.driving_heading_tolerance = self.get_parameter("motion.driving_heading_tolerance").value
-        self.start_heading = self.get_parameter("motion.start_heading").value
+        self._start_heading = self.get_parameter("motion.start_heading").value
         self.end_heading = self.get_parameter("motion.end_heading").value
         self.restart_start_position = self.get_parameter("motion.restart_start_position").value
         self._wait_for_battery = self.get_parameter("motion.wait_for_battery").value
@@ -466,6 +468,7 @@ class Agent(Node):
             "robot.diameter": "_diameter",
             "robot.offset_x": "_offset_x",
             "robot.offset_y": "_offset_y",
+            "robot._offset_heading": "_offset_heading",
 
             # --- Mode ---
             "mode.sync_move": "_sync_move",
@@ -660,6 +663,7 @@ class Agent(Node):
                 data = yaml.safe_load(f)
                 self._offset_x = data['shift_x']
                 self._offset_y = data['shift_y']
+                self._offset_heading = data['heading_offset']
         else:
             self.get_logger().warning(f"{self.my_name}: attempted to pull offset from {path_to_file} but it doesn't exist. Please run calibration.")
 
@@ -685,6 +689,12 @@ class Agent(Node):
         corrected_position = np.array([x, y, 0]) - offset_rotated
         return corrected_position.tolist()[:2]
 
+    def correct_heading_(self, heading_angle):
+        '''
+        adjust the heading provided by the publisher
+        '''
+        new_angle = (heading_angle + self._offset_heading) % (2 * np.pi)
+        return (new_angle + 2 * np.pi) % (2 * np.pi)
 
     def check_robot_ready_(self):
         checks = np.array([self._position_started, self._neighbors_started, self._lidar_started, self._camera_setup, (not self._wait_for_battery or self._battery_received)])
@@ -773,7 +783,7 @@ class Agent(Node):
 
         # check to see that all robots are in the right orientation
         if not self.robot_moving:
-            test_angle = self.start_heading
+            test_angle = self._start_heading
             if test_angle == 0 or test_angle == np.pi * 2:
                 test_angle = (test_angle + np.pi) % (np.pi * 2)
                 neighbor_facing = (neighbor_facing + np.pi) % (np.pi * 2)
@@ -1183,9 +1193,10 @@ class Agent(Node):
         x,y = pose.position.x, pose.position.y
         if offset:
             self.position = self.correct_position_(x,y, orientation)
+            self.direction_heading = self.correct_heading_(self.get_angle_quad(orientation_list))
         else:
             self.position =[x,y]
-        self.direction_heading = self.get_angle_quad(orientation_list)
+            self.direction_heading = self.get_angle_quad(orientation_list)
         self.quaternion = [orientation.x, orientation.y, orientation.z, orientation.w]
 
     def update_neighbor_position_(self, name, header, pose):
@@ -1573,6 +1584,11 @@ class Agent(Node):
                 self.desired_heading = False
 
         self.move_robot_(0.0, move_z)
+
+    def turn_to_position(self, pos):
+        rad = np.arctan2(pos[1] - self.position[1], pos[0] - self.position[0]) + np.pi
+        self.move_to_angle(rad) 
+
 
     def move_robot_(self, x, z):
         """
@@ -2249,8 +2265,7 @@ class Agent(Node):
             elif self.robot_status != "READY":
                 self.robot_status = "READY"
             elif not self.desired_heading:
-                self.move_to_angle(self.start_heading)
-            
+                self.move_to_angle(self._start_heading)
             if self.led_persistent and not self.led_override:
                 self.set_led_mode_(self.robot_status)
             return
