@@ -7,6 +7,7 @@ from agent_control.agent import Agent
 import argparse
 import yaml
 import os
+import datetime
 
 import pdb
 
@@ -21,7 +22,7 @@ class Calibration(Agent):
 
         self.get_logger().info(f"{self.my_name}: Running calibrations")
         self.config_file = "turtlebot_global_config.yaml"
-        self.start_heading = 0
+        self._start_heading = 0
 
         self.x_val_trace = []
         self.y_val_trace = []
@@ -31,45 +32,91 @@ class Calibration(Agent):
         self.y_min = None
         self.y_max = None
 
+        self.calibration_step = 0
         self.rotation_count = 0
         self.num_rotations = 2
         self.half_rotated = False
+        self.heading_test_started = False
         self.start_position = None
+        self.final_position = None
+        self.start_position_heading = None
+        self.start_heading = None
+        self.final_position_heading = None
+        self.final_heading = None
+        self.rot_offset_needed = None
+        self.heading_timer = None
+        self.settle_timer = None
 
     def controller(self):
-        '''
-        Running calibarations on the robot
-        '''
-        if type(self.start_position) == type(None):
-            self.start_position = self.position
-            self.x_min = self.position[0]
-            self.x_max = self.position[0]
-            self.y_min = self.position[1]
-            self.y_max = self.position[1]
+        # '''
+        # Running calibarations on the robot
+        # '''
 
-        if self.x_min > self.position[0]:
-            self.x_min = self.position[0]
-        elif self.x_max < self.position[0]:
-            self.x_max = self.position[0]
-        if self.y_min > self.position[1]:
-            self.y_min = self.position[1]
-        elif self.y_max < self.position[1]:
-            self.y_max = self.position[1]
+        if self.calibration_step == 0:
+            if type(self.start_position) == type(None):
+                self.start_position = self.position
+                self.x_min = self.position[0]
+                self.x_max = self.position[0]
+                self.y_min = self.position[1]
+                self.y_max = self.position[1]
 
-        self.x_val_trace.append(self.position[0])
-        self.y_val_trace.append(self.position[1])
+            if self.x_min > self.position[0]:
+                self.x_min = self.position[0]
+            elif self.x_max < self.position[0]:
+                self.x_max = self.position[0]
+            if self.y_min > self.position[1]:
+                self.y_min = self.position[1]
+            elif self.y_max < self.position[1]:
+                self.y_max = self.position[1]
 
-        if self.direction_heading > np.pi:
-            self.half_rotated = True
-        elif self.half_rotated and self.direction_heading < np.pi:
-            self.half_rotated = False
-            self.rotation_count += 1
+            self.x_val_trace.append(self.position[0])
+            self.y_val_trace.append(self.position[1])
 
-        if self.rotation_count >= self.num_rotations:
-            self.move_robot_(0.0, 0.0)
-            self.publish_results()
-        else:
-            self.move_robot_(0.0, 1.0)
+            if self.direction_heading > np.pi:
+                self.half_rotated = True
+            elif self.half_rotated and self.direction_heading < np.pi:
+                self.half_rotated = False
+                self.rotation_count += 1
+
+            if self.rotation_count >= self.num_rotations:
+                self.move_robot_(0.0, 0.0)
+                self.final_position = self.pose
+                self.calibration_step = self.calibration_step + 1
+            else:
+                self.move_robot_(0.0, 1.0)
+
+        elif self.calibration_step == 1:
+            if not self.heading_test_started or not self.desired_heading:
+                self.turn_to_position([0,0])
+                self.heading_test_started = True
+            else:
+                self.calibration_step = self.calibration_step + 1
+        elif self.calibration_step == 2:
+            if self.start_position_heading is None:
+                self.start_position_heading = self.position
+                self.start_heading = self.direction_heading
+                self.heading_timer = datetime.datetime.now()
+
+            if self.heading_timer + datetime.timedelta(seconds=3) >= datetime.datetime.now():
+                self.move_robot_(1.0, 0.0)
+            else:
+                self.move_robot_(0.0, 0.0)
+                if self.settle_timer is None:
+                    self.settle_timer = datetime.datetime.now()
+                elif self.settle_timer + datetime.timedelta(seconds=1) <= datetime.datetime.now() and self.final_position_heading is None:
+                    self.final_position_heading = self.position
+                    self.final_heading = self.direction_heading
+
+                    # Actual direction of travel
+                    true_heading = np.arctan2(
+                        self.final_position_heading[1] - self.start_position_heading[1], 
+                        self.final_position_heading[0] - self.start_position_heading[0]) + np.pi
+
+                    # Calibration offset
+                    self.rot_offset_needed = true_heading - self.start_heading
+                    self.rot_offset_needed = (self.rot_offset_needed + np.pi) % (2 * np.pi) - np.pi 
+
+                    self.publish_results()
 
     def fit_circle(self, x, y):
         x, y = np.array(x).flatten(), np.array(y).flatten()
@@ -101,13 +148,14 @@ class Calibration(Agent):
         os.makedirs(os.path.dirname(path_to_file), exist_ok= True)
 
         x, y, r = self.fit_circle(self.x_val_trace, self.y_val_trace)
-        shift_x, shift_y = self.compute_offset(self.pose, [x,y])
+        shift_x, shift_y = self.compute_offset(self.final_position, [x,y])
 
         results = {
             "shift_x": float(shift_x),
             "shift_y": float(shift_y),
             "x_diff": float(self.x_max - self.x_min),
-            "y_diff": float(self.y_max - self.y_min)
+            "y_diff": float(self.y_max - self.y_min),
+            "heading_offset": float(self.rot_offset_needed)
         }
 
         if not self._use_config_setup:
@@ -119,18 +167,17 @@ class Calibration(Agent):
             self.get_logger().info(f"Radius: {r}")
             self.get_logger().info(f"X Deviation: {self.x_max - self.x_min}")
             self.get_logger().info(f"Y Deviation: {self.y_max - self.y_min}")
+            self.get_logger().info(f"Heading Deviation: {self.rot_offset_needed}")
             self.get_logger().info(f"Using Offsets: {self._offset_x, self._offset_y}")
+            self.get_logger().info(f"Using Heading Offsets: {self._offset_heading}")
 
         if self.save_points:
             results = {
                 "shift_x": float(shift_x),
                 "shift_y": float(shift_y),
-                "test_x": float(test_x),
-                "test_y": float(test_y),
                 "x_diff": float(self.x_max - self.x_min),
                 "y_diff": float(self.y_max - self.y_min),
-                "x_vals": [float(test_x) for test_x in self.x_val_trace],
-                "y_vals": [float(test_y) for test_y in self.y_val_trace]
+                "heading_offset": float(self.rot_offset_needed)
             }
             path_to_file = os.path.abspath(os.path.join(os.getcwd(), "Config", self.data_pull_file))
             os.makedirs(os.path.dirname(path_to_file), exist_ok= True)

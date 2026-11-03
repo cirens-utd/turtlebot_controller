@@ -68,7 +68,7 @@ class StartPoint(Agent):
 
         # Move to desired start point
         
-        self.move_to_position(self.starting_point)
+        self.move_to_position(np.array(self.starting_point))
 
         if self.motion_complete and datetime.datetime.now() >= self.motion_complete_time + datetime.timedelta(seconds=self.complete_wait):
             self.robot_status = "FINISHED"
