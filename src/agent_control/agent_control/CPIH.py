@@ -75,7 +75,7 @@ class CPIH(Agent):
 
         # check to see that all robots are in the right orientation
         if not self.robot_moving:
-            test_angle = self.start_heading
+            test_angle = self._start_heading
             if test_angle == 0 or test_angle == np.pi * 2:
                 test_angle = (test_angle + np.pi) % (np.pi * 2)
                 neighbor_facing = (neighbor_facing + np.pi) % (np.pi * 2)
