@@ -9,9 +9,7 @@ shift
 shift
 other_robots="[$(echo "$@" | sed 's/ /,/g')]"
 
-# add -tt if you want to open session
-# Have to remove the -tt if restart is needed
-ssh -tt ${USER}@${pi_ip} << EOF
+ssh ${USER}@${pi_ip} << EOF
 
     cd $pi_wrk_space
     source /opt/ros/humble/setup.bash
@@ -26,6 +24,14 @@ ssh -tt ${USER}@${pi_ip} << EOF
         sleep 3
     fi
 
+EOF
+
+ssh -tt ${USER}@${pi_ip} << EOF
+
+    cd $pi_wrk_space
+    source /opt/ros/humble/setup.bash
+    source /etc/turtlebot4/setup.bash
+
     # Launching Mocab
     ./start_mocap.sh
 
@@ -37,6 +43,7 @@ ssh -tt ${USER}@${pi_ip} << EOF
     tmux attach-session -t ros_session2
 
     ### QE Start Points -s -2.7 -2.9 2.1 -3.7 1.7 -2.9 1.4 -3.7 -3.3 -3.4 -2.2 -3.4 -1 3.2 -.17 5 .91 2.9
+    ## ros2 run agent_control start_point.py --ros-args -p robot.id:=4 -p robot.neighbors:='[4]' -p Start.position:='[0.0,0.0]' -p laser.avoid:=false
     
 EOF
 
@@ -44,6 +51,7 @@ EOF
     #   --params-file src/agent_control/config/CPIH/StartPositions/9_CircleStart.yaml \
     #   --params-file src/agent_control/config/CPIH/StartPositions/9_ClusterStart.yaml \
     #   --params-file src/agent_control/config/CPIH/StartPositions/9_RandomStart.yaml \
+
     #   --params-file src/agent_control/config/CPIH/StartPositions/12_CircleStart.yaml \
     #   --params-file src/agent_control/config/CPIH/StartPositions/12_ClusterStart.yaml \
     #   --params-file src/agent_control/config/CPIH/StartPositions/12_RandomStart.yaml \
