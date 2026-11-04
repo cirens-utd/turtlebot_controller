@@ -84,6 +84,7 @@ def main(args=None):
     ## Start Simulation Script
     ## ros2 launch turtlebot_base launch_sim.launch.py 
     ## ros2 launch turtlebot_base launch_robots.launch.py yaml_load:=False robot_number:=4
+    ## ros2 run agent_control start_point.py --ros-args -p robot.id:=4 -p robot.neighbors:='[4]' -p Start.position:='[0.0,0.0]' -p laser.avoid:=false
 
     my_robot = None
     try:
