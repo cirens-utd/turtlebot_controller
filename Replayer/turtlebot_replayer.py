@@ -190,20 +190,18 @@ class ReplayVisualizer:
         # turtle_replay_file = "../Replays/Example.turtleReplay"
         # turtle_replay_file = "Example_Pretty.turtleReplay"
 
-        with zipfile.ZipFile(turtle_replay_file, 'r') as zip_ref:
-            zip_ref.extractall("usable_replay")
+        with zipfile.ZipFile(turtle_replay_file, "r") as zip_ref:
+                inner_file = zip_ref.namelist()[0]
+                self.title = inner_file
 
-        file_name = listdir(r"usable_replay/")[0]
-        self.title = file_name
+                with zip_ref.open(inner_file) as curFile:
+                    for line in curFile:
+                        line = line.decode("utf-8", errors="ignore").strip()
 
-        with open(r"usable_replay/" + file_name, 'r', errors="ignore") as curFile:
-            file_content = curFile.read()
-            json_arrays = file_content.strip().split("\n")
-            for json_array in json_arrays:
-                self.replay_data.append(json.loads(json_array))
+                        if not line:
+                            continue
 
-        remove(r"usable_replay/" + file_name)
-        rmdir(r"usable_replay/")
+                        self.replay_data.extend(json.loads(line))
 
         if self.beautify:
             with open("Pretty_JSON.json", 'w') as file:
@@ -213,8 +211,8 @@ class ReplayVisualizer:
 
     def extract_data(self):
         # Verify version of replay is correct
-        if "replayVersion" not in self.replay_data[0][0] or self.replay_data[0][0]['replayVersion'] < LATEST_SCHEMA['replayVersion']:
-            current_version = self.replay_data[0][0]['replayVersion'] if 'replayVersion' in self.replay_data[0][0] else 0
+        if "replayVersion" not in self.replay_data[0] or self.replay_data[0]['replayVersion'] < LATEST_SCHEMA['replayVersion']:
+            current_version = self.replay_data[0]['replayVersion'] if 'replayVersion' in self.replay_data[0] else 0
             latest_version = LATEST_SCHEMA['replayVersion']
             save = messagebox.askyesno(
                     title="Overwrite Existing file?",
@@ -227,23 +225,22 @@ class ReplayVisualizer:
             self.replay_data = load_fix_and_save(turtle_replay_file, zip_output=turtle_replay_file, output_dir=path.basename(turtle_replay_file), verbose=True, save=save)
 
         errors = {}
-        for line in self.replay_data:
-            for entry in line:
-                self.total_frames += 1
+        for entry in self.replay_data:
+            self.total_frames += 1
 
-                for key in self.replay_schema:
-                    try:
-                        # --- custom extractor ---
-                        if key in self.extract_map:
-                            self.extract_map[key](entry)
-                            continue
+            for key in self.replay_schema:
+                try:
+                    # --- custom extractor ---
+                    if key in self.extract_map:
+                        self.extract_map[key](entry)
+                        continue
 
-                        # --- default extractor ---
-                        self.data[key].append(entry[key])
+                    # --- default extractor ---
+                    self.data[key].append(entry[key])
 
-                    except Exception as e:
-                        if key not in errors:
-                            errors[key] = e
+                except Exception as e:
+                    if key not in errors:
+                        errors[key] = e
         for key, value in errors.items():
             print(f"Replay extract failed for {key}: {value}")
 
