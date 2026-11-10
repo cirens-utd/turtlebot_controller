@@ -11,7 +11,7 @@ import matplotlib.patches as patches
 import argparse
 import pdb
 
-new_start_path = path.abspath(path.join(getcwd(), "..", "Replays","CPIH_Paper","AdversaryStatic"))
+new_start_path = path.abspath(path.join(getcwd(), "..", "Replays","CPIH_Paper", "Experiments", "AdversaryStatic"))
 
 class TukeyCenterPointPlugin:
     def __init__(self, color=None, alpha=0.25):
