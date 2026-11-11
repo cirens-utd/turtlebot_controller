@@ -40,6 +40,109 @@ DEFAULT_ADVERSARY_CONTROLLERS = [
 ###############################################################################
 
 def evaluate_trial(experiement_data):
+    """
+        Evaluates the Experiements and returns the results.
+
+        ****************************************************
+        ****************   Grading Merics   ****************
+        ****************************************************
+        Consensus Distance:
+            - The total distance each robot is away from the good neighbors
+            - Measures how effectective the convergance is
+
+        All-Good Consensus Delta:
+            - Final convergence point against theoretical consensus if every robot were honest. 
+            - Measures how much the algorithm preserves teh swarm's original intent
+        
+        Good-Only Consensus Delta:
+            - Final convergence point agasint theoritical consens of only honest robots
+            - Measures adversary rejection effectiveness
+
+        Correct Convergence
+            - Determin whether the swarm converged to an acceptable location
+            - Grade is based off if the swarm converges and where the swarm converges
+                - 0 -> Didn't converge 
+                - 0 -> Converged at adversaries
+                - 1 -> Converged outside convey hull but away from adversaries
+                - 2 -> Converged outside convex hull of good robots
+            
+        Wondering Time
+            - The total amount of time a robot spends ouside teh initial good-agent convex hull.
+            - The reference hull is generated from the good robots' position at time 0s
+            - Measures the swarm's deviation from the original safe operation region
+
+        Safe Region Leakage
+            - Computes the amount of the calculated region from each robot leaking out of the convex hull of goood robots at each iteration
+            - Measures the probability of selecting an unsafe point in each iteration
+
+        Safe Region Converage
+            - Computes how much of the convex hull the region was able to cover
+            - Measures the percent of the calculated region covers the convex hull region in each iteration
+
+        Convergence Time
+            - Experiement Completion Time
+            - Time from each robot going to Running to Complete or cancelation of the code
+            - Measures the time used in each experiement
+
+
+        Parameters
+        ----------
+        experiement_data : dict
+            {
+                "trial_path": pathlib.PosixPath,
+                "adversary_pattern": str,
+                "graph_type": str,
+                "push_mode": str,
+                "mode": str,
+                "formation": str,
+                "trial_name": str,
+                "replay_files": list[pathlib.Path],
+                "robots": dict
+                    {
+                        "robots": {
+                            robot_name: {
+                                "filename": str,
+                                "controller": str,
+                                "is_adversary": bool,
+                                "samples": list,
+                                "initial_state": dict,
+                                "final_state": dict
+                            }
+                        },
+                        "num_robots": int,
+                        "num_adversaries": int,
+                        "num_good_robots": int,
+                        "adversary_names": list,
+                        "good_robot_names": list
+                    }
+            }
+
+        Returns
+        -------
+        dict
+        {
+            "trial_name": trial_path.name,
+            "num_replay_files": len(replay_files),
+            ß
+            "adversary_pattern": adversary_pattern,
+            "graph_type": graph_type,
+            "push_mode": push_mode,
+            "mode": mode,
+            "formation": formation,
+
+            # Grading Metrics
+            "consensus_distance": None,
+            "all_good_consensus_delta": None,
+            "good_only_consensus_delta": None,
+            "correct_convergance": None,
+            "wondering_time": None,
+            "safe_region_leakage": None,
+            "safe_region_converage": None,
+            "convergence_time": None,
+        }
+    """
+
+    pdb.set_trace()
 
     return {
         "trial_name": trial_path.name,
@@ -97,14 +200,12 @@ def discover_experiments(root_path):
 
         experiment_data = {
             "trial_path": trial_dir,
-
             "adversary_pattern": rel_parts[0],
             "graph_type": rel_parts[1],
             "push_mode": rel_parts[2],
             "mode": rel_parts[3],
             "formation": rel_parts[4],
             "trial_name": rel_parts[5],
-
             "replay_files": sorted(
                 trial_dir.glob("*.turtleReplay")
             ),
@@ -114,7 +215,6 @@ def discover_experiments(root_path):
             experiment_data["replay_files"]
         )
 
-        pdb.set_trace()
         trial_result = evaluate_trial(experiment_data)
 
         flat_results.append(trial_result)
@@ -221,15 +321,7 @@ def load_trial_data(replay_files, adversary_controllers=None):
             "filename": replay_file.name,
             "controller": controller,
             "is_adversary": is_adversary,
-
-            #
-            # Entire replay
-            #
             "samples": replay_data,
-
-            #
-            # Convenience references
-            #
             "initial_state": first_entry,
             "final_state": last_entry,
         }
@@ -281,13 +373,8 @@ def defaultdict_to_dict(d):
 
 if __name__ == "__main__":
 
-    #
-    # Example:
-    #
-    # root = "/data/ConsensusExperiments"
-    #
-    root = r"/Users/jss150630/Programs/VM/UbuntuJellyfish/SharedDrive/turtlebot_simulator/Replays/CPIH_Paper/Experiments"
-    output_dir = root.partent
+    root = Path("/Users/jss150630/Programs/VM/UbuntuJellyfish/SharedDrive/turtlebot_simulator/Replays/CPIH_Paper/Experiments")
+    output_dir = root.parent
 
     hierarchy_results, flat_results = discover_experiments(root)
 
