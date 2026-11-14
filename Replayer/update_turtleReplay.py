@@ -107,7 +107,7 @@ uncompress_file = None
 # =========================
 # Schema Fix Function
 # =========================
-def fill_missing(data, template, path="", start=True, updated_errors=None):
+def fill_missing(data, template, path="", updated_errors=None):
     """
     Recursively fills missing keys in 'data' using 'template'.
     Does NOT overwrite existing values.
@@ -118,11 +118,7 @@ def fill_missing(data, template, path="", start=True, updated_errors=None):
     for key, value in template.items():
         full_key = f"{path}.{key}" if path else key
 
-        if start:
-            for line_data in data:
-                updated_errors = _fill_missing_function(key, full_key, value, line_data, updated_errors)
-        else:
-            updated_errors = _fill_missing_function(key, full_key, value, data, updated_errors)
+        updated_errors = _fill_missing_function(key, full_key, value, data, updated_errors)
 
     return data, updated_errors
 
@@ -141,11 +137,10 @@ def _fill_missing_function(key, full_key, value, data, updated_errors):
                         sub_value,
                         template,
                         path=f"{full_key}.{sub_key}",
-                        start=False,
                         updated_errors=updated_errors
                     )
     elif isinstance(value, dict) and isinstance(data[key], dict):
-        _, updated_errors = fill_missing(data[key], value, full_key + "." + key, False, updated_errors)
+        _, updated_errors = fill_missing(data[key], value, full_key + "." + key, updated_errors)
 
     return updated_errors
 
@@ -158,23 +153,18 @@ def load_replay_zip(zip_path, extract_dir="usable_replay"):
     """
     global uncompress_file
 
-    with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-        zip_ref.extractall(extract_dir)
-
-    file_name = os.listdir(extract_dir)[0]
-    uncompress_file = file_name
-    full_path = os.path.join(extract_dir, file_name)
-
     data = []
+    with zipfile.ZipFile(zip_path, "r") as zip_ref:
+        uncompress_file = zip_ref.namelist()[0]
 
-    with open(full_path, 'r', errors="ignore") as f:
-        lines = f.read().strip().split("\n")
-        for line in lines:
-            data.append(json.loads(line))
+        with zip_ref.open(uncompress_file) as curFile:
+            for line in curFile:
+                line = line.decode("utf-8", errors="ignore").strip()
 
-    # Cleanup extracted files
-    os.remove(full_path)
-    os.rmdir(extract_dir)
+                if not line:
+                    continue
+
+                data.extend(json.loads(line))
 
     return data
 
@@ -308,8 +298,8 @@ if __name__ == "__main__":
         print(f"Processing: {file_path}")
 
         # Example: save into "fixed" subfolder next to original file
-        # output_dir = path.join(path.dirname(file_path), "fixed")
-        output_dir = path.dirname(file_path)
+        output_dir = path.join(path.dirname(file_path), "fixed")
+        # output_dir = path.dirname(file_path)
 
         load_fix_and_save(
             file_path,
