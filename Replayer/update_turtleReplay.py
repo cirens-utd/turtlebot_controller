@@ -298,8 +298,8 @@ if __name__ == "__main__":
         print(f"Processing: {file_path}")
 
         # Example: save into "fixed" subfolder next to original file
-        output_dir = path.join(path.dirname(file_path), "fixed")
-        # output_dir = path.dirname(file_path)
+        # output_dir = path.join(path.dirname(file_path), "fixed")
+        output_dir = path.dirname(file_path)
 
         load_fix_and_save(
             file_path,
