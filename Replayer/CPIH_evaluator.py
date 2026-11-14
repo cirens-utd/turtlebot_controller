@@ -98,6 +98,18 @@ def evaluate_trial(experiement_data):
             - Time from each robot going to Running to Complete or cancelation of the code
             - Measures the time used in each experiement
 
+        Maximum Tukey Depth
+            - Shows the maximum tukey depth seen in the run
+
+        Average Tukey Depth
+            - Takes an average of the tukey depth over the time the robot was running
+
+        Minimum Tukey Depth
+            - Shows the minimum tukey depth seen in the run
+
+        Centerpoint Depth
+            - Shows the centerpoint depth for the run
+
         #### Adversary Robots
         Adversary Footprint:
             - The size of the convex hull of the adversaries showing the area the adversaiers make together
@@ -185,7 +197,11 @@ def evaluate_trial(experiement_data):
                     "wondering_time": None,
                     "safe_region_leakage": None,
                     "safe_region_converage": None,
-                    "convergence_time": None
+                    "convergence_time": None,
+                    "maximum_tukey_depth": None,
+                    "average_tukey_depth": None,
+                    "minimum_tukey_depth": None,
+                    "centerpoint_depth": None
                 },
                 "Robot2": {}...
             },
@@ -222,7 +238,11 @@ def evaluate_trial(experiement_data):
         "wondering_time": None,
         "safe_region_leakage": None,
         "safe_region_converage": None,
-        "convergence_time": None
+        "convergence_time": None,
+        "maximum_tukey_depth": None,
+        "average_tukey_depth": None,
+        "minimum_tukey_depth": None,
+        "centerpoint_depth": None
     }
 
     bad_results = {
@@ -240,15 +260,15 @@ def evaluate_trial(experiement_data):
         # Trial Information
         "trial_name": trial_name,
         "trial_path": experiement_data['trial_path'],
-        "num_replay_files": len(replay_files),
+        "num_replay_files": len(experiement_data['replay_files']),
         
         # Trial Parameters
-        "adversary_motion": adversary_motion,
-        "graph_type": graph_type,
-        "push_mode": push_mode,
-        "algorithm": algorithm,
-        "mode": mode,
-        "formation": formation,
+        "adversary_motion": experiement_data['adversary_motion'],
+        "graph_type": experiement_data['graph_type'],
+        "push_mode": experiement_data['push_mode'],
+        "algorithm": experiement_data['algorithm'],
+        "mode": experiement_data['mode'],
+        "formation": experiement_data['formation'],
 
         "Good_Results" : {},
         "Bad_results": {}
