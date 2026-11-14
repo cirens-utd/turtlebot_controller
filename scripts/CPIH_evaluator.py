@@ -17,9 +17,9 @@ import pdb
 # └── Adversary Motion Pattern
 #     └── Underlying Graph
 #         └── Push / NonPush
-#             └── Normal / SelfTrust
-#                 └── Formation
-#                     └── Trial
+#             └── Algorithm
+#                 └── Normal / SelfTrust
+#                     └── Formation
 #                         ├── robot_1.turtleReplay
 #                         ├── robot_2.turtleReplay
 #                         └── ...
@@ -46,6 +46,8 @@ def evaluate_trial(experiement_data):
         ****************************************************
         ****************   Grading Merics   ****************
         ****************************************************
+
+        #### Good Robots
         Consensus Distance:
             - The total distance each robot is away from the good neighbors
             - Measures how effectective the convergance is
@@ -57,6 +59,18 @@ def evaluate_trial(experiement_data):
         Good-Only Consensus Delta:
             - Final convergence point agasint theoritical consens of only honest robots
             - Measures adversary rejection effectiveness
+
+        Nearest Adversary Seperation:
+            - Shows how close the swarm got to an adversary
+            - Measures the distance from the swarm converagance to the nearest Adversary
+
+        Average Adversary Seperation (Adversary Spread):
+            - shows how close the swarm was to all the advesaires
+            - Measures the distance to each adversary and finds the mean of these values.
+
+        Farthest Adversary Seperation:
+            - Shows how close the swarm got to the farthest adversary
+            - Measures the distance from the swarm converagance to the farthest Adversary
 
         Correct Convergence
             - Determin whether the swarm converged to an acceptable location
@@ -84,18 +98,42 @@ def evaluate_trial(experiement_data):
             - Time from each robot going to Running to Complete or cancelation of the code
             - Measures the time used in each experiement
 
+        #### Adversary Robots
+        Adversary Footprint:
+            - The size of the convex hull of the adversaries showing the area the adversaiers make together
+            - Measures the convex hull between the adversaries
+            
+        Consensus Distance:
+            - The total distance each robot is away from the good neighbors
+            - Measures how effectective the convergance is
+
+        Consensus Delta:
+            - the total distance from adversaries converages to the center of the convex hull of good robots
+            - measures how far away the adversaries were from the center of the good robots convex hull
+
+        Nearest Adversary Seperation:
+            - Shows how close the swarm got to an adversary
+            - Measures the distance from the swarm converagance to the nearest Adversary
+
+        Average Adversary Delta (Adversary Spread):
+            - shows how close the swarm was to all the advesaires
+            - Measures the distance to each adversary and finds the mean of these values.
+
+        Farthest Adversary Seperation:
+            - Shows how close the swarm got to the farthest adversary
+            - Measures the distance from the swarm converagance to the farthest Adversary
 
         Parameters
         ----------
         experiement_data : dict
             {
                 "trial_path": pathlib.PosixPath,
-                "adversary_pattern": str,
+                "adversary_motion": str,
                 "graph_type": str,
                 "push_mode": str,
+                "alorithm": str,
                 "mode": str,
                 "formation": str,
-                "trial_name": str,
                 "replay_files": list[pathlib.Path],
                 "robots": dict
                     {
@@ -121,46 +159,99 @@ def evaluate_trial(experiement_data):
         -------
         dict
         {
-            "trial_name": trial_path.name,
+            # Trial Information
+            "trial_name": trial_name,
+            "trial_path": trial_path,
             "num_replay_files": len(replay_files),
-            ß
-            "adversary_pattern": adversary_pattern,
+            
+            # Trial Parameters
+            "adversary_motion": adversary_motion,
             "graph_type": graph_type,
             "push_mode": push_mode,
+            "algorithm": algorithm,
             "mode": mode,
             "formation": formation,
 
             # Grading Metrics
-            "consensus_distance": None,
-            "all_good_consensus_delta": None,
-            "good_only_consensus_delta": None,
-            "correct_convergance": None,
-            "wondering_time": None,
-            "safe_region_leakage": None,
-            "safe_region_converage": None,
-            "convergence_time": None,
+            "Good_Results" : {
+                "Robot1": {
+                    "consensus_distance": None,
+                    "all_good_consensus_delta": None,
+                    "good_only_consensus_delta": None,
+                    "nearest_adversary_seperation": None,
+                    "average_adversary_seperation": None,
+                    "farthest_adversary_seperation": None,
+                    "correct_convergance": None,
+                    "wondering_time": None,
+                    "safe_region_leakage": None,
+                    "safe_region_converage": None,
+                    "convergence_time": None
+                },
+                "Robot2": {}...
+            },
+            "Bad_results": {
+                "Robot10": {
+                    "adversary_footprint": None,
+                    "consensus_distance": None,
+                    "consensus_delta": None,
+                    "nearest_adversay_delta": None,
+                    "average_adversary_delta": None,
+                    "farthest_adversary_delta": None
+                },
+                "Robot11": ...
+            }
         }
     """
+    sep = '_'
+    trial_name = experiement_data['adversary_motion'] + sep + \
+        experiement_data['graph_type'] + sep + \
+        experiement_data['push_mode'] + sep + \
+        experiement_data['algorithm'] + sep + \
+        experiement_data['mode'] + sep + \
+        experiement_data['formation']
+
+    good_results = {
+        # Good Grading Metrics
+        "consensus_distance": None,
+        "all_good_consensus_delta": None,
+        "good_only_consensus_delta": None,
+        "nearest_adversary_seperation": None,
+        "average_adversary_seperation": None,
+        "farthest_adversary_seperation": None,
+        "correct_convergance": None,
+        "wondering_time": None,
+        "safe_region_leakage": None,
+        "safe_region_converage": None,
+        "convergence_time": None
+    }
+
+    bad_results = {
+        "adversary_footprint": None,
+        "consensus_distance": None,
+        "consensus_delta": None,
+        "nearest_adversay_delta": None,
+        "average_adversary_delta": None,
+        "farthest_adversary_delta": None
+    }
 
     pdb.set_trace()
 
     return {
-        "trial_name": trial_path.name,
+        # Trial Information
+        "trial_name": trial_name,
+        "trial_path": experiement_data['trial_path'],
         "num_replay_files": len(replay_files),
-
-        "adversary_pattern": adversary_pattern,
+        
+        # Trial Parameters
+        "adversary_motion": adversary_motion,
         "graph_type": graph_type,
         "push_mode": push_mode,
+        "algorithm": algorithm,
         "mode": mode,
         "formation": formation,
 
-        # Future metrics go here
-        "all_good_error": None,
-        "good_only_error": None,
-        "converged": None,
-        "outside_hull_percent": None,
-        "safe_area_score": None,
-        "convergence_time": None,
+        "Good_Results" : {},
+        "Bad_results": {}
     }
 
 
@@ -200,12 +291,12 @@ def discover_experiments(root_path):
 
         experiment_data = {
             "trial_path": trial_dir,
-            "adversary_pattern": rel_parts[0],
+            "adversary_motion": rel_parts[0],
             "graph_type": rel_parts[1],
             "push_mode": rel_parts[2],
-            "mode": rel_parts[3],
-            "formation": rel_parts[4],
-            "trial_name": rel_parts[5],
+            "algorithm": rel_parts[3],
+            "mode": rel_parts[4],
+            "formation": rel_parts[5],
             "replay_files": sorted(
                 trial_dir.glob("*.turtleReplay")
             ),
@@ -220,12 +311,12 @@ def discover_experiments(root_path):
         flat_results.append(trial_result)
 
         hierarchy_results \
-            [experiment_data["adversary_pattern"]] \
+            [experiment_data["adversary_motion"]] \
             [experiment_data["graph_type"]] \
             [experiment_data["push_mode"]] \
+            [experiment_data["algorithm"]] \
             [experiment_data["mode"]] \
-            [experiment_data["formation"]] \
-            [experiment_data["trial_name"]] = trial_result
+            [experiment_data["formation"]] = trial_result
 
     return hierarchy_results, flat_results
 
