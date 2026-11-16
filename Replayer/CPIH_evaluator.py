@@ -81,7 +81,7 @@ def evaluate_trial(experiement_data):
                 - 2 -> Converged outside convex hull of good robots
             
         Wondering Time
-            - The total amount of time a robot spends ouside teh initial good-agent convex hull.
+            - The total amount of time a robot spends ouside the initial good-agent convex hull.
             - The reference hull is generated from the good robots' position at time 0s
             - Measures the swarm's deviation from the original safe operation region
 
