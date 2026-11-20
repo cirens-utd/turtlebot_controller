@@ -2,6 +2,9 @@
 
 from pathlib import Path
 from collections import defaultdict
+from shapely.geometry import Polygon, Point
+from itertools import combinations
+import copy
 import json
 import zipfile
 import pdb
@@ -49,7 +52,7 @@ def evaluate_trial(experiement_data):
 
         #### Good Robots
         Consensus Distance:
-            - The total distance each robot is away from the good neighbors
+            - The average distance each good robot is away from the good neighbors
             - Measures how effectective the convergance is
 
         All-Good Consensus Delta:
@@ -78,7 +81,7 @@ def evaluate_trial(experiement_data):
                 - 0 -> Didn't converge 
                 - 0 -> Converged at adversaries
                 - 1 -> Converged outside convey hull but away from adversaries
-                - 2 -> Converged outside convex hull of good robots
+                - 2 -> Converged inside convex hull of good robots
             
         Wondering Time
             - The total amount of time a robot spends ouside the initial good-agent convex hull.
@@ -116,7 +119,7 @@ def evaluate_trial(experiement_data):
             - Measures the convex hull between the adversaries
             
         Consensus Distance:
-            - The total distance each robot is away from the good neighbors
+            - The average distance each good robot is away from the good neighbors
             - Measures how effectective the convergance is
 
         Consensus Delta:
@@ -225,36 +228,27 @@ def evaluate_trial(experiement_data):
         experiement_data['algorithm'] + sep + \
         experiement_data['mode'] + sep + \
         experiement_data['formation']
+    adversary_names = experiement_data['adversary_names']
 
-    good_results = {
-        # Good Grading Metrics
-        "consensus_distance": None,
-        "all_good_consensus_delta": None,
-        "good_only_consensus_delta": None,
-        "nearest_adversary_seperation": None,
-        "average_adversary_seperation": None,
-        "farthest_adversary_seperation": None,
-        "correct_convergance": None,
-        "wondering_time": None,
-        "safe_region_leakage": None,
-        "safe_region_converage": None,
-        "convergence_time": None,
-        "maximum_tukey_depth": None,
-        "average_tukey_depth": None,
-        "minimum_tukey_depth": None,
-        "centerpoint_depth": None
-    }
-
-    bad_results = {
-        "adversary_footprint": None,
-        "consensus_distance": None,
-        "consensus_delta": None,
-        "nearest_adversay_delta": None,
-        "average_adversary_delta": None,
-        "farthest_adversary_delta": None
-    }
-
+    good_results = {}
+    bad_results = {}
     pdb.set_trace()
+
+    robots = experiement_data['robots']['robots']
+
+    # Loop Through each robot
+    for robot_name, robot_data in robots.items():
+        samples = robot_data['samples']
+
+        if robot_data['is_adversary']:
+            bad_results[robot_name] = compute_bad_metrics(samples)
+        else:
+            # TODO: Working on good_results. 
+            # Need to keep working on correct convergance. I don't like how the close to adversary is calculated
+            # Maybe will use the consensus of adversaries and compare to that??
+            # Do I want a metric for how far away from the hulll we were pulled and compare that to the adversary centroid?
+            good_results[robot_name] = compute_good_metrics(samples, adversary_names)
+
 
     return {
         # Trial Information
@@ -274,6 +268,424 @@ def evaluate_trial(experiement_data):
         "Bad_results": {}
     }
 
+def compute_bad_metrics(samples):
+    """
+        #### Adversary Robots
+        Adversary Footprint:
+            - The size of the convex hull of the adversaries showing the area the adversaiers make together
+            - Measures the convex hull between the adversaries
+            
+        Consensus Distance:
+            - The average distance each good robot is away from the good neighbors
+            - Measures how effectective the convergance is
+
+        Consensus Delta:
+            - the total distance from adversaries converages to the center of the convex hull of good robots
+            - measures how far away the adversaries were from the center of the good robots convex hull
+
+        Nearest Adversary Seperation:
+            - Shows how close the swarm got to an adversary
+            - Measures the distance from the swarm converagance to the nearest Adversary
+
+        Average Adversary Delta (Adversary Spread):
+            - shows how close the swarm was to all the advesaires
+            - Measures the distance to each adversary and finds the mean of these values.
+
+        Farthest Adversary Seperation:
+            - Shows how close the swarm got to the farthest adversary
+            - Measures the distance from the swarm converagance to the farthest Adversary
+
+        Parameters
+        ----------
+        "samples": list
+            samples.keys() = ['time', 'my_name', 'mainClass', 'replayVersion', 'robot_status', 'robot_ready', 'position_started', 'neighbors_started', 'lidar_started', 'camera_started', 'camera_setup', 'battery_received', 'wait_for_battery', 'robot_moving', 'robot_moving_wait', 'desired_heading', 'destination_reached', 'motion_complete', 'neighbors_complete', 'movement_restricted', 'led_light_state', 'battery_dict', 'path_obstructed', 'path_obstructed_laser', 'path_obstructed_neighbor', 'laser_avoid_error', 'destination_tolerance', 'angle_tolerance', 'desired_location', 'attempted_desired_location', 'desired_angle', 'my_pose', 'neighbor_poses', 'neighbor_position', 'neighbor_orientation', 'safe_area', 'tukey_depth', 'center_depth', 'self_trust', 'safe_point_mode', 'imprecision']
+
+        Returns
+        -------
+        dict
+        {
+            "adversary_footprint": None,
+            "consensus_distance": None,
+            "consensus_delta": None,
+            "nearest_adversay_delta": None,
+            "average_adversary_delta": None,
+            "farthest_adversary_delta": None
+        }
+    """
+    bad_results_template = {
+        "adversary_footprint": None,
+        "consensus_distance": None,
+        "consensus_delta": None,
+        "nearest_adversay_delta": None,
+        "average_adversary_delta": None,
+        "farthest_adversary_delta": None
+    }
+def compute_good_metrics(samples, adversary_names = []):
+    """
+        #### Good Robots
+        Consensus Distance:
+            - The average distance each good robot is away from the good neighbors
+            - Measures how effectective the convergance is
+
+        All-Good Consensus Delta:
+            - Final convergence point against theoretical consensus if every robot were honest. 
+            - Measures how much the algorithm preserves teh swarm's original intent
+        
+        Good-Only Consensus Delta:
+            - Final convergence point agasint theoritical consens of only honest robots
+            - Measures adversary rejection effectiveness
+
+        Nearest Adversary Seperation:
+            - Shows how close the swarm got to an adversary
+            - Measures the distance from the swarm converagance to the nearest Adversary
+
+        Average Adversary Seperation (Adversary Spread):
+            - shows how close the swarm was to all the advesaires
+            - Measures the distance to each adversary and finds the mean of these values.
+
+        Farthest Adversary Seperation:
+            - Shows how close the swarm got to the farthest adversary
+            - Measures the distance from the swarm converagance to the farthest Adversary
+
+        Correct Convergence
+            - Determin whether the swarm converged to an acceptable location
+            - Grade is based off if the swarm converges and where the swarm converges
+                - 0 -> Didn't converge 
+                - 0 -> Converged at adversaries
+                - 1 -> Converged outside convey hull but away from adversaries
+                - 2 -> Converged inside convex hull of good robots
+            
+        Wondering Time
+            - The total amount of time a robot spends ouside the initial good-agent convex hull.
+            - The reference hull is generated from the good robots' position at time 0s
+            - Measures the swarm's deviation from the original safe operation region
+
+        Safe Region Leakage
+            - Computes the amount of the calculated region from each robot leaking out of the convex hull of goood robots at each iteration
+            - Measures the probability of selecting an unsafe point in each iteration
+
+        Safe Region Converage
+            - Computes how much of the convex hull the region was able to cover
+            - Measures the percent of the calculated region covers the convex hull region in each iteration
+
+        Convergence Time
+            - Experiement Completion Time
+            - Time from each robot going to Running to Complete or cancelation of the code
+            - Measures the time used in each experiement
+
+        Maximum Tukey Depth
+            - Shows the maximum tukey depth seen in the run
+
+        Average Tukey Depth
+            - Takes an average of the tukey depth over the time the robot was running
+
+        Minimum Tukey Depth
+            - Shows the minimum tukey depth seen in the run
+
+        Centerpoint Depth
+            - Shows the centerpoint depth for the run
+
+        Parameters
+        ----------
+        "samples": list
+            samples.keys() = ['time', 'my_name', 'mainClass', 'replayVersion', 'robot_status', 'robot_ready', 'position_started', 'neighbors_started', 'lidar_started', 'camera_started', 'camera_setup', 'battery_received', 'wait_for_battery', 'robot_moving', 'robot_moving_wait', 'desired_heading', 'destination_reached', 'motion_complete', 'neighbors_complete', 'movement_restricted', 'led_light_state', 'battery_dict', 'path_obstructed', 'path_obstructed_laser', 'path_obstructed_neighbor', 'laser_avoid_error', 'destination_tolerance', 'angle_tolerance', 'desired_location', 'attempted_desired_location', 'desired_angle', 'my_pose', 'neighbor_poses', 'neighbor_position', 'neighbor_orientation', 'safe_area', 'tukey_depth', 'center_depth', 'self_trust', 'safe_point_mode', 'imprecision']
+
+
+        Returns
+        -------
+        dict
+        {
+            "consensus_distance": None,
+            "all_good_consensus_delta": None,
+            "good_only_consensus_delta": None,
+            "nearest_adversary_seperation": None,
+            "average_adversary_seperation": None,
+            "farthest_adversary_seperation": None,
+            "correct_convergance": None,
+            "wondering_time": None,
+            "safe_region_leakage": None,
+            "safe_region_converage": None,
+            "convergence_time": None,
+            "maximum_tukey_depth": None,
+            "average_tukey_depth": None,
+            "minimum_tukey_depth": None,
+            "centerpoint_depth": None
+        }
+    """
+
+    good_results_template = {
+        # Good Grading Metrics
+        "consensus_distance": None,
+        "all_good_consensus_delta": None,
+        "good_only_consensus_delta": None,
+        "nearest_adversary_seperation": float("inf"),
+        "average_adversary_seperation": None,
+        "farthest_adversary_seperation": float("-inf"),
+        "correct_convergance": None,
+        "wondering_time": 0,
+        "safe_region_leakage": None,
+        "safe_region_converage": None,
+        "convergence_time": None,
+        "maximum_tukey_depth": float("-inf"),
+        "average_tukey_depth": None,
+        "minimum_tukey_depth": float("inf"),
+        "centerpoint_depth": None
+    }
+
+    # variables for calculations
+    started_running = False
+    start_time = None
+    end_time = None
+    good_start = []
+    bad_start = []
+    good_end = []
+    bad_end = []
+    good_hull = None
+    tukey_sum = 0
+    tukey_count = 0
+    leakage_sum = 0
+    leakage_count = 0
+    coverage_sum = 0
+    coverage_count = 0
+    previous_sample = None
+
+    for sample in samples:
+
+        status = sample["robot_status"]
+
+        if not started_running:
+
+            if status != "RUNNING":
+                continue
+
+            started_running = True
+            start_time = parse_time(sample["time"])
+
+            my_position = [
+                            sample['my_pose']['pose']['position']['x'],
+                            sample['my_pose']['pose']['position']['y']
+                        ]
+
+            # Build hull on first iteration
+            good_start = [my_position]
+
+            for other_id, other_data in sample["neighbor_poses"].items():
+
+                robot_id = f"robot{other_id}"
+                pos  = [
+                            other_data['pose']['position']['x'],
+                            other_data['pose']['position']['y']
+                        ]
+
+                if robot_id in adversary_names:
+                    bad_start.append(pose)
+                    continue
+                good_start.append(pose)
+
+            good_hull = build_hull(good_start)
+
+
+        my_position = [
+                        sample['my_pose']['pose']['position']['x'],
+                        sample['my_pose']['pose']['position']['y']
+                    ]
+
+        # Wandering Time
+        if previous_sample is not None:
+            dt = (
+                parse_time(sample["time"])
+                - parse_time(previous_sample["time"])
+            ).total_seconds()
+
+            if (good_hull is not None and not good_hull.contains(Point(my_position))):
+                good_results_template['wondering_time'] += dt
+
+        # Tukey Metrics
+        depth = sample["tukey_depth"]
+        good_results_template['maximum_tukey_depth'] = max(good_results_template['maximum_tukey_depth'], depth)
+        good_results_template['minimum_tukey_depth'] = min(good_results_template['minimum_tukey_depth'], depth)
+        tukey_sum += depth
+        tukey_count += 1
+
+        # Center Depth
+        good_results_template['centerpoint_depth'] = sample["center_depth"]
+
+        # Safe Region Metrics
+
+        safe_area = sample["safe_area"]
+
+        if len(safe_area) >= 3:
+
+            safe_polygon = Polygon(safe_area)
+
+            if good_hull is not None:
+
+                leak_area = (safe_polygon.difference(good_hull).area)
+
+                leakage_sum += (leak_area / safe_polygon.area)
+
+                leakage_count += 1
+
+                coverage_sum += (safe_polygon.intersection(good_hull).area / good_hull.area)
+
+                coverage_count += 1
+
+        if status == "COMPLETE":
+            end_time = parse_time(sample["time"])
+
+        previous_sample = sample
+
+    if status != "COMPLETE":
+        end_time = parse_time(sample["time"])
+
+    # Concensus Distance
+    concensus_distances = []
+    good_end.append(my_position)
+    for other_id, other_data in sample["neighbor_poses"].items():
+        robot_id = f"robot{other_id}"
+        pos = [
+                    other_data['pose']['position']['x'],
+                    other_data['pose']['position']['y']
+                ]
+
+        if robot_id in adversary_names:
+            bad_end.append(pose)
+            continue
+        good_end.append(pose)
+        concensus_distances.append(distance(my_position, pose))
+
+
+    good_results_template['consensus_distance'] = sum(concensus_distances) / len(concensus_distances)
+    final_consensus_point = mean_position(good_end)
+
+    # Concensus deltas
+    all_good_consensus_point = mean_position(good_start + bad_start)
+    good_only_consensus_point = mean_position(good_start)
+    good_results_template['all_good_consensus_delta'] = distance(final_consensus_point, all_good_consensus_delta)
+    good_results_template['good_only_consensus_delta'] = distance(final_consensus_point, good_only_consensus_point)
+
+    # Adversary Calculations
+    nearest_distance = float('inf')
+    farthest_distance = 0
+    distance_sum = 0
+    for pose in bad_end:
+        d = distance(final_consensus_point, pose)
+
+        nearest_distance = min(nearest_distance, d)
+        farthest_distance = max(farthest_distance, d)
+        distance_sum += d
+    good_results_template['nearest_adversary_seperation'] = nearest_distance
+    good_results_template['average_adversary_seperation'] = distance_sum / len(bad_end)
+    good_results_template['farthest_adversary_seperation'] = farthest_distance
+
+    # Final calculations
+    good_results_template['correct_convergance'] = grade_convergance(good_end, bad_end, good_hull)
+    good_results_template['average_tukey_depth'] = (tukey_sum / tukey_count if tukey_count else None)
+    good_results_template['safe_region_leakage'] = (leakage_sum / leakage_count if leakage_count else None)
+    good_results_template['safe_region_converage'] = (coverage_sum / coverage_count if coverage_count else None)
+    good_results_template['convergence_time'] = ((end_time - start_time).total_seconds() if start_time and end_time else None)
+
+def grade_convergance(good, bad, hull, convergence_threshold=0.5, adversary_threshold=1.0):
+    """
+    Returns:
+        0 -> Did not converge
+        0 -> Converged at adversaries
+        1 -> Converged outside convex hull of good robots
+        2 -> Converged inside convex hull of good robots
+    """
+
+    # Compute convergence point
+    # (centroid of final good robot positions)
+
+    convergence_point = [
+        sum(p[0] for p in good) / len(good),
+        sum(p[1] for p in good) / len(good)
+    ]
+
+    # Check convergence
+    max_robot_seperation = 0.0
+    for p1, p2 in combinations(good_positions, 2):
+        max_distance = max(max_distance, distance(p1, p2))
+
+    if max_distance > convergence_threshold:
+        return 0
+
+    #
+    # Check proximity to adversaries
+    #
+
+    nearest_adversary = min(distance(adv, convergence_point) for adv in adversary_positions)
+
+    if nearest_adversary < adversary_threshold:
+        return 0
+
+    # Check whether convergence point
+    # lies inside the final good hull
+
+    if good_hull.contains(Point(convergence_point)):
+        return 2
+
+    return 1
+
+###############################################################################
+# Utility Function
+###############################################################################
+def parse_time(timestamp):
+    """
+        timestamp: 2026-10-23.100144
+        Formate is YYYY-MM-DD.HHMMSS
+    """
+    return datetime.strptime( timestamp, "%Y-%m-%d.%H%M%S")
+
+def distance(p1, p2):
+    """
+        Find the distance between two points
+        p1: [x1, y1]
+        p2: [x2, y2]
+
+        return sqrt( (x1 - x2)^2 + (y1 - y2)^2 )
+    """
+    return sqrt((p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2)
+
+def mean_position(points):
+    """
+        Finds the mean of all the points provided
+        points: [
+                    [x1, y1],
+                    [x2, y2]
+                ]
+    """
+    return [
+                sum(p[0] for p in points) / len(points),
+                sum(p[1] for p in points) / len(points)
+            ]
+def build_convex_hull(points):
+    """
+        points = [
+            [x1, y1],
+            [x2, y2],
+            ...
+        ]
+
+        Given a set of points, will return a shapely polygon of the hull
+    """
+
+    if len(points) < 3:
+        return None
+
+    try:
+
+        hull = ConvexHull(points)
+
+        hull_points = [
+            points[i]
+            for i in hull.vertices
+        ]
+
+        return Polygon(hull_points)
+
+    except Exception:
+        return None
 
 ###############################################################################
 # RESULT STORAGE
