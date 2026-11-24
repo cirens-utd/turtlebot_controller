@@ -2,8 +2,12 @@
 
 from pathlib import Path
 from collections import defaultdict
+from scipy.spatial import ConvexHull
 from shapely.geometry import Polygon, Point
 from itertools import combinations
+from datetime import datetime
+from math import sqrt
+import traceback
 import copy
 import json
 import zipfile
@@ -63,6 +67,10 @@ def evaluate_trial(experiement_data):
             - Final convergence point agasint theoritical consens of only honest robots
             - Measures adversary rejection effectiveness
 
+        Hull-seperation Distance:
+            - Find out how far away from the hull that we ended up
+            - Measures the distance this robot is from the Hull
+
         Nearest Adversary Seperation:
             - Shows how close the swarm got to an adversary
             - Measures the distance from the swarm converagance to the nearest Adversary
@@ -79,9 +87,9 @@ def evaluate_trial(experiement_data):
             - Determin whether the swarm converged to an acceptable location
             - Grade is based off if the swarm converges and where the swarm converges
                 - 0 -> Didn't converge 
-                - 0 -> Converged at adversaries
-                - 1 -> Converged outside convey hull but away from adversaries
-                - 2 -> Converged inside convex hull of good robots
+                - 1 -> Converged at adversaries
+                - 2 -> Converged outside convey hull but away from adversaries
+                - 3 -> Converged inside convex hull of good robots
             
         Wondering Time
             - The total amount of time a robot spends ouside the initial good-agent convex hull.
@@ -119,7 +127,7 @@ def evaluate_trial(experiement_data):
             - Measures the convex hull between the adversaries
             
         Consensus Distance:
-            - The average distance each good robot is away from the good neighbors
+            - The average distance each adversary robot is away from the other adversary neighbors
             - Measures how effectective the convergance is
 
         Consensus Delta:
@@ -193,6 +201,7 @@ def evaluate_trial(experiement_data):
                     "consensus_distance": None,
                     "all_good_consensus_delta": None,
                     "good_only_consensus_delta": None,
+                    hull_seperation_distance": None,
                     "nearest_adversary_seperation": None,
                     "average_adversary_seperation": None,
                     "farthest_adversary_seperation": None,
@@ -228,11 +237,11 @@ def evaluate_trial(experiement_data):
         experiement_data['algorithm'] + sep + \
         experiement_data['mode'] + sep + \
         experiement_data['formation']
-    adversary_names = experiement_data['adversary_names']
+
+    adversary_names = experiement_data['robots']['adversary_names']
 
     good_results = {}
     bad_results = {}
-    pdb.set_trace()
 
     robots = experiement_data['robots']['robots']
 
@@ -241,14 +250,9 @@ def evaluate_trial(experiement_data):
         samples = robot_data['samples']
 
         if robot_data['is_adversary']:
-            bad_results[robot_name] = compute_bad_metrics(samples)
+            bad_results[robot_name] = compute_adversary_metrics(samples, adversary_names)
         else:
-            # TODO: Working on good_results. 
-            # Need to keep working on correct convergance. I don't like how the close to adversary is calculated
-            # Maybe will use the consensus of adversaries and compare to that??
-            # Do I want a metric for how far away from the hulll we were pulled and compare that to the adversary centroid?
             good_results[robot_name] = compute_good_metrics(samples, adversary_names)
-
 
     return {
         # Trial Information
@@ -264,11 +268,11 @@ def evaluate_trial(experiement_data):
         "mode": experiement_data['mode'],
         "formation": experiement_data['formation'],
 
-        "Good_Results" : {},
-        "Bad_results": {}
+        "Good_Results" : good_results.copy(),
+        "Bad_results": bad_results.copy()
     }
 
-def compute_bad_metrics(samples):
+def compute_adversary_metrics(samples, adversary_names):
     """
         #### Adversary Robots
         Adversary Footprint:
@@ -276,7 +280,7 @@ def compute_bad_metrics(samples):
             - Measures the convex hull between the adversaries
             
         Consensus Distance:
-            - The average distance each good robot is away from the good neighbors
+            - The average distance each adversary robot is away from the other adversary neighbors
             - Measures how effectective the convergance is
 
         Consensus Delta:
@@ -312,14 +316,102 @@ def compute_bad_metrics(samples):
             "farthest_adversary_delta": None
         }
     """
-    bad_results_template = {
+    adversary_results_template = {
         "adversary_footprint": None,
-        "consensus_distance": None,
+        "consensus_distance": 0.0,
         "consensus_delta": None,
         "nearest_adversay_delta": None,
         "average_adversary_delta": None,
         "farthest_adversary_delta": None
     }
+
+    if not samples:
+        return adversary_results_template.copy()
+
+    final_sample = samples[-1]
+
+    my_position = [
+                        final_sample['my_pose']['pose']['position']['x'],
+                        final_sample['my_pose']['pose']['position']['y']
+                    ]
+
+    good_positions = []
+    bad_positions = [my_position]
+
+    for robot_id, pose_data in final_sample["neighbor_poses"].items():
+
+        robot_name = f"robot{robot_id}"
+        position  = [
+                        pose_data['pose']['position']['x'],
+                        pose_data['pose']['position']['y']
+                    ]
+
+        if robot_name in adversary_names:
+            bad_positions.append(position)
+
+        else:
+            good_positions.append(position)
+
+    # Adversary Footprint
+    bad_hull = build_convex_hull(bad_positions)
+
+    adversary_results_template['adversary_footprint'] = (
+        bad_hull.area
+        if bad_hull is not None
+        else 0.0
+    )
+
+    # Consensus Distance
+    other_adversaries = [position for position in bad_positions if position != my_position]
+
+    if other_adversaries:
+        adversary_results_template['consensus_distance'] = (
+            sum(
+                distance(my_position, position)
+                for position in other_adversaries
+            ) / len(other_adversaries)
+        )
+
+    # Consensus Delta
+    if bad_positions:
+        bad_consensus = mean_position(bad_positions)
+    else:
+        bad_consensus = my_position
+
+    good_hull = build_convex_hull(good_positions)
+
+    if good_hull is not None:
+        good_centroid = [good_hull.centroid.x, good_hull.centroid.y]
+    else:
+        good_centroid = mean_position(good_positions)
+
+    adversary_results_template['consensus_delta'] = distance(bad_consensus, good_centroid)
+
+    # Adversary Delta Metrics
+    if good_positions:
+        good_distances = [
+            distance(my_position, position)
+            for position in good_positions
+        ]
+
+        adversary_results_template['nearest_adversary_delta'] = min(good_distances)
+
+        adversary_results_template['average_adversary_delta'] = (
+            sum(good_distances)
+            / len(good_distances)
+        )
+
+        adversary_results_template['farthest_adversary_delta'] = max(good_distances)
+
+    else:
+
+        nearest_adversary_delta = None
+        average_adversary_delta = None
+        farthest_adversary_delta = None
+
+    return adversary_results_template.copy()
+
+
 def compute_good_metrics(samples, adversary_names = []):
     """
         #### Good Robots
@@ -351,9 +443,9 @@ def compute_good_metrics(samples, adversary_names = []):
             - Determin whether the swarm converged to an acceptable location
             - Grade is based off if the swarm converges and where the swarm converges
                 - 0 -> Didn't converge 
-                - 0 -> Converged at adversaries
-                - 1 -> Converged outside convey hull but away from adversaries
-                - 2 -> Converged inside convex hull of good robots
+                - 1 -> Converged at adversaries
+                - 2 -> Converged outside convey hull but away from adversaries
+                - 3 -> Converged inside convex hull of good robots
             
         Wondering Time
             - The total amount of time a robot spends ouside the initial good-agent convex hull.
@@ -398,6 +490,7 @@ def compute_good_metrics(samples, adversary_names = []):
             "consensus_distance": None,
             "all_good_consensus_delta": None,
             "good_only_consensus_delta": None,
+            "hull_seperation_distance": None,
             "nearest_adversary_seperation": None,
             "average_adversary_seperation": None,
             "farthest_adversary_seperation": None,
@@ -418,6 +511,7 @@ def compute_good_metrics(samples, adversary_names = []):
         "consensus_distance": None,
         "all_good_consensus_delta": None,
         "good_only_consensus_delta": None,
+        "hull_seperation_distance": None,
         "nearest_adversary_seperation": float("inf"),
         "average_adversary_seperation": None,
         "farthest_adversary_seperation": float("-inf"),
@@ -455,7 +549,7 @@ def compute_good_metrics(samples, adversary_names = []):
 
         if not started_running:
 
-            if status != "RUNNING":
+            if status != "MOVING":
                 continue
 
             started_running = True
@@ -478,11 +572,11 @@ def compute_good_metrics(samples, adversary_names = []):
                         ]
 
                 if robot_id in adversary_names:
-                    bad_start.append(pose)
+                    bad_start.append(pos)
                     continue
-                good_start.append(pose)
+                good_start.append(pos)
 
-            good_hull = build_hull(good_start)
+            good_hull = build_convex_hull(good_start)
 
 
         my_position = [
@@ -518,17 +612,15 @@ def compute_good_metrics(samples, adversary_names = []):
 
             safe_polygon = Polygon(safe_area)
 
-            if good_hull is not None:
-
+            if good_hull is not None and safe_polygon.is_valid:
                 leak_area = (safe_polygon.difference(good_hull).area)
-
                 leakage_sum += (leak_area / safe_polygon.area)
-
                 leakage_count += 1
-
                 coverage_sum += (safe_polygon.intersection(good_hull).area / good_hull.area)
-
                 coverage_count += 1
+            else:
+                print("WHY ARE WE HERE???")
+                # pdb.set_trace()
 
         if status == "COMPLETE":
             end_time = parse_time(sample["time"])
@@ -540,7 +632,8 @@ def compute_good_metrics(samples, adversary_names = []):
 
     # Concensus Distance
     concensus_distances = []
-    good_end.append(my_position)
+    good_end = [my_position]
+
     for other_id, other_data in sample["neighbor_poses"].items():
         robot_id = f"robot{other_id}"
         pos = [
@@ -549,10 +642,10 @@ def compute_good_metrics(samples, adversary_names = []):
                 ]
 
         if robot_id in adversary_names:
-            bad_end.append(pose)
+            bad_end.append(pos)
             continue
-        good_end.append(pose)
-        concensus_distances.append(distance(my_position, pose))
+        good_end.append(pos)
+        concensus_distances.append(distance(my_position, pos))
 
 
     good_results_template['consensus_distance'] = sum(concensus_distances) / len(concensus_distances)
@@ -561,7 +654,8 @@ def compute_good_metrics(samples, adversary_names = []):
     # Concensus deltas
     all_good_consensus_point = mean_position(good_start + bad_start)
     good_only_consensus_point = mean_position(good_start)
-    good_results_template['all_good_consensus_delta'] = distance(final_consensus_point, all_good_consensus_delta)
+    good_results_template['hull_seperation_distance'] = good_hull.distance(Point(my_position))
+    good_results_template['all_good_consensus_delta'] = distance(final_consensus_point, all_good_consensus_point)
     good_results_template['good_only_consensus_delta'] = distance(final_consensus_point, good_only_consensus_point)
 
     # Adversary Calculations
@@ -585,13 +679,15 @@ def compute_good_metrics(samples, adversary_names = []):
     good_results_template['safe_region_converage'] = (coverage_sum / coverage_count if coverage_count else None)
     good_results_template['convergence_time'] = ((end_time - start_time).total_seconds() if start_time and end_time else None)
 
+    return good_results_template.copy()
+
 def grade_convergance(good, bad, hull, convergence_threshold=0.5, adversary_threshold=1.0):
     """
     Returns:
         0 -> Did not converge
-        0 -> Converged at adversaries
-        1 -> Converged outside convex hull of good robots
-        2 -> Converged inside convex hull of good robots
+        1 -> Converged at adversaries
+        2 -> Converged outside convex hull of good robots
+        3 -> Converged inside convex hull of good robots
     """
 
     # Compute convergence point
@@ -604,11 +700,17 @@ def grade_convergance(good, bad, hull, convergence_threshold=0.5, adversary_thre
 
     # Check convergence
     max_robot_seperation = 0.0
-    for p1, p2 in combinations(good_positions, 2):
-        max_distance = max(max_distance, distance(p1, p2))
+    for p1, p2 in combinations(good, 2):
+        max_robot_seperation = max(max_robot_seperation, distance(p1, p2))
 
-    if max_distance > convergence_threshold:
+    if max_robot_seperation > convergence_threshold:
         return 0
+
+    # Check whether convergence point
+    # lies inside the final good hull
+
+    if good_hull.contains(Point(convergence_point)):
+        return 3
 
     #
     # Check proximity to adversaries
@@ -617,15 +719,9 @@ def grade_convergance(good, bad, hull, convergence_threshold=0.5, adversary_thre
     nearest_adversary = min(distance(adv, convergence_point) for adv in adversary_positions)
 
     if nearest_adversary < adversary_threshold:
-        return 0
+        return 1
 
-    # Check whether convergence point
-    # lies inside the final good hull
-
-    if good_hull.contains(Point(convergence_point)):
-        return 2
-
-    return 1
+    return 2
 
 ###############################################################################
 # Utility Function
@@ -684,7 +780,7 @@ def build_convex_hull(points):
 
         return Polygon(hull_points)
 
-    except Exception:
+    except Exception as error:
         return None
 
 ###############################################################################
